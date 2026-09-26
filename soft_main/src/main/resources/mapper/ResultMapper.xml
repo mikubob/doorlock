@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hnkjzyxy.ab.mapper.ResultMapper">
+
+
+    <select id="checkResultScore" resultType="integer">
+        select sum(re.score) from sys_result re,sys_task ta where re.is_finish = 1
+        and re.p_id = #{pId} and ta.p_id = #{pId}
+        and ta.category = #{category} and re.task_id = ta.id and re.u_id in
+        <foreach collection="uIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        GROUP BY re.u_id
+    </select>
+
+    <!--    <select id="selectListByYear" parameterType="integer" resultType="integer">-->
+    <!--        select sum(score) from sys_result where u_id = #{uId} and is_finish = 1-->
+    <!--        <if test="num != null and num != ''"> and DATE_FORMAT(update_time,'%Y') = #{num}</if>-->
+    <!--    </select>-->
+
+    <select id="getPIdByRadar" resultType="integer">
+        select p_id from sys_result where u_id = #{uId} and is_finish = 1
+        <if test="p_id != null and p_id != ''">and p_id = #{pId}</if>
+        <if test="year!= null and year != ''">and date_format(create_time,'%Y') = #{year}</if>
+    </select>
+
+    <select id="getProjectResult" resultType="integer">
+        select sum(score) from sys_result where p_id = #{pId} and u_id in
+        <foreach collection="uIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        GROUP BY u_id
+    </select>
+
+
+    <select id="getUsersSubTaskScore" resultType="com.hnkjzyxy.ab.vo.SubTaskVo" parameterType="java.lang.String">
+        select a.id, b.title ,b.id as projectId, b.start_time ,b.end_time, d.user_name, d.nick_name
+        ,c.task_name,c.category,c.id as taskId,a.score
+        ,d.user_id, c.score as highScore
+        from sys_result a
+        inner join sys_project b on a.p_id=b.id
+        inner join sys_task c on a.task_id=c.selectTaskByProjectAndTeacher
+        inner join sys_user d on a.u_id=d.user_id
+        <where>
+            <if test="title!=null and title !=''">and b.title =#{title}</if>
+            <if test="taskName!=null and taskName !=''">and c.task_name =#{taskName}</if>
+            <if test="taskCategory!=null and taskCategory !=''">and c.category =#{taskCategory}</if>
+        </where>
+    </select>
+
+
+    <select id="getUsersSubTaskScoreById" resultType="com.hnkjzyxy.ab.vo.SubTaskVo" parameterType="java.lang.String">
+        select a.id, a.evidence ,b.title ,b.id as projectId, b.start_time ,b.end_time, d.user_name, d.nick_name
+        ,c.task_name,c.category,c.id as taskId,a.score
+        ,d.user_id, c.score as highScore
+        from sys_result a
+        inner join sys_project b on a.p_id=b.id
+        inner join sys_task c on a.task_id=c.id
+        inner join sys_user d on a.u_id=d.user_id
+        <where>
+            <if test="projectId!=null and projectId!='' ">and b.id =#{projectId}</if>
+            <if test="taskName!=null and taskName!='' ">and c.task_name =#{taskName}</if>
+            <if test="userId!=null and userId!=''">and a.u_id = #{userId}</if>
+            <if test="taskCategory!=null and taskCategory !=''">and c.category =#{taskCategory}</if>
+            <if test="limitScore!=null ">and a.score &gt;= #{limitScore}</if>
+        </where>
+    </select>
+    <select id="selectScoreByDepartment" resultType="java.lang.Integer">
+
+        select sum(re.score)
+        from sys_role r
+                 left join sys_user_role ur on ur.role_id = r.role_id
+                 left join sys_user u on u.user_id = ur.user_id
+                 left join sys_result re on re.u_id = re.u_id
+                 left join sys_task ta on re.task_id = ta.id
+        where r.role_desc = #{department}
+          and re.p_id = #{pId}
+          and ta.category = #{category}
+        GROUP BY r.role_name
+
+
+    </select>
+    <select id="selectScoreByDepartmentAndCollege" resultType="java.lang.Integer">
+
+        select sum(re.score)
+        from sys_role r
+                 left join sys_user_role ur on ur.role_id = r.role_id
+                 left join sys_user u on u.user_id = ur.user_id
+                 left join sys_result re on re.u_id = re.u_id
+                 left join sys_task ta on re.task_id = ta.id
+          and re.p_id = #{pId}
+          and ta.category = #{category}
+          and re.u_id = #{teacherId}
+        GROUP BY r.role_name
+
+
+    </select>
+
+    <select id="selectScoreByTeacher" resultType="java.lang.Integer">
+        SELECT SUM(re.score)
+        FROM sys_result re
+                 JOIN sys_task ta ON re.task_id = ta.id
+                 JOIN sys_user u ON u.user_id = re.u_id
+                 JOIN sys_user_role ur ON u.user_id = ur.user_id
+                 JOIN sys_role r ON ur.role_id = r.role_id
+        WHERE re.is_finish = 1
+          AND re.p_id = #{pId}
+          AND u.user_id = #{teacher}
+        GROUP BY ta.category
+
+
+    </select>
+
+    <update id="updateBySubTaskName" parameterType="java.util.List">
+
+
+        <foreach collection="list" separator=";" item="item">
+            update sys_result a
+            <set>
+                score=#{item.score}
+                where
+                a.u_id=#{item.userId} and a.p_id=#{item.projectId} and a.task_id=#{item.taskId}
+            </set>
+        </foreach>
+
+    </update>
+<select id="selectTaskByProjectAndTeacher" resultType="java.lang.String">
+    select task_id from sys_result where p_id=#{pId} and u_id=#{teacherId}
+</select>
+
+</mapper>

@@ -1,0 +1,358 @@
+package com.hnkjzyxy.ab.controller;
+
+import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hnkjzyxy.ab.model.CheckResult;
+import com.hnkjzyxy.ab.model.User;
+import com.hnkjzyxy.ab.result.ApiResult;
+import com.hnkjzyxy.ab.service.CheckResultService;
+import com.hnkjzyxy.ab.service.UserService;
+import com.hnkjzyxy.ab.service.utils.ExcelUtils;
+import com.hnkjzyxy.ab.utils.OaRequestAPIUtils;
+import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
+import com.hnkjzyxy.ab.vo.CheckResultDataVo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * 教学巡查管理
+ * 提供教学巡查记录的录入、查询、统计分析与导出接口
+ *
+ * @version 1.0
+ * @author Lucas
+ * @date 2024/4/23 20:19
+ */
+@RestController
+@RequestMapping("/schedule")
+public class ScheduleController {
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private CheckResultService checkResultService;
+
+
+    /**
+     * 查询教学巡查记录列表
+     *
+     * @param resultVo 巡查记录查询条件（可选）
+     * @return 当前用户所属学院的巡查记录列表
+     */
+    @PostMapping("/list")
+    public ApiResult checkResult(@RequestBody(required = false) CheckResult resultVo, Authentication authentication) {
+        User user = userService.getUserByName(authentication.getName());
+
+        if (Objects.isNull(user)) {
+            throw new RuntimeException("用户不能为空！");
+        }
+
+
+        List<CheckResult> vo = checkResultService.getList(resultVo, user);
+        List<CheckResult> voback=new ArrayList<>();
+        for(CheckResult item:vo){
+            if (Objects.equals(item.getCollege(), user.getCollege())){
+                voback.add(item);
+            }
+        }
+
+        return ApiResult.ok("data", voback);
+    }
+
+    /**
+     * 新增或修改巡查记录
+     *
+     * @param resultVo 巡查记录信息
+     * @return 操作结果
+     */
+    @PostMapping
+    //@RepeatSubmit
+    public ApiResult checkResultAddOrEdit(@Valid @RequestBody CheckResult resultVo, Authentication authentication) {
+        User user = userService.getUserByName(authentication.getName());
+        int i = OaRequestAPIUtils.queryHotelDataByToday(resultVo.getClasses());
+        resultVo.setPeopleLeave(i);
+        checkResultService.addOrEdit(resultVo);
+
+        return ApiResult.ok();
+    }
+
+
+    /**
+     * 删除巡查记录
+     *
+     * @param id 巡查记录ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}")
+    public ApiResult checkResultDeleteById(@PathVariable("id") Integer id, Authentication authentication) {
+
+        if (ObjectUtil.isNull(id)) {
+            throw new RuntimeException("id不能为空！");
+        }
+
+
+        checkResultService.removeById(id);
+        return ApiResult.ok();
+    }
+
+
+    /**
+     * 巡查数据统计
+     * 按辅导员所带班级维度统计巡查数据，管理员可查看全部学院
+     *
+     * @param resultVo 统计查询条件
+     * @return 巡查数据统计结果
+     */
+    @GetMapping("/dataStatistics")
+    public ApiResult dataStatistics(CheckResult resultVo, Authentication authentication) {
+        String userName = authentication.getName();
+        // 直接查询数据库，绕过缓存
+        User directUser = userService.getOne(new QueryWrapper<User>().eq("user_name", userName));
+        List<CheckResultDataVo> map = new ArrayList<>();
+        User user = userService.getUserByName(userName);
+        if (Objects.isNull(user)) {
+            throw new RuntimeException("用户不能为空！");
+        }
+
+        if (directUser != null && directUser.getNickName().equals("管理员")) {
+            return ApiResult.ok("data", checkResultService.dataStatistics(resultVo));
+        }
+
+        String college = null;
+        if (directUser != null) {
+            college = directUser.getCollege();
+            //通过时间来查询数据
+
+            for (CheckResultDataVo dataStatistic : checkResultService.dataStatistics(resultVo)) {
+                // 使用空安全比较，避免NullPointerException
+                if (Objects.equals(dataStatistic.getCollege(), college)) {
+                    map.add(dataStatistic);
+                }
+            }
+            return ApiResult.ok("data", map);
+        }
+        return ApiResult.error("用户无学院信息");
+    }
+
+
+    /**
+     * 查询单个班级在指定时间段内的巡查数据
+     *
+     * @param resultVo 查询条件（班级、时间范围）
+     * @return 班级巡查数据明细
+     */
+    @GetMapping("/dataStatistics/classes")
+    public ApiResult dataStatisticsByClasses(CheckResult resultVo, Authentication authentication) {
+        User user = userService.getUserByName(authentication.getName());
+        if (Objects.isNull(user)) {
+            throw new RuntimeException("用户不能为空！");
+        }
+        String userName = user.getUserName();
+        User one = userService.getOne(new QueryWrapper<User>().eq("user_name", userName));
+        if ("管理员".equals(one.getNickName())) {
+            one.setCollege(null);
+            List<CheckResult> map = checkResultService.dataStatisticsByClasses(resultVo, one);
+            return ApiResult.ok("data", map);
+        }
+        List<CheckResult> map = checkResultService.dataStatisticsByClasses(resultVo, one);
+        return ApiResult.ok("data", map);
+    }
+
+
+    /**
+     * 导出巡查数据为 Excel
+     *
+     * @param resultVo 待导出的巡查数据
+     * @param response HTTP 响应流，直接输出 Excel 文件
+     */
+    @PostMapping("/export")
+    public void exportAssess(@RequestBody List<CheckResultDataVo> resultVo, HttpServletResponse response) {
+
+        System.out.println(resultVo);
+        if (ObjectUtil.isEmpty(resultVo)) {
+            throw new RuntimeException("导出结果不能为空！");
+        }
+        ExcelUtils.exportSchedule(resultVo, response);
+    }
+
+
+    /**
+     * 上传巡查数据
+     * 解析 Excel 批量导入教学巡查记录
+     *
+     * @param file 巡查数据 Excel 文件
+     * @return 操作结果
+     */
+    @PostMapping("/upload")
+    //@RepeatSubmit
+    public ApiResult uploadCourse(@RequestParam("file") MultipartFile file, Authentication authentication) {
+        User user = userService.getUserByName(authentication.getName());
+
+        if (Objects.isNull(user)) {
+            throw new RuntimeException("用户不能为空！");
+        }
+
+        try {
+            checkResultService.uploadCheckResult(file);
+        } catch (Exception e) {
+
+            throw new RuntimeException(e.getMessage());
+        }
+
+
+        return ApiResult.ok("上传成功！");
+    }
+
+
+    /**
+     * 教学巡查分析（按科任老师分组）
+     *
+     * @param resultVo 统计查询条件
+     * @return 按科任老师分组的巡查分析数据
+     */
+    @GetMapping("/dataStatisticsByTeacher")
+    public ApiResult teachCheckAnalysis(CheckResult resultVo, Authentication authentication) {
+        User user = userService.getUserByName(authentication.getName());
+        if (Objects.isNull(user)) {
+            throw new RuntimeException("用户不能为空！");
+        }
+        String userName = authentication.getName();
+        User directUser = userService.getOne(new QueryWrapper<User>().eq("user_name", userName));
+        //判断权限
+        if (directUser != null && directUser.getNickName().equals("管理员")) {
+            return ApiResult.ok("data", checkResultService.dataStatistics(resultVo));
+        }
+        if (directUser != null) {
+
+            List<CheckResultByTeacherDataVo> list = new ArrayList<>();
+            for (CheckResultByTeacherDataVo teachCheckAnalysis : checkResultService.teachCheckAnalysis(resultVo)) {
+                String college = teachCheckAnalysis.getCollege();
+                // 使用空安全比较，避免NullPointerException
+                if (Objects.equals(directUser.getCollege(), college)) {
+                    list.add(teachCheckAnalysis);
+                }
+            }
+
+            return ApiResult.ok("data", list);
+        }
+
+        return ApiResult.error("用户无学院信息");
+    }
+
+
+    /**
+     * 按教师维度统计巡查数据
+     *
+     * @param resultVo 统计查询条件
+     * @return 教师维度巡查统计数据
+     */
+    @GetMapping("/dataStatistics/teacher")
+    public ApiResult dataStatisticsByTeacher(CheckResult resultVo, Authentication authentication) {
+        User user = userService.getUserByName(authentication.getName());
+        if (Objects.isNull(user)) {
+            throw new RuntimeException("用户不能为空！");
+        }
+        List<CheckResult> map = checkResultService.dataStatisticsByTeacher(resultVo);
+        return ApiResult.ok("data", map);
+    }
+
+    /**
+     * 导出教师维度巡查数据为 Excel
+     *
+     * @param resultVo 待导出的巡查数据
+     * @param response HTTP 响应流，直接输出 Excel 文件
+     */
+    @PostMapping("/exportByTeacher")
+    public void exportAssessByTeacher(@RequestBody List<CheckResultByTeacherDataVo> resultVo, HttpServletResponse response) {
+
+        if (ObjectUtil.isEmpty(resultVo)) {
+            throw new RuntimeException("导出结果不能为空！");
+        }
+        ExcelUtils.exportScheduleByTeacher(resultVo, response);
+    }
+
+    /**
+     * 调试接口：查看当前用户信息
+     * 临时用于排查用户学院、缓存等数据，正式环境建议移除
+     *
+     * @return 调试结果提示（明细输出到控制台）
+     */
+    @GetMapping("/debug/userInfo")
+    public ApiResult debugUserInfo(Authentication authentication) {
+        String userName = authentication.getName();
+        System.out.println("=== 用户信息调试 ===");
+        System.out.println("Authentication用户名: " + userName);
+
+        // 1. 直接查询数据库
+        User directUser = userService.getOne(new QueryWrapper<User>().eq("user_name", userName));
+        System.out.println("直接数据库查询结果:");
+        System.out.println("  User ID: " + (directUser != null ? directUser.getUserId() : "null"));
+        System.out.println("  User Name: " + (directUser != null ? directUser.getUserName() : "null"));
+        System.out.println("  College: " + (directUser != null ? directUser.getCollege() : "null"));
+
+        // 2. 通过缓存查询
+        User cachedUser = userService.getUserByName(userName);
+        System.out.println("缓存查询结果:");
+        System.out.println("  User ID: " + (cachedUser != null ? cachedUser.getUserId() : "null"));
+        System.out.println("  User Name: " + (cachedUser != null ? cachedUser.getUserName() : "null"));
+        System.out.println("  College: " + (cachedUser != null ? cachedUser.getCollege() : "null"));
+
+        // 3. 比较两个对象是否相同
+        if (directUser != null && cachedUser != null) {
+            System.out.println("对象比较:");
+            System.out.println("  是否同一个对象: " + (directUser == cachedUser));
+            System.out.println("  学院是否相同: " + Objects.equals(directUser.getCollege(), cachedUser.getCollege()));
+        }
+
+        System.out.println("=== 调试结束 ===");
+
+        return ApiResult.ok("调试信息已输出到控制台");
+    }
+
+    /**
+     * 按到岗时间排序巡查记录
+     *
+     * @param order 排序方式（ascending=升序，descending=降序）
+     * @return 排序后的巡查记录列表
+     */
+    @GetMapping("timeSorting")
+    public ApiResult timeSorting(@RequestParam String order/*,@RequestParam String commuteTime*/) {
+        List<CheckResult> checkResult=checkResultService.sortedByTime(order);
+        return ApiResult.ok("data",checkResult);
+    }
+    /**
+     * 按到岗率与日期排序巡查记录
+     *
+     * @param arrivalRate 到岗率排序方式（ascending=升序，descending=降序）
+     * @param date        日期排序方式（ascending=升序，descending=降序）
+     * @return 排序后的巡查记录列表
+     */
+    @GetMapping("commuteSorting")
+    public ApiResult commuteSorting(@RequestParam String arrivalRate,@RequestParam String date) {
+        if ("ascending".equals(arrivalRate)){
+            arrivalRate = arrivalRate.substring(0, 3);
+        }else if ("descending".equals(arrivalRate)){
+            arrivalRate = arrivalRate.substring(0, 4);
+        }
+        if ("ascending".equals(date)){
+            date = date.substring(0, 3);
+        }else if ("descending".equals(date)){
+            date = date.substring(0, 4);
+        }
+        List<CheckResult> checkResult=checkResultService.sortedByCommuteTime(arrivalRate,date);
+        return ApiResult.ok("data",checkResult);
+    }
+
+
+
+
+
+}

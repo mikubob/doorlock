@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hnkjzyxy.ab.mapper.ClassroomMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="ClassroomResultMap" type="com.hnkjzyxy.ab.model.Classroom">
+        <id property="id" column="id"/>
+        <result property="boardSn" column="board_sn"/>
+        <result property="classroomNumber" column="JSH"/>
+        <result property="classroomName" column="SKDD"/>
+        <result property="campusName" column="XQMC"/>
+        <result property="buildingName" column="JZWMC"/>
+        <result property="floor" column="floor"/>
+        <result property="boardSn" column="board_sn"/>
+    </resultMap>
+
+    <!-- 动态条件查询教室列表 -->
+    <select id="getClassroomList" resultMap="ClassroomResultMap">
+        SELECT sc.*, sli.switch_status as switchStatus FROM sys_classroom sc
+            LEFT JOIN sys_lock_info sli on  sli.JSH COLLATE utf8mb4_general_ci = sc.JSH COLLATE utf8mb4_general_ci
+        <where>
+            <if test="floor != null">
+                AND sc.floor = #{floor}
+            </if>
+            <if test="classroomNumber != null and classroomNumber != ''">
+                AND sc.JSH LIKE CONCAT('%', #{classroomNumber}, '%')
+            </if>
+            <if test="classroomName != null and classroomName != ''">
+                AND sc.SKDD LIKE CONCAT('%', #{classroomName}, '%')
+            </if>
+            <if test="campusName != null and campusName != ''">
+                AND sc.XQMC LIKE CONCAT('%', #{campusName}, '%')
+            </if>
+            <if test="buildingName != null and buildingName != ''">
+                AND sc.JZWMC LIKE CONCAT('%', #{buildingName}, '%')
+            </if>
+            <if test="boardSn != null and boardSn != ''">
+                AND sc.board_sn = #{boardSn}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hnkjzyxy.ab.mapper.ProjectMapper">
+
+    <select id="getProjectAssessFlow" resultType="com.hnkjzyxy.ab.model.FlowTask">
+        select ta.u_id as uId,ta.role_id as roleId,po.id as projectId from sys_project as po,sys_flow as
+        fo,sys_flow_task as ta
+        where po.status != 3 and fo.status = 1 and ta.status = 1
+        <if test="pId != null and pId != ''">and po.id = #{pId}</if>
+        <if test="startTime != null">and po.start_time &lt;= #{startTime}</if>
+        <if test="endTime != null">and po.end_time >= #{endTime}</if>
+        and po.id = fo.p_id and fo.id = ta.parent_id and ta.type = 'CC'
+    </select>
+
+    <select id="getProjectByTime" resultType="com.hnkjzyxy.ab.model.Project">
+        select start_time as startTime,end_time as endTime from sys_project where id = #{pId}
+        <if test="startTime != null">and start_time &lt;= #{startTime}</if>
+        <if test="endTime != null">and end_time >= #{endTime}</if>
+    </select>
+
+    <select id="getRadarProjects" resultType="com.hnkjzyxy.ab.model.FlowTask">
+        select ta.u_id as uId, ta.role_id as roleId, po.id as projectId
+        from sys_project as po,
+             sys_flow as fo,
+             sys_flow_task as ta
+        where po.status != 3 and po.id = #{pId}
+          and fo.status = 1
+          and ta.status = 1
+          and po.id = fo.p_id
+          and fo.id = ta.parent_id
+          and ta.type = 'CC'
+    </select>
+
+    <select id="getColumnarProjects" resultType="com.hnkjzyxy.ab.model.FlowTask">
+        select ta.u_id as uId,ta.role_id as roleId,po.id as projectId,po.title as projectName from sys_project as
+        po,sys_flow as fo,sys_flow_task as ta
+        where po.status != 3 and fo.status = 1 and ta.status = 1
+        <if test="pId != null and pId != ''">and po.id = #{pId}</if>
+        and po.id = fo.p_id and fo.id = ta.parent_id and ta.type = 'CC'
+        <if test="year != null">and date_format(po.start_time,'%Y') = #{year}</if>
+    </select>
+
+    <select id="getProjectAndCollegeByYear" resultType="com.hnkjzyxy.ab.model.Project">
+        select id,title from sys_project where date_format(start_time,'%Y') = #{year} and status = 1
+        <if test="pIds !=null and !pIds.isEmpty()">
+            and id in
+            <foreach collection="pIds" item="pId" open="(" close=")" separator=",">
+                #{pId}
+            </foreach>
+        </if>
+        <if test="college!=null and college.isEmpty()">
+            and college = #{college}
+        </if>
+    </select>
+    <select id="getProjectByYear" resultType="com.hnkjzyxy.ab.model.Project">
+        select id,title from sys_project where date_format(start_time,'%Y') = #{year} and status = 1
+        <if test="pIds !=null and !pIds.isEmpty()">
+            and id in
+            <foreach collection="pIds" item="pId" open="(" close=")" separator=",">
+                #{pId}
+            </foreach>
+        </if>
+
+    </select>
+
+    <select id="getYearByProject" resultType="string">
+        select distinct year(start_time) as years from sys_project where status = 1
+        <if test="pIds !=null and !pIds.isEmpty()">
+            and id in
+            <foreach collection="pIds" item="pId" open="(" close=")" separator=",">
+                #{pId}
+            </foreach>
+        </if>
+        order by years desc
+    </select>
+    <select id="getProjectItemById" resultType="com.hnkjzyxy.ab.vo.ProjectItemVo">
+        select one.pname as 'category',one.project_id,
+               one.id as 'parentId',two.id,
+               two.pname,
+               two.standard,
+               two.score,
+               two.is_file,
+               two.is_extend,
+               two.remark
+        from sys_project_item one
+                 left join
+             sys_project_item two on one.id = two.parent_id
+        where one.project_id = #{projectId}
+          and one.parent_id = 0
+        ORDER BY one.order_by, two.order_by
+    </select>
+
+</mapper>

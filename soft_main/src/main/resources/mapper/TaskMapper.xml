@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hnkjzyxy.ab.mapper.TaskMapper">
+
+    <select id="selectGroupMetrics" resultType="com.hnkjzyxy.ab.dto.TaskDto">
+        select category, sum(score) as score
+        from sys_task
+        where p_id = #{pId}
+        GROUP BY category
+    </select>
+    <select id="selectTeachGroupMetrics" resultType="com.hnkjzyxy.ab.dto.TaskDto">
+        select category, sum(score) as score
+        from sys_task
+        where p_id = #{pId} and id in
+        <foreach item="item" index="index" collection="taskId" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        GROUP BY category
+    </select>
+</mapper>

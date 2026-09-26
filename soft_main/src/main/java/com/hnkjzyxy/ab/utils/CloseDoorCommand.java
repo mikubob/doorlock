@@ -1,0 +1,76 @@
+package com.hnkjzyxy.ab.utils;
+
+import Door.Access.Command.CommandDetail;
+import Door.Access.Command.INCommand;
+import Door.Access.Command.INCommandResult;
+import Door.Access.Connector.ConnectorEvent;
+import Door.Access.Door8800.Command.Door.CloseDoor;
+import Door.Access.Door8800.Command.Door.Parameter.RemoteDoor_Parameter;
+
+public class CloseDoorCommand {
+    CommandDetail cmdDtl;
+
+    /**
+     * 开门指令类
+     */
+    public CloseDoorCommand(CommandDetail detail) {
+        cmdDtl = detail;
+        /**
+         * 创建命令监听
+         */
+        cmdDtl.Event = getConnectorEvent();
+    }
+
+    /**
+     * 开门指令
+     */
+    public void execute(String Channel) {
+
+
+        /**
+         * 命令参数对象
+         */
+
+        RemoteDoor_Parameter parameter = new RemoteDoor_Parameter(cmdDtl);
+        /**
+         * 设置门禁控制器1-4门是否执行开门指令，1表示执行
+         */
+        parameter.Door.SetDoor(Integer.parseInt(Channel), 1);
+//        parameter.Door.SetDoor(2, 1);
+//        parameter.Door.SetDoor(3, 1);
+//        parameter.Door.SetDoor(4, 1);
+        /**
+         * 创建命令对象
+         */
+        CloseDoor cmd = new CloseDoor(parameter);
+        /**
+         * 将需要执行的命令添加到队列，由分配器来执行
+         */
+        CommandAllocator.addCommand(cmd);
+    }
+
+    private ConnectorEvent getConnectorEvent() {
+        return new ConnectorEvent() {
+            /**
+             * 命令成功
+             * @param cmd
+             * @param result
+             */
+            @Override
+            public void CommandCompleteEvent(INCommand cmd, INCommandResult result) {
+                CommandDetail cmdDtl = cmd.getCommandParameter().getCommandDetail();
+                cmdDtl.Identity.GetIdentity();
+                System.out.println(cmdDtl.Identity.GetIdentity() + ":远程关门成功");
+            }
+
+            /**
+             * 命令超时
+             * @param cmd
+             */
+            @Override
+            public void CommandTimeout(INCommand cmd) {
+                System.out.println("远程关门命令超时");
+            }
+        };
+    }
+}

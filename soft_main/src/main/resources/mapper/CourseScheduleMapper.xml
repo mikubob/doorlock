@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hnkjzyxy.ab.mapper.CourseScheduleMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CourseScheduleResultMap" type="com.hnkjzyxy.ab.model.CourseSchedule">
+        <id property="id" column="id"/>
+        <result property="courseName" column="KCMC"/>
+        <result property="academicYear" column="KKXND"/>
+        <result property="semester" column="KKXQM"/>
+        <result property="week" column="ZC"/>
+        <result property="dayOfWeek" column="XQJ"/>
+        <result property="classPeriod" column="SKJC"/>
+        <result property="classroomNumber" column="JSH"/>
+        <result property="teachingLocation" column="SKDD"/>
+        <result property="campus" column="XQ"/>
+        <result property="buildingName" column="JZWMC"/>
+        <result property="teacherId" column="JGH"/>
+        <result property="teacherName" column="JSXM"/>
+        <result property="departmentName" column="SZDWMC"/>
+        <result property="className" column="BJMC"/>
+        <result property="counselorName" column="FDYXM"/>
+        <result property="classSize" column="JXBRS"/>
+        <result property="leaveCount" column="QJRS"/>
+        <result property="hasLeave" column="SFYQJRS"/>
+        <result property="classDate" column="SKRQ"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <!-- 动态条件查询课程列表 -->
+    <select id="selectListByCondition" resultMap="CourseScheduleResultMap">
+        SELECT scs.*, sc.floor FROM sys_course_schedule scs
+        LEFT JOIN sys_classroom sc ON scs.JSH COLLATE utf8mb4_general_ci = sc.JSH COLLATE utf8mb4_general_ci
+        <where>
+            <if test="courseName != null and courseName != ''">
+                AND scs.KCMC = #{courseName}
+            </if>
+            <if test="academicYear != null and academicYear != ''">
+                AND scs.KKXND = #{academicYear}
+            </if>
+            <if test="semester != null and semester != ''">
+                AND scs.KKXQM = #{semester}
+            </if>
+            <if test="className != null and className != ''">
+                AND scs.BJMC = #{className}
+            </if>
+            <if test="teacherName != null and teacherName != ''">
+                AND scs.JSXM = #{teacherName}
+            </if>
+            <if test="classDate != null and classDate != ''">
+                AND scs.SKRQ = #{classDate}
+            </if>
+            <if test="teachingLocation != null and teachingLocation != ''">
+                AND scs.SKDD LIKE CONCAT('%', #{teachingLocation}, '%')
+            </if>
+            <if test="week != null and week != ''">
+                AND scs.ZC = #{week}
+            </if>
+            <if test="dayOfWeek != null and dayOfWeek != ''">
+                AND scs.XQJ = #{dayOfWeek}
+            </if>
+            <if test="campus != null and campus != ''">
+                AND scs.XQ = #{campus}
+            </if>
+            <if test="departmentName != null and departmentName != ''">
+                AND scs.SZDWMC = #{departmentName}
+            </if>
+            <if test="floor != null">
+                AND sc.floor = #{floor}
+            </if>
+            <if test="boardSn != null and boardSn != ''">
+                AND sc.board_sn=#{boardSn}
+            </if>
+        </where>
+        ORDER BY scs.KKXND DESC, scs.KKXQM DESC, scs.SKRQ ASC
+    </select>
+
+</mapper>

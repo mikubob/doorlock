@@ -1,0 +1,97 @@
+server:
+  port: 9696
+  servlet:
+    context-path: /api
+spring:
+  mvc:
+    date-format: yyyy-MM-dd HH:mm:ss
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  datasource: #需要允许大批量的修改 172.17.0.3
+    url: jdbc:mysql://127.0.0.1:3306/soft_manage?useSSL=false&characterEncoding=utf-8&zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=GMT%2B8&allowMultiQueries=true&rewriteBatchedStatements=true
+    username: root
+    password: 2313147023
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  application:
+    name: soft_manage
+  redis:
+    port: 6379
+    #    host: 172.31.216.173
+    host: redis # 这里host的地址是redis容器的名称
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      use-key-prefix: true
+      cache-null-values: true #是否缓存空值 防止缓存穿透
+  servlet:
+    multipart:
+      max-request-size: 50MB
+      max-file-size: 50MB
+      enabled: true
+mybatis-plus:
+  global-config:
+    banner: false
+    db-config:
+      table-prefix: sys_
+      id-type: auto
+      table-underline: true
+      logic-delete-field: status
+      logic-delete-value: 0
+      logic-not-delete-value: 1
+  configuration:
+    map-underscore-to-camel-case: true
+#    cache-enabled: true
+  mapper-locations: classpath:mapper/*.xml
+logging:
+  level:
+    com.hnkjzyxy.ab: debug
+absolute:
+  jwt:
+    expire: 604800
+    header: Authorization
+    secret: wohenhaonizenmeyangneyaojidekaixinwo
+    suffix: absolute
+image:
+  width: 100
+  height: 50
+
+yue:
+  url:
+    - "/login"
+    - "/favicon.ico"
+    - "/captcha"
+    - "/api/captcha"
+    - "/pic/file/**"
+    - "/api/pic/file/**"
+    - "/pdf/file/**"
+    - "/api/pdf/file/**"
+    - "/pdf/conFile/**"
+    - "/api/pdf/conFile/**"
+    - "/downloadZipPdf"
+    - "/api/downloadZipPdf"
+
+
+# windows上的内容
+#upload:
+#  imgUrl: D:\uploadImg\
+#  fileUrl: D:\uploadFile\
+#  conFileUrl: D:\uploadConFile\
+#download:
+#  fileUrl: D:\downloadFile\test.xlsx
+
+ # /usr/local/application/evaluation/image
+
+
+# 服务器上的内容
+# 因为/usr 需要的是管理员的权限，所以这里的路径需要修改为自己的路径
+# 这里是测试环境
+upload:
+  imgUrl: /application/evaluation/image/
+  fileUrl: /application/evaluation/file/
+  conFileUrl: /application/evaluation/conFile/
+download:
+  fileUrl: /application/evaluation/xlsx/test.xlsx
+

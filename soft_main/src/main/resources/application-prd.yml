@@ -1,0 +1,94 @@
+server:
+  port: 9696
+  servlet:
+    context-path: /api
+spring:
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  datasource: #需要允许大批量的修改 172.17.0.3
+    url: jdbc:mysql://10.255.12.53/soft_manage?useSSL=false&characterEncoding=utf-8&zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=GMT%2B8
+    username: root
+    password: Rjxy@2026
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  application:
+    name: soft_manage
+  redis:
+    port: 6379
+    password: 123456
+#    host: 172.31.216.173
+    host: 127.0.0.1
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      use-key-prefix: true
+      cache-null-values: true #是否缓存空值 防止缓存穿透
+  servlet:
+    multipart:
+      max-file-size: 50MB
+mybatis-plus:
+  global-config:
+    banner: false
+    db-config:
+      table-prefix: sys_
+      id-type: auto
+      table-underline: true
+      logic-delete-value: 0
+      logic-not-delete-value: 1
+  configuration:
+    map-underscore-to-camel-case: true
+#    cache-enabled: true
+  mapper-locations: classpath:mapper/*.xml
+logging:
+  level:
+    com.hnkjzyxy.ab: debug
+absolute:
+  jwt:
+    expire: 604800
+    header: Authorization
+    secret: wohenhaonizenmeyangneyaojidekaixinwo
+    suffix: absolute
+image:
+  width: 100
+  height: 50
+
+yue:
+  url:
+    - "/login"
+    - "/favicon.ico"
+    - "/captcha"
+    - "/api/captcha"
+    - "/pic/file/**"
+    - "/api/pic/file/**"
+    - "/pdf/file/**"
+    - "/api/pdf/file/**"
+    - "/pdf/conFile/**"
+    - "/api/pdf/conFile/**"
+    - "/downloadZipPdf"
+    - "/api/downloadZipPdf"
+    - "/courseSchedule/**"
+    - "/api/courseSchedule/**"
+    - "/lock/login"  # 开锁密码登录接口
+    - "/api/lock/login"  # 开锁密码登录接口(带api前缀)
+    - "/api/classroom/list"
+    - "/classroom/list"
+    - "/api/exam/**"
+    - "/exam/**"
+#upload:
+#  imgUrl: D:\uploadImg\
+#  fileUrl: D:\uploadFile\
+#  conFileUrl: D:\uploadConFile\
+#download:
+#  fileUrl: D:\downloadFile\test.xlsx
+
+#  /usr/local/application/evaluation/image
+
+upload:
+  imgUrl: /opt/application/evaluation/image/
+  fileUrl: /opt/application/evaluation/file/
+  conFileUrl: /opt/application/evaluation/conFile/
+download:
+  fileUrl: /opt/application/evaluation/xlsx/test.xlsx
+

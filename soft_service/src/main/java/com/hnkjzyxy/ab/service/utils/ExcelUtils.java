@@ -1,0 +1,254 @@
+package com.hnkjzyxy.ab.service.utils;
+
+import com.alibaba.excel.EasyExcel;
+import com.hnkjzyxy.ab.service.*;
+import com.hnkjzyxy.ab.service.listener.*;
+import com.hnkjzyxy.ab.utils.SnowFlowUtils;
+import com.hnkjzyxy.ab.vo.AssessVo;
+import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
+import com.hnkjzyxy.ab.vo.CheckResultDataVo;
+import com.hnkjzyxy.ab.vo.StudentInfoVo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.List;
+
+/**
+ * @version 1.0
+ * @email: 1670203784@qq.com
+ * @author: Spell a
+ * @date: 2024-01-04 21:07
+ */
+@Component
+public class ExcelUtils {
+
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private PasswordEncoder bCryptPasswordEncoder;
+    @Autowired
+    private UserRoleService userRoleService;
+    @Autowired
+    private TaskService taskService;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    @Autowired
+    private SnowFlowUtils snowFlowUtils;
+
+    @Autowired
+    private CheckResultService checkResultService;
+
+    @Autowired
+    private StudentInfoService studentInfoService;
+
+    @Autowired
+    private CourseService courseService;
+
+    public static void exportAssess(List<AssessVo> assessVos, HttpServletResponse response) {
+        try {
+            //HttpServletResponse消息头参数设置
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Transfer-Encoding", "binary");
+            response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+            response.setHeader("Pragma", "public");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8");
+            String fileName = "考核结果导出" + ".xlsx";
+            fileName = new String(fileName.getBytes(), "ISO-8859-1");
+            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+            EasyExcel.write(response.getOutputStream(), AssessVo.class)
+                    .autoCloseStream(Boolean.FALSE)
+                    .sheet("导出列表")
+                    .doWrite(assessVos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 导出查询统计结果
+     *
+     * @param assessVos 班级维度统计结果
+     * @param response  HTTP 响应
+     */
+    public static void exportSchedule(List<CheckResultDataVo> assessVos, HttpServletResponse response) {
+        try {
+            //HttpServletResponse消息头参数设置
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Transfer-Encoding", "binary");
+            response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+            response.setHeader("Pragma", "public");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8");
+            String fileName = "教学查询统计结果导出" + ".xlsx";
+            fileName = new String(fileName.getBytes(), "ISO-8859-1");
+            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+            EasyExcel.write(response.getOutputStream(), CheckResultDataVo.class)
+                    .autoCloseStream(Boolean.FALSE)
+                    .sheet("导出列表")
+                    .doWrite(assessVos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 导出教师版教学查询分析
+     *
+     * @param assessVos 教师维度统计结果
+     * @param response  HTTP 响应
+     */
+    public static void exportScheduleByTeacher(List<CheckResultByTeacherDataVo> assessVos, HttpServletResponse response) {
+        try {
+            //HttpServletResponse消息头参数设置
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Transfer-Encoding", "binary");
+            response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+            response.setHeader("Pragma", "public");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8");
+            String fileName = "教学查询统计结果导出(教师版).xlsx";
+            fileName = new String(fileName.getBytes(), "ISO-8859-1");
+            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+            EasyExcel.write(response.getOutputStream(), CheckResultByTeacherDataVo.class)
+                    .autoCloseStream(Boolean.FALSE)
+                    .sheet("导出列表")
+                    .doWrite(assessVos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void exportStudentInfo(List<StudentInfoVo> assessVos, HttpServletResponse response) {
+        try {
+            // HttpServletResponse消息头参数设置
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Transfer-Encoding", "binary");
+            response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+            response.setHeader("Pragma", "public");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8");
+
+            String fileName = "学生录取结果导出.xlsx";
+            fileName = URLEncoder.encode(fileName, "UTF-8");
+            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+
+            // 使用EasyExcel进行导出
+            EasyExcel.write(response.getOutputStream(), StudentInfoVo.class)
+                    .autoCloseStream(Boolean.FALSE)
+                    .sheet("导出列表")
+                    .doWrite(assessVos);
+
+            // 刷新输出流
+            response.getOutputStream().flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("导出Excel文件时发生异常: " + e.getMessage());
+        } finally {
+            try {
+                response.getOutputStream().close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 读取考核任务模板
+     *
+     * @param file      上传的 Excel 文件
+     * @param projectId 项目ID
+     * @throws Exception 解析异常
+     */
+    public void readTaskExcel(MultipartFile file, Integer projectId) throws Exception {
+        String filename = file.getOriginalFilename();
+        if (file.isEmpty()) {
+            throw new RuntimeException("文件不能为空！");
+        }
+        if (!filename.endsWith("xls") && !filename.endsWith("xlsx")) {
+            throw new RuntimeException("上传文件的类型必须是xls或者xlsx!");
+        }
+        long size = file.getSize();
+        double length = size / 1048576;
+        if (length > 100) {
+            throw new RuntimeException("上传的文件大小不能超过100MB!");
+        }
+        EasyExcel.read(file.getInputStream(), TaskModel.class, new TaskDataListener(taskService, projectId, snowFlowUtils)).doReadAll();
+    }
+
+    /**
+     * 读取学期课程表模板
+     *
+     * @param file
+     * @throws Exception
+     */
+    public void readCourseExcel(MultipartFile file) throws Exception {
+        String filename = file.getOriginalFilename();
+        if (file.isEmpty()) {
+            throw new RuntimeException("文件不能为空！");
+        }
+        if (!filename.endsWith("xls") && !filename.endsWith("xlsx")) {
+            throw new RuntimeException("上传文件的类型必须是xls或者xlsx!");
+        }
+        long size = file.getSize();
+        double length = size / 1048576;
+        if (length > 100) {
+            throw new RuntimeException("上传的文件大小不能超过100MB!");
+        }
+        EasyExcel.read(file.getInputStream(), CourseModel.class, new CourseDataListener(courseService, snowFlowUtils)).doReadAll();
+    }
+
+    public void readScheduleExcel(MultipartFile file) throws Exception {
+        String filename = file.getOriginalFilename();
+        if (file.isEmpty()) {
+            throw new RuntimeException("文件不能为空！");
+        }
+        if (!filename.endsWith("xls") && !filename.endsWith("xlsx")) {
+            throw new RuntimeException("上传文件的类型必须是xls或者xlsx!");
+        }
+        long size = file.getSize();
+        double length = size / 1048576;
+        if (length > 100) {
+            throw new RuntimeException("上传的文件大小不能超过100MB!");
+        }
+        //读取第二个sheet页
+        EasyExcel.read(file.getInputStream(), CheckResultModel.class, new CheckResultDataListener(checkResultService, snowFlowUtils)).doReadAll();
+    }
+
+
+    public void readUserExcel(String path) {
+        try {
+            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+                @Override
+                protected void doInTransactionWithoutResult(TransactionStatus status) {
+                    EasyExcel.read(path, UserModel.class, new UserDataListener(userService, bCryptPasswordEncoder, userRoleService)).doReadAll();
+                }
+            });
+        } catch (Exception e) {
+            // Transaction will be automatically rolled back due to exception
+            throw e;
+        }
+    }
+
+    public void readStudentInfoExcel(MultipartFile file) throws IOException {
+        String filename = file.getOriginalFilename();
+        if (file.isEmpty()) {
+            throw new RuntimeException("文件不能为空！");
+        }
+        if (!filename.endsWith("xls") && !filename.endsWith("xlsx")) {
+            throw new RuntimeException("上传文件的类型必须是xls或者xlsx!");
+        }
+        long size = file.getSize();
+        double length = size / 1048576;
+        if (length > 100) {
+            throw new RuntimeException("上传的文件大小不能超过100MB!");
+        }
+        //读取第二个sheet页
+        EasyExcel.read(file.getInputStream(), StudentInfoModel.class, new StudentInfoDataListener(studentInfoService, snowFlowUtils)).doReadAll();
+
+    }
+}

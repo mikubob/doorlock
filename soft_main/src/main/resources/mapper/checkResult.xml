@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hnkjzyxy.ab.mapper.CheckResultMapper">
+
+
+    <select id="selectListByClasses" resultType="com.hnkjzyxy.ab.model.CheckResult">
+        SELECT * FROM sys_check_result
+        <where>
+            <if test="classes!= null and classes!= ''">
+                AND classes = #{classes}
+            </if>
+            <if test="startTime!= null and startTime!= ''">
+                AND `date` &gt;= #{startTime}
+            </if>
+            <if test="endTime!= null and endTime!= ''">
+                AND `date` &lt;= #{endTime}
+            </if>
+            <if test="college!= null and college!= ''">
+                AND `college` = #{college}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectListByTeacher" resultType="com.hnkjzyxy.ab.model.CheckResult">
+        SELECT * FROM sys_check_result
+        <where>
+            <if test="teacher!= null and teacher!= ''">
+                AND teacher = #{teacher}
+            </if>
+            <if test="startTime!= null and startTime!= ''">
+                AND `date` &gt;= #{startTime}
+            </if>
+            <if test="endTime!= null and endTime!= ''">
+                AND `date` &lt;= #{endTime}
+            </if>
+        </where>
+    </select>
+
+
+</mapper>
