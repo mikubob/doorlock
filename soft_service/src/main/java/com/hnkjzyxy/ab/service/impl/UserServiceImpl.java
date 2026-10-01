@@ -2,6 +2,7 @@ package com.hnkjzyxy.ab.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.mapper.UserMapper;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -111,6 +113,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public List<User> getUserByCollege(String college) {
         return  userMapper.getUserByCollege(college);
+    }
+
+    @Override
+    public boolean updateLastLogin(Integer userId, Date lastLogin) {
+        if (userId == null || lastLogin == null) {
+            return false;
+        }
+        // 只更新 last_login 一列，避免用缓存中的旧快照覆盖他人刚改动的资料
+        return this.update(new LambdaUpdateWrapper<User>()
+                .set(User::getLastLogin, lastLogin)
+                .eq(User::getUserId, userId));
     }
 
 

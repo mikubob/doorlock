@@ -1,16 +1,24 @@
 package com.hnkjzyxy.ab.model;
 
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
  * 开关记录实体类
- * 对应数据库中的开关记录表
+ * 对应数据库表 sys_operation_log（记录智能锁开关操作历史日志）
  */
-public class SwitchRecord {
+@TableName("sys_operation_log")
+public class SwitchRecord implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /**
      * 开关记录唯一标识符（自增主键）
      */
+    @TableId("switch_id")
     private Integer switchId;
 
     /**
@@ -125,5 +133,22 @@ public class SwitchRecord {
                 ", operationMethod=" + operationMethod +
                 ", operationTime=" + operationTime +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof SwitchRecord)) {
+            return false;
+        }
+        SwitchRecord that = (SwitchRecord) o;
+        return switchId != null && switchId.equals(that.switchId);
+    }
+
+    @Override
+    public int hashCode() {
+        return switchId == null ? 0 : switchId.hashCode();
     }
 }

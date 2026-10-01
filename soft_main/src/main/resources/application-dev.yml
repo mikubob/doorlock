@@ -41,7 +41,18 @@ mybatis-plus:
       table-prefix: sys_
       id-type: auto
       table-underline: true
-      logic-delete-field: status
+      # 【重要】以下两行是「逻辑删除值」的全局配置，仅在实体字段标注了 @TableLogic 时生效。
+      #
+      # 本项目 MyBatis-Plus 版本为 3.2.0，其 GlobalConfig.DbConfig **没有 logicDeleteField 属性**，
+      # 因此不要在这里写 `logic-delete-field: xxx` —— 写了也不会被绑定，属于「死配置」，只会误导后来人。
+      # 已实测确认：不标 @TableLogic 的实体（Exam/Message/Project/User/CheckResult 等）
+      # 其 TableInfo.isLogicDelete() 均为 false，即 status 字段不会被当作删除标记。
+      #
+      # 逻辑删除的正确做法：在需要逻辑删除的实体字段上显式标注 @TableLogic
+      # （现有：Notice.status / Menu.status / Role.roleStatus / StudentInfo.delFlag /
+      #   FlowTask.status / ConstructResult.status / ResultItem.status / MajorDetails）。
+      # 业务状态字段（如 Exam.status=考试进度、Message.status=已读未读、User.status=启用禁用）
+      # **不要**加 @TableLogic。
       logic-delete-value: 0
       logic-not-delete-value: 1
   configuration:

@@ -83,7 +83,12 @@ public class User implements Serializable {
     private Date lastLogin;
 
     /**
-     * 状态
+     * 状态（1=启用，0=禁用）
+     * <p>
+     * 注意：这里是**业务状态**，不是逻辑删除标记，因此**不要**加 {@code @TableLogic}。
+     * 本项目 MyBatis-Plus 版本为 3.2.0，其 {@code GlobalConfig.DbConfig} 没有
+     * {@code logicDeleteField} 属性，yml 里的 {@code logic-delete-field} 实际不生效，
+     * 逻辑删除只认实体上显式标注的 {@code @TableLogic}。
      */
     private Integer status;
 

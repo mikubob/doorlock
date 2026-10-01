@@ -30,13 +30,14 @@ public class UserDetailsImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        System.out.println(username);
         User user = userService.getOne(new QueryWrapper<User>().eq("user_name", username));
         if (ObjectUtil.isNull(user)) {
             throw new UsernameNotFoundException("用户名或密码错误");
         }
-        user.setLastLogin(new Date());
-        userService.updateById(user);
+        // 只更新 last_login 单列：
+        // 1) 避免用缓存中的旧快照全字段覆盖（并发下可能冲掉他人刚改的昵称/手机号）；
+        // 2) User 实体没有 updateTime 字段，updateById 会走全字段更新且无实际意义。
+        userService.updateLastLogin(user.getUserId(), new Date());
         //(用户ID，用户名，密码，权限信息)
         return new AccountUser(user.getUserId(), user.getUserName(), user.getPassword(), getUserAuthority(user.getUserId()));
     }

@@ -7,6 +7,11 @@ import org.apache.ibatis.annotations.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 智能锁开关操作记录 Mapper
+ * 对应数据库表 sys_operation_log，主键列名为 switch_id
+ */
+
 @Mapper
 public interface SwitchRecordMapper {
 
@@ -90,11 +95,13 @@ public interface SwitchRecordMapper {
 
     /**
      * 根据用户ID查询开关记录
+     * <p>
+     * 注意：sys_operation_log.user_id 在库中是 text 类型，显式按字符串比较。
      *
      * @param userId 用户ID
      * @return 开关记录列表
      */
-    @Select("SELECT * FROM sys_operation_log WHERE user_id = #{userId}")
+    @Select("SELECT * FROM sys_operation_log WHERE user_id = CAST(#{userId} AS CHAR)")
     @Results({
             @Result(property = "switchId", column = "switch_id"),
             @Result(property = "lockId", column = "lock_id"),
@@ -133,10 +140,13 @@ public interface SwitchRecordMapper {
 
     /**
      * 统计某个用户的操作次数
+     * <p>
+     * 注意：sys_operation_log.user_id 在库中是 text 类型，直接与整型参数比较会走隐式转换，
+     * 这里显式按字符串比较，避免无法命中索引。
      *
      * @param userId 用户ID
      * @return 操作次数
      */
-    @Select("SELECT COUNT(*) FROM sys_operation_log WHERE user_id = #{userId}")
+    @Select("SELECT COUNT(*) FROM sys_operation_log WHERE user_id = CAST(#{userId} AS CHAR)")
     int countByUserId(Integer userId);
 }

@@ -35,6 +35,8 @@ mybatis-plus:
       table-prefix: sys_
       id-type: auto
       table-underline: true
+      # 说明同 application-dev.yml：MyBatis-Plus 3.2.0 不支持 logic-delete-field（写了会被静默忽略），
+      # 逻辑删除只认实体字段上的 @TableLogic。此处仅保留两个「值」的全局配置。
       logic-delete-value: 0
       logic-not-delete-value: 1
   configuration:
