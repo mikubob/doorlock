@@ -2,13 +2,13 @@ package com.hnkjzyxy.ab.controller;
 
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hnkjzyxy.ab.client.OaApiClient;
 import com.hnkjzyxy.ab.model.CheckResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CheckResultService;
 import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.service.utils.ExcelUtils;
-import com.hnkjzyxy.ab.utils.OaRequestAPIUtils;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +39,9 @@ public class ScheduleController {
 
     @Autowired
     private CheckResultService checkResultService;
+
+    @Autowired
+    private OaApiClient oaApiClient;
 
 
     /**
@@ -77,7 +80,7 @@ public class ScheduleController {
     //@RepeatSubmit
     public ApiResult checkResultAddOrEdit(@Valid @RequestBody CheckResult resultVo, Authentication authentication) {
         User user = userService.getUserByName(authentication.getName());
-        int i = OaRequestAPIUtils.queryHotelDataByToday(resultVo.getClasses());
+        int i = oaApiClient.queryHotelDataByToday(resultVo.getClasses());
         resultVo.setPeopleLeave(i);
         checkResultService.addOrEdit(resultVo);
 

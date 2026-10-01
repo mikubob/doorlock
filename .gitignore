@@ -30,3 +30,8 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+# 本地凭据覆盖文件（T-02）：可能承载 OA 等外部系统凭据，禁止提交
+application-local.yml
+application-local-*.yml
+*.local.yml

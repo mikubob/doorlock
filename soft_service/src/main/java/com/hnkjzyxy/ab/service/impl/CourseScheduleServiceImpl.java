@@ -3,6 +3,7 @@ package com.hnkjzyxy.ab.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hnkjzyxy.ab.client.OaApiClient;
 import com.hnkjzyxy.ab.config.ScheduleSyncProperties;
 import com.hnkjzyxy.ab.mapper.CourseScheduleMapper;
 import com.hnkjzyxy.ab.model.CourseSchedule;
@@ -22,8 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static com.hnkjzyxy.ab.utils.OaRequestAPIUtils.getClassBoardData;
 
 
 /**
@@ -61,6 +60,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     private final RedisLockUtils redisLockUtils;
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final OaApiClient oaApiClient;
 
     /**
      * 进程内兜底锁：即使 Redis 不可用，也保证单个实例内的同步串行执行
@@ -71,13 +71,15 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                                      ScheduleSyncProperties syncProperties,
                                      RedisLockUtils redisLockUtils,
                                      StringRedisTemplate stringRedisTemplate,
-                                     PlatformTransactionManager transactionManager) {
+                                     PlatformTransactionManager transactionManager,
+                                     OaApiClient oaApiClient) {
         this.courseScheduleMapper = courseScheduleMapper;
         this.syncProperties = syncProperties;
         this.redisLockUtils = redisLockUtils;
         this.stringRedisTemplate = stringRedisTemplate;
         // 显式使用 TransactionTemplate，避免同类方法自调用导致 @Transactional 失效
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.oaApiClient = oaApiClient;
     }
 
     @Override
@@ -191,11 +193,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         result.setExecuted(true);
 
         try {
-            // ========== 1. 拉取数据（失败直接抛出，绝不触碰正式表） ==========
+            // ========== 1. 拉取数据（失败会抛 OaApiException，绝不触碰正式表） ==========
             log.info("[课表同步][{}] 开始，正在拉取 OA 班牌数据…", source);
-            String dataJson = getClassBoardData("", "");
+            String dataJson = oaApiClient.getClassBoardData("", "");
             if (dataJson == null || dataJson.trim().isEmpty()) {
-                throw new IllegalStateException("OA 未返回数据（网络异常 / 鉴权失败 / 业务码非 10000），本次同步放弃");
+                throw new IllegalStateException("OA 未返回数据，本次同步放弃");
             }
 
             JsonNode root = objectMapper.readTree(dataJson);
