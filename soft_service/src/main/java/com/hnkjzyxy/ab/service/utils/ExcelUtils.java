@@ -5,6 +5,7 @@ import com.hnkjzyxy.ab.config.CheckResultImportProperties;
 import com.hnkjzyxy.ab.model.CheckResultImportResult;
 import com.hnkjzyxy.ab.service.CheckResultService;
 import com.hnkjzyxy.ab.service.CourseService;
+import com.hnkjzyxy.ab.service.ProjectTaskGuard;
 import com.hnkjzyxy.ab.service.StudentInfoService;
 import com.hnkjzyxy.ab.service.TaskService;
 import com.hnkjzyxy.ab.service.UserRoleService;
@@ -28,15 +29,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.List;
 import java.util.Locale;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * @version 1.0
@@ -55,6 +58,11 @@ public class ExcelUtils {
     private UserRoleService userRoleService;
     @Autowired
     private TaskService taskService;
+    /**
+     * Excel任务写入共用的项目锁及生命周期保护服务
+     */
+    @Autowired
+    private ProjectTaskGuard projectTaskGuard;
     @Autowired
     private TransactionTemplate transactionTemplate;
     @Autowired
@@ -184,7 +192,10 @@ public class ExcelUtils {
      * @param projectId 项目ID
      * @throws Exception 解析异常
      */
+    @Transactional(rollbackFor = Exception.class,
+            isolation = Isolation.READ_COMMITTED)
     public void readTaskExcel(MultipartFile file, Integer projectId) throws Exception {
+        projectTaskGuard.mutable(projectTaskGuard.lock(projectId));
         String filename = file.getOriginalFilename();
         if (file.isEmpty()) {
             throw new RuntimeException("文件不能为空！");

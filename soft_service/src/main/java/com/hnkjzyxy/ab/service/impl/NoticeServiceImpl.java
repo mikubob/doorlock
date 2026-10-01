@@ -5,7 +5,11 @@ import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.mapper.NoticeMapper;
-import com.hnkjzyxy.ab.model.*;
+import com.hnkjzyxy.ab.model.Message;
+import com.hnkjzyxy.ab.model.Notice;
+import com.hnkjzyxy.ab.model.Project;
+import com.hnkjzyxy.ab.model.ResultItem;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.NoticeParam;
 import com.hnkjzyxy.ab.service.MessageService;
 import com.hnkjzyxy.ab.service.NoticeService;
@@ -15,10 +19,10 @@ import com.hnkjzyxy.ab.vo.QueryPage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Resource;
 
 /**
  * @author 16702

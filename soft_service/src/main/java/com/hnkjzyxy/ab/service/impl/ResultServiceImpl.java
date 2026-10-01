@@ -10,29 +10,69 @@ import com.hnkjzyxy.ab.annotation.RedisCache;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.dto.SubTaskDto;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
-import com.hnkjzyxy.ab.mapper.*;
-import com.hnkjzyxy.ab.model.*;
+import com.hnkjzyxy.ab.exception.ProjectTaskException;
+import com.hnkjzyxy.ab.mapper.ProjectMapper;
+import com.hnkjzyxy.ab.mapper.ProjectTaskImportMapper;
+import com.hnkjzyxy.ab.mapper.ResultItemMapper;
+import com.hnkjzyxy.ab.mapper.ResultMapper;
+import com.hnkjzyxy.ab.mapper.RoleMapper;
+import com.hnkjzyxy.ab.mapper.TaskMapper;
+import com.hnkjzyxy.ab.mapper.UserMapper;
+import com.hnkjzyxy.ab.mapper.UserRoleMapper;
+import com.hnkjzyxy.ab.model.FlowTask;
+import com.hnkjzyxy.ab.model.Result;
+import com.hnkjzyxy.ab.model.Role;
+import com.hnkjzyxy.ab.model.Task;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.HomeParam;
 import com.hnkjzyxy.ab.result.ApiResult;
+import com.hnkjzyxy.ab.service.ProjectTaskGuard;
 import com.hnkjzyxy.ab.service.ResultService;
+import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.utils.FilePathUtils;
 import com.hnkjzyxy.ab.utils.PdfToWordConverter;
 import com.hnkjzyxy.ab.utils.UploadUtils;
-import com.hnkjzyxy.ab.vo.*;
+import com.hnkjzyxy.ab.vo.DataVo;
+import com.hnkjzyxy.ab.vo.LineDataVo;
+import com.hnkjzyxy.ab.vo.LineVo;
+import com.hnkjzyxy.ab.vo.PieDataVo;
+import com.hnkjzyxy.ab.vo.PieVo;
+import com.hnkjzyxy.ab.vo.SubTaskVo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.OptionalDouble;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletResponse;
 
 @Service
 public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> implements ResultService {
+
+    /**
+     * 评分更新共用的项目锁及生命周期保护服务
+     */
+    @Resource
+    private ProjectTaskGuard projectTaskGuard;
+    /**
+     * 任务及结果真实归属查询接口
+     */
+    @Resource
+    private ProjectTaskImportMapper projectTaskImportMapper;
 
     @Resource
     private ResultMapper resultMapper;
@@ -487,6 +527,8 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
      * @param user 当前用户
      */
     @Override
+    @Transactional(rollbackFor = Exception.class,
+            isolation = Isolation.READ_COMMITTED)
     public void updateSubTaskScore(List<SubTaskIdDto> dto, User user) {
         //1、判断用户是否为院长的角色
         Integer userId = user.getUserId();
@@ -502,6 +544,25 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
                 throw new RuntimeException("没有传入需要的参数");
             }
         });
+        // 按真实任务归属取得项目锁，多项目固定升序；原有评分权限规则保持不变。
+        SortedSet<Integer> projects = new TreeSet<>();
+        if (dto.isEmpty()) throw new ProjectTaskException(400, "评分列表不能为空");
+        for (SubTaskIdDto row : dto) {
+            Task task = projectTaskImportMapper.task(row.getTaskId());
+            if (task == null || !task.getPId().toString().equals(row.getProjectId())) {
+                throw new ProjectTaskException(409, "评分任务与项目归属不匹配");
+            }
+            projects.add(task.getPId());
+        }
+        for (Integer projectId : projects) projectTaskGuard.lock(projectId);
+        for (SubTaskIdDto row : dto) {
+            int projectId = ProjectTaskRules.integer(row.getProjectId(), "项目ID");
+            Task task = projectTaskImportMapper.task(row.getTaskId());
+            if (task == null || task.getPId() != projectId || projectTaskImportMapper.scoreResults(projectId,
+                    row.getTaskId(), ProjectTaskRules.integer(row.getUserId(), "用户ID")) == 0) {
+                throw new ProjectTaskException(409, "评分结果已失效，请重新加载");
+            }
+        }
         resultMapper.updateBySubTaskName(dto);
 
     }

@@ -108,7 +108,9 @@ public class TaskDataListener extends AnalysisEventListener<TaskModel> {
             task.setRemark(item.getRemark());
             return task;
         }).collect(Collectors.toList());
-        taskService.saveBatch(tasks);
+        if (!tasks.isEmpty() && !taskService.saveBatch(tasks)) {
+            throw new IllegalStateException("Excel任务保存失败，项目任务导入已回滚");
+        }
         // 存储完成清理 list
         data = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
     }

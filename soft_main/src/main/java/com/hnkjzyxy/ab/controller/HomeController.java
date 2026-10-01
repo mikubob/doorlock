@@ -6,11 +6,20 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.mapper.UserRoleMapper;
-import com.hnkjzyxy.ab.model.*;
+import com.hnkjzyxy.ab.model.Message;
+import com.hnkjzyxy.ab.model.Notice;
+import com.hnkjzyxy.ab.model.Project;
+import com.hnkjzyxy.ab.model.Role;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.HomeParam;
 import com.hnkjzyxy.ab.params.NoticeParam;
 import com.hnkjzyxy.ab.result.ApiResult;
-import com.hnkjzyxy.ab.service.*;
+import com.hnkjzyxy.ab.service.HomeService;
+import com.hnkjzyxy.ab.service.MessageService;
+import com.hnkjzyxy.ab.service.NoticeService;
+import com.hnkjzyxy.ab.service.ProjectService;
+import com.hnkjzyxy.ab.service.ResultService;
+import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.vo.DataVo;
 import com.hnkjzyxy.ab.vo.QueryPage;
 import com.hnkjzyxy.ab.vo.RadarChartVo;
@@ -18,13 +27,17 @@ import com.hnkjzyxy.ab.vo.TeacherAndDepartmentVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
-import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Resource;
+import javax.validation.Valid;
 
 /**
  * 首页数据管理

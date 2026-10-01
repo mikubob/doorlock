@@ -13,32 +13,71 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.Enum.HnkjzyEncode;
 import com.hnkjzyxy.ab.annotation.RedisCache;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
-import com.hnkjzyxy.ab.mapper.*;
-import com.hnkjzyxy.ab.model.*;
+import com.hnkjzyxy.ab.mapper.FlowMapper;
+import com.hnkjzyxy.ab.mapper.FlowTaskMapper;
+import com.hnkjzyxy.ab.mapper.ProjectMapper;
+import com.hnkjzyxy.ab.mapper.ResultItemMapper;
+import com.hnkjzyxy.ab.mapper.ResultMapper;
+import com.hnkjzyxy.ab.mapper.RoleMapper;
+import com.hnkjzyxy.ab.mapper.UserMapper;
+import com.hnkjzyxy.ab.mapper.UserRoleMapper;
+import com.hnkjzyxy.ab.model.Flow;
+import com.hnkjzyxy.ab.model.FlowTask;
+import com.hnkjzyxy.ab.model.Project;
+import com.hnkjzyxy.ab.model.Result;
+import com.hnkjzyxy.ab.model.ResultExtend;
+import com.hnkjzyxy.ab.model.ResultItem;
+import com.hnkjzyxy.ab.model.Role;
+import com.hnkjzyxy.ab.model.Task;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.ApproveParam;
 import com.hnkjzyxy.ab.params.FlowParam;
 import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.params.UserParam;
 import com.hnkjzyxy.ab.result.ApiResult;
-import com.hnkjzyxy.ab.service.*;
+import com.hnkjzyxy.ab.service.FlowService;
+import com.hnkjzyxy.ab.service.FlowTaskService;
+import com.hnkjzyxy.ab.service.NoticeService;
+import com.hnkjzyxy.ab.service.ProjectService;
+import com.hnkjzyxy.ab.service.ProjectTaskGuard;
+import com.hnkjzyxy.ab.service.ResultExtendService;
+import com.hnkjzyxy.ab.service.ResultItemService;
+import com.hnkjzyxy.ab.service.ResultService;
+import com.hnkjzyxy.ab.service.TaskService;
+import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.service.utils.PageUtils;
-import com.hnkjzyxy.ab.vo.*;
+import com.hnkjzyxy.ab.vo.ApproveVo;
+import com.hnkjzyxy.ab.vo.FlowQueryTaskVo;
+import com.hnkjzyxy.ab.vo.FlowQueryVo;
+import com.hnkjzyxy.ab.vo.FlowStatus;
+import com.hnkjzyxy.ab.vo.FlowStatusVo;
+import com.hnkjzyxy.ab.vo.FlowVo;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-
+import javax.annotation.Resource;
 
 /**
  * @author 16702
  */
 @Service
 public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements FlowService {
+
+    /**
+     * 审批写入共用的项目锁及任务归属保护服务
+     */
+    @Resource
+    private ProjectTaskGuard projectTaskGuard;
 
     @Resource
     private FlowMapper flowMapper;
@@ -546,12 +585,14 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     //提交审批结果
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.APPROVE_LIST, HnkjxyConstants.RADAR_CHART, HnkjxyConstants.COLUMNAR_CHART,
             HnkjxyConstants.END_PROJECT, HnkjxyConstants.NOT_SUB_LIST, HnkjxyConstants.RESULT_WEEK_COUNT,
             HnkjxyConstants.PROJECT_SCORE, HnkjxyConstants.PROJECT_SCALE, HnkjxyConstants.USER_PROJECTS, HnkjxyConstants.RESULT_LIST,
             HnkjxyConstants.USER_PROJECT_YEAR, HnkjxyConstants.PROJECT_FLOW, HnkjxyConstants.NOTICE_LIST, HnkjxyConstants.NOTICES, HnkjxyConstants.ASSESS_LIST}, allEntries = true)
     public void submitApprove(ResultItem resultItem, User user) {
+        projectTaskGuard.lock(resultItem.getPId());
+        projectTaskGuard.validateTasks(resultItem.getPId(), resultItem.getUId(), resultItem.getResults(), true);
         ApproveVo vo = getApproveVo(user, resultItem.getPId());
         if (ObjectUtil.isNull(vo)) {
             throw new RuntimeException("没有审批权限！");
@@ -586,9 +627,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
             }
         });
 
-        resultService.updateBatchById(resultItem.getResults());
+        if (!resultService.updateBatchById(resultItem.getResults())) throw new IllegalStateException("审批结果更新失败，已回滚");
         //提交审批结果
-        resultItemMapper.insert(resultItem);
+        if (resultItemMapper.insert(resultItem) != 1) throw new IllegalStateException("审批保存失败，已回滚");
 
         //打回
         if (resultItem.getIsFlag().equals(1)) {

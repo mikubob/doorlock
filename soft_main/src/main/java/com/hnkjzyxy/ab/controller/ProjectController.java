@@ -4,39 +4,69 @@ import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.druid.util.StringUtils;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hnkjzyxy.ab.dto.SubTaskDto;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
+import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.mapper.ProjectItemMapper;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
 import com.hnkjzyxy.ab.mapper.ResultMapper;
 import com.hnkjzyxy.ab.mapper.UserRoleMapper;
-import com.hnkjzyxy.ab.model.*;
+import com.hnkjzyxy.ab.model.Project;
+import com.hnkjzyxy.ab.model.Result;
+import com.hnkjzyxy.ab.model.ResultExtend;
+import com.hnkjzyxy.ab.model.Role;
+import com.hnkjzyxy.ab.model.Task;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.params.ProjectQueryParam;
 import com.hnkjzyxy.ab.result.ApiResult;
-import com.hnkjzyxy.ab.service.*;
+import com.hnkjzyxy.ab.security.user.AccountUser;
+import com.hnkjzyxy.ab.service.FlowService;
+import com.hnkjzyxy.ab.service.FlowTaskService;
+import com.hnkjzyxy.ab.service.ProjectService;
+import com.hnkjzyxy.ab.service.ProjectTaskImportService;
+import com.hnkjzyxy.ab.service.ResultExtendService;
+import com.hnkjzyxy.ab.service.ResultItemService;
+import com.hnkjzyxy.ab.service.ResultService;
+import com.hnkjzyxy.ab.service.RoleService;
+import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.service.utils.ExcelUtils;
+import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.utils.FilePathUtils;
 import com.hnkjzyxy.ab.utils.ReadExcelUtils;
 import com.hnkjzyxy.ab.utils.UploadUtils;
 import com.hnkjzyxy.ab.vo.ProjectItemVo;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import com.hnkjzyxy.ab.vo.ResultVo;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import com.fasterxml.jackson.core.type.TypeReference;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 项目管理
@@ -73,10 +103,26 @@ public class ProjectController {
     ResultItemService resultItemService;
 
     @Resource
-    private TaskService taskService;
+    private ProjectTaskImportService projectTaskImportService;
 
-    @Resource
-    private ProjectItemMapper projectItemMapper;
+    /**
+     * 从认证主体提取任务管理操作人的身份
+     *
+     * @param authentication 当前登录认证信息
+     * @return 包含认证用户ID及用户名的操作人，有效性由Service重读数据库核验
+     * @throws ProjectTaskException 未登录或认证主体不合法时抛出
+     */
+    private User taskOperator(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() ||
+                !(authentication.getPrincipal() instanceof AccountUser)) {
+            throw new ProjectTaskException(401, "请先登录");
+        }
+        AccountUser account = (AccountUser) authentication.getPrincipal();
+        User operator = new User();
+        operator.setUserId(account.getUserId());
+        operator.setUserName(account.getUsername());
+        return operator;
+    }
 
     @Resource
     private ProjectMapper projectMapper;
@@ -206,22 +252,10 @@ public class ProjectController {
      */
     @PostMapping("/delProject/{id}")
     //@CacheEvict(value = {HnkjxyConstants.PROJECT_BY_ID,HnkjxyConstants.FLOW_LIST, HnkjxyConstants.PROJECTS,HnkjxyConstants.PROJECT_RECYCLE_BIN},allEntries = true)
-    public ApiResult delProjectById(@PathVariable String id) {
-        if (StringUtils.isEmpty(id)) {
-            throw new RuntimeException("项目id不能为空！");
-        }
-        Project project = projectService.getById(id);
-        if (project != null) {
-            if (project.getStatus().equals(1)) {
-                throw new RuntimeException("项目已发布不能进行删除！");
-            }
-            flowService.lambdaUpdate().eq(Flow::getPId, project.getId()).remove();
-            flowTaskService.lambdaUpdate().eq(FlowTask::getParentId, project.getFlowId()).remove();
-            project.setStatus(3);
-            projectService.updateById(project);
-            return ApiResult.ok("删除成功！");
-        }
-        return ApiResult.error("删除失败！没有找到该项目！");
+    public ApiResult delProjectById(@PathVariable String id, Authentication authentication) {
+        projectTaskImportService.deleteProject(
+                ProjectTaskRules.integer(id, "项目ID"), taskOperator(authentication));
+        return ApiResult.ok("删除成功！");
     }
 
     /**
@@ -590,7 +624,7 @@ public class ProjectController {
      */
     @PostMapping("/project/item")
     public void addProjectItem(@RequestBody ProjectItemVo projectItemVo, Authentication authentication) {
-        projectService.addOrUpdateProjectItem(projectItemVo);
+        projectService.addOrUpdateProjectItem(projectItemVo, taskOperator(authentication));
     }
 
     /**
@@ -599,8 +633,8 @@ public class ProjectController {
      * @param id 项目子项ID
      */
     @DeleteMapping("/project/item/{id}")
-    public void deleteProjectItem(@PathVariable("id") Integer id) {
-        projectItemMapper.deleteById(id);
+    public void deleteProjectItem(@PathVariable("id") Integer id, Authentication authentication) {
+        projectTaskImportService.deleteItem(id, taskOperator(authentication));
     }
 
     /**
@@ -609,22 +643,8 @@ public class ProjectController {
      * @param projectItems 项目子项列表
      */
     @PostMapping("/project/item/insertIntoTask")
-    public void insertIntoTask(@RequestBody List<ProjectItemVo> projectItems) {
-        //TODO 是否要删除原来的projectItem表中的数据？
-
-        //获得项目的id
-        Integer projectId = projectItems.get(0).getProjectId();
-
-        //插入到task表中
-        List<Task> tasks = projectItems.stream().map(projectItem -> {
-            Task task = new Task();
-            BeanUtils.copyProperties(projectItem, task);
-            task.setTaskName(projectItem.getPname());
-            task.setPId(projectId);
-            return task;
-        }).collect(Collectors.toList());
-
-        taskService.saveBatch(tasks);
+    public ApiResult insertIntoTask(@RequestBody(required = false) List<ProjectItemVo> projectItems, Authentication authentication) {
+        return ApiResult.ok("data", projectTaskImportService.merge(projectItems, taskOperator(authentication)));
     }
 
 

@@ -24,6 +24,29 @@ public class Task implements Serializable {
     private Integer pId;
 
     /**
+     * 来源子项ID，Excel 和未审核的历史任务为空
+     */
+    private Integer sourceProjectItemId;
+
+    /**
+     * 获取来源子项ID
+     *
+     * @return 来源子项ID，无来源映射时返回 null
+     */
+    public Integer getSourceProjectItemId() {
+        return sourceProjectItemId;
+    }
+
+    /**
+     * 设置经过核验的来源子项ID
+     *
+     * @param sourceProjectItemId 来源子项ID
+     */
+    public void setSourceProjectItemId(Integer sourceProjectItemId) {
+        this.sourceProjectItemId = sourceProjectItemId;
+    }
+
+    /**
      * 任务类别（分类）
      */
     private String category;

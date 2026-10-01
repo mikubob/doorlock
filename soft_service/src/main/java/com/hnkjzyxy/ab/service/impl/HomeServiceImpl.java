@@ -8,7 +8,12 @@ import com.hnkjzyxy.ab.Enum.HnkjzyEncode;
 import com.hnkjzyxy.ab.annotation.RedisCache;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.dto.TaskDto;
-import com.hnkjzyxy.ab.mapper.*;
+import com.hnkjzyxy.ab.mapper.ProjectMapper;
+import com.hnkjzyxy.ab.mapper.ResultMapper;
+import com.hnkjzyxy.ab.mapper.RoleMapper;
+import com.hnkjzyxy.ab.mapper.TaskMapper;
+import com.hnkjzyxy.ab.mapper.UserMapper;
+import com.hnkjzyxy.ab.mapper.UserRoleMapper;
 import com.hnkjzyxy.ab.model.FlowTask;
 import com.hnkjzyxy.ab.model.Role;
 import com.hnkjzyxy.ab.model.User;
@@ -20,9 +25,13 @@ import com.hnkjzyxy.ab.vo.RadarChartVo;
 import com.hnkjzyxy.ab.vo.TeacherAndDepartmentVo;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.stream.Collectors;
+import javax.annotation.Resource;
 
 /**
  * @version 1.0

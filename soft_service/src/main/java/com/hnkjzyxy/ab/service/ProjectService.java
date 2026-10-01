@@ -47,6 +47,12 @@ public interface ProjectService extends IService<Project> {
 
     List<String> getYearByProject(User user);
 
-    void addOrUpdateProjectItem(ProjectItemVo projectItemVo);
+    /**
+     * 新增或修改项目分类、子项
+     *
+     * @param projectItemVo 分类或子项维护信息
+     * @param operator 当前认证操作人
+     */
+    void addOrUpdateProjectItem(ProjectItemVo projectItemVo, User operator);
     List<Project> getProjectAndCollegeByYear(String year, String college,User user);
 }

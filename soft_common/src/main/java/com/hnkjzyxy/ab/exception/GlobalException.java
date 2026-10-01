@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.exception;
 
 import com.hnkjzyxy.ab.result.ApiResult;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +12,18 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 
 @RestControllerAdvice
 public class GlobalException {
+
+    /**
+     * 处理项目任务导入及生命周期校验异常
+     *
+     * @param e 项目任务业务异常
+     * @return HTTP 状态与业务错误码一致的响应
+     */
+    @ExceptionHandler(ProjectTaskException.class)
+    public ResponseEntity<ApiResult> handler(ProjectTaskException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(ApiResult.error(e.getStatus(), e.getMessage()));
+    }
 
     @ExceptionHandler(NoHandlerFoundException.class)
     public ApiResult handler(NoHandlerFoundException e) {

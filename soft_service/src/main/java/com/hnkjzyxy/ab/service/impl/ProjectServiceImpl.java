@@ -10,14 +10,40 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.Enum.HnkjzyEncode;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
-import com.hnkjzyxy.ab.mapper.*;
-import com.hnkjzyxy.ab.model.*;
+import com.hnkjzyxy.ab.exception.ProjectTaskException;
+import com.hnkjzyxy.ab.mapper.FlowMapper;
+import com.hnkjzyxy.ab.mapper.FlowTaskMapper;
+import com.hnkjzyxy.ab.mapper.InfoMapper;
+import com.hnkjzyxy.ab.mapper.NoticeMapper;
+import com.hnkjzyxy.ab.mapper.ProjectItemMapper;
+import com.hnkjzyxy.ab.mapper.ProjectMapper;
+import com.hnkjzyxy.ab.mapper.ResultMapper;
+import com.hnkjzyxy.ab.mapper.RoleMapper;
+import com.hnkjzyxy.ab.mapper.TaskMapper;
+import com.hnkjzyxy.ab.mapper.UserMapper;
+import com.hnkjzyxy.ab.mapper.UserRoleMapper;
+import com.hnkjzyxy.ab.model.Flow;
+import com.hnkjzyxy.ab.model.FlowTask;
+import com.hnkjzyxy.ab.model.Project;
+import com.hnkjzyxy.ab.model.Result;
+import com.hnkjzyxy.ab.model.ResultExtend;
+import com.hnkjzyxy.ab.model.Role;
+import com.hnkjzyxy.ab.model.Task;
+import com.hnkjzyxy.ab.model.User;
+import com.hnkjzyxy.ab.model.UserRole;
 import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.params.ProjectQueryParam;
 import com.hnkjzyxy.ab.result.ApiResult;
-import com.hnkjzyxy.ab.service.*;
+import com.hnkjzyxy.ab.service.ProjectService;
+import com.hnkjzyxy.ab.service.ProjectTaskGuard;
+import com.hnkjzyxy.ab.service.ProjectTaskImportService;
+import com.hnkjzyxy.ab.service.ResultExtendService;
+import com.hnkjzyxy.ab.service.ResultService;
+import com.hnkjzyxy.ab.service.TaskService;
+import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.service.utils.PageUtils;
+import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.service.utils.TaskTreeUtils;
 import com.hnkjzyxy.ab.vo.FlowTaskVo;
 import com.hnkjzyxy.ab.vo.ProjectItemVo;
@@ -29,14 +55,20 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.annotation.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.annotation.Resource;
 
 /**
  * 要考虑学校，二级学院，教研室主任，普通老师  四级权限
@@ -83,6 +115,17 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
     @Resource
     private ProjectItemMapper projectItemMapper;
+
+    /**
+     * 项目任务锁与生命周期保护服务
+     */
+    @Resource
+    private ProjectTaskGuard projectTaskGuard;
+    /**
+     * 项目子项任务导入与来源维护服务
+     */
+    @Resource
+    private ProjectTaskImportService projectTaskImportService;
 
 
     //获取项目列表
@@ -298,7 +341,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      * @param user    当前用户
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.PROJECTS, HnkjxyConstants.PROJECT_YEAR, HnkjxyConstants.PROJECT_BY_ID}, allEntries = true)
     public void addProject(Project project, User user) {
         try {
@@ -310,12 +353,13 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
                     }
                     //创建项目
                     if (ObjectUtil.isNull(project.getId())) {
+                        project.setStatus(0);
                         project.setSendName(user.getNickName());
                         project.setCreateName(user.getUserName());
                     } else { //修改项目
-                        if (project.getStatus().equals(1)) {
-                            throw new RuntimeException("已发布不能进行修改！");
-                        }
+                        Project stored = projectTaskGuard.lock(project.getId());
+                        projectTaskGuard.manage(stored, user);
+                        projectTaskGuard.mutable(stored);
                     }
                     try {
                         //判断是否包含该项目名称
@@ -325,6 +369,8 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
                         }
                         //项目
                         projectMapper.insert(project);
+                        projectTaskGuard.lock(project.getId());
+                        projectTaskGuard.initialize(project.getId());
                         excelUtils.readTaskExcel(project.getFile(), project.getId());
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -368,12 +414,15 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
     //发布项目
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.USER_PROJECT_YEAR, HnkjxyConstants.RADAR_CHART,
             HnkjxyConstants.COLUMNAR_CHART, HnkjxyConstants.USER_PROJECTS, HnkjxyConstants.PROJECT_YEAR,
             HnkjxyConstants.NOTICE_LIST, HnkjxyConstants.PROJECTS, HnkjxyConstants.APPROVE_LIST,
             HnkjxyConstants.APPROVE_YEARS, HnkjxyConstants.END_PROJECT, HnkjxyConstants.ASSESS_LIST}, allEntries = true)
     public void publishProject(String id, User user) {
+        Project locked = projectTaskGuard.lock(ProjectTaskRules.integer(id, "项目ID"));
+        projectTaskGuard.manage(locked, user);
+        projectTaskGuard.publication(locked);
         if (ObjectUtil.isNull(user)) {
             throw new RuntimeException("用户不能为空！");
         }
@@ -386,7 +435,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
             throw new RuntimeException("请先创建流程后！再发布项目！");
         }
         //判断项目是否已过期
-        Project project = this.getById(id);
+        Project project = locked;
         if (ObjectUtil.isNull(project) || checkProjectOverDue(project)) {
             throw new RuntimeException("发布失败！项目不存在或项目已过期！");
         }
@@ -410,13 +459,14 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
     //提交项目结果
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.APPROVE_LIST, HnkjxyConstants.RADAR_CHART, HnkjxyConstants.ASSESS_LIST,
             HnkjxyConstants.COLUMNAR_CHART, HnkjxyConstants.NOT_SUB_LIST, HnkjxyConstants.RESULT_DETAIL, HnkjxyConstants.RESULT_LIST,
             HnkjxyConstants.END_PROJECT, HnkjxyConstants.USER_PROJECTS, HnkjxyConstants.NOTICE_LIST}, allEntries = true)
     public void resultProject(ResultVo result, User user) {
         //判断项目是否已过期
-        Project project = projectMapper.selectById(result.getProjectId());
+        Project project = projectTaskGuard.lock(result.getProjectId());
+        projectTaskGuard.validateTasks(result.getProjectId(), user.getUserId(), result.getResults(), false);
 
         if (ObjectUtil.isNull(project)) {
             throw new RuntimeException("项目不存在！");
@@ -441,15 +491,16 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
             item.setUId(user.getUserId());
             item.setIsFinish(result.getIsFlag());
             item.setEvidence(JSON.toJSONString(item.getEvidenceList()));
-            resultService.saveOrUpdate(item);
+            if (!resultService.saveOrUpdate(item)) throw new IllegalStateException("结果保存失败，已回滚");
             resultExtendService.remove(new QueryWrapper<ResultExtend>().eq("result_id", item.getId()));
             if (ObjectUtil.isNotEmpty(item.getResultExtends())) {
                 item.getResultExtends().forEach(val -> {
                     val.setUId(item.getUId());
                     val.setTaskId(item.getTaskId());
                     val.setResultId(item.getId());
+                    val.setId(null); // 原扩展已删除，重新生成主键而不复用客户端ID。
                     val.setEvidence(JSON.toJSONString(val.getEvidenceList()));
-                    resultExtendService.save(val);
+                    if (!resultExtendService.save(val)) throw new IllegalStateException("扩展项保存失败，已回滚");
                 });
             }
         });
@@ -470,10 +521,13 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      */
     @Override
     public void projectStaging(ResultVo result, User user) {
+        projectTaskGuard.recordStaging(result.getProjectId(), user, result.getResults());
         String key = user.getUserName().concat("-" + result.getProjectId());
-        redisTemplate.opsForValue().set(key, JSONObject.toJSONString(result));
-        //十五天之后过期
-        redisTemplate.expire(key, 15, TimeUnit.DAYS);
+        try {
+            redisTemplate.opsForValue().set(key, JSONObject.toJSONString(result), 15, TimeUnit.DAYS);
+        } catch (RuntimeException e) {
+            throw new ProjectTaskException(503, "暂存缓存写入失败；任务冻结标记已保留，请重试保存");
+        }
     }
 
     /**
@@ -693,32 +747,8 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     @Override
-    public void addOrUpdateProjectItem(ProjectItemVo projectItemVo) {
-        if (projectItemVo.getProjectId() == null) {
-            throw new RuntimeException("项目id不能为空！");
-        }
-
-        if (projectItemVo.getGrade() == null) {
-            throw new RuntimeException("层级不能为空！");
-        }
-
-        if (projectItemVo.getParentId() == null) {
-            throw new RuntimeException("父级id不能为空！");
-        }
-        //新增
-        ProjectItem projectItem = new ProjectItem();
-
-        BeanUtils.copyProperties(projectItemVo, projectItem);
-
-        if (ObjectUtil.isNull(projectItemVo.getId())) {
-            Integer integer = projectItemMapper.selectCount(new QueryWrapper<ProjectItem>().eq("project_id", projectItem.getProjectId()).eq("grade", projectItem.getGrade()).eq("parent_id", projectItem.getParentId()));
-            projectItem.setOrderBy(integer + 1);//设置排序加1
-            projectItemMapper.insert(projectItem);
-        } else {
-            //修改
-            projectItemMapper.updateById(projectItem);
-        }
-
+    public void addOrUpdateProjectItem(ProjectItemVo projectItemVo, User operator) {
+        projectTaskImportService.saveItem(projectItemVo, operator);
     }
 
     @Override
