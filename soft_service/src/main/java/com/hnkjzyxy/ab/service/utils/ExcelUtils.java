@@ -3,8 +3,22 @@ package com.hnkjzyxy.ab.service.utils;
 import com.alibaba.excel.EasyExcel;
 import com.hnkjzyxy.ab.config.CheckResultImportProperties;
 import com.hnkjzyxy.ab.model.CheckResultImportResult;
-import com.hnkjzyxy.ab.service.*;
-import com.hnkjzyxy.ab.service.listener.*;
+import com.hnkjzyxy.ab.service.CheckResultService;
+import com.hnkjzyxy.ab.service.CourseService;
+import com.hnkjzyxy.ab.service.StudentInfoService;
+import com.hnkjzyxy.ab.service.TaskService;
+import com.hnkjzyxy.ab.service.UserRoleService;
+import com.hnkjzyxy.ab.service.UserService;
+import com.hnkjzyxy.ab.service.listener.CheckResultDataListener;
+import com.hnkjzyxy.ab.service.listener.CheckResultModel;
+import com.hnkjzyxy.ab.service.listener.CourseDataListener;
+import com.hnkjzyxy.ab.service.listener.CourseModel;
+import com.hnkjzyxy.ab.service.listener.StudentInfoDataListener;
+import com.hnkjzyxy.ab.service.listener.StudentInfoModel;
+import com.hnkjzyxy.ab.service.listener.TaskDataListener;
+import com.hnkjzyxy.ab.service.listener.TaskModel;
+import com.hnkjzyxy.ab.service.listener.UserDataListener;
+import com.hnkjzyxy.ab.service.listener.UserModel;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
 import com.hnkjzyxy.ab.vo.AssessVo;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
@@ -22,6 +36,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * @version 1.0
@@ -212,6 +227,7 @@ public class ExcelUtils {
      * <p>
      * 解析全部完成后在监听器内部以单事务落库；解析失败的行被跳过并登记行号与原因，
      * 不中断整次导入。
+     * 表头固定为一行，读取全部工作表后再统一校验和提交。
      * </p>
      *
      * @param file          上传的 Excel 文件
@@ -224,21 +240,19 @@ public class ExcelUtils {
         if (file.isEmpty()) {
             throw new RuntimeException("文件不能为空！");
         }
-        if (!filename.endsWith("xls") && !filename.endsWith("xlsx")) {
+        if (filename == null || (!filename.toLowerCase(Locale.ROOT).endsWith(".xls")
+                && !filename.toLowerCase(Locale.ROOT).endsWith(".xlsx"))) {
             throw new RuntimeException("上传文件的类型必须是xls或者xlsx!");
         }
-        long size = file.getSize();
-        double length = size / 1048576;
-        if (length > 100) {
+        if (file.getSize() > 100L * 1024 * 1024) {
             throw new RuntimeException("上传的文件大小不能超过100MB!");
         }
         CheckResultDataListener listener = new CheckResultDataListener(checkResultService, snowFlowUtils,
                 transactionTemplate, checkResultImportProperties, sourceCollege);
-        // 显式声明表头行数，避免依赖 EasyExcel 版本默认值；同时读取文件中的全部 sheet
         EasyExcel.read(file.getInputStream(), CheckResultModel.class, listener)
                 .headRowNumber(1)
                 .doReadAll();
-        return listener.getResult();
+        return listener.finishAndSave();
     }
 
 

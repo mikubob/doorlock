@@ -53,7 +53,7 @@ public class ScheduleSyncProperties {
     private int pageSize = 1000;
 
     /**
-     * 同步分布式锁的持有时长（秒），防止持有者宕机后死锁
+     * 同步分布式锁的租约时长（秒）。任务执行期间每 TTL/3 自动续期，宕机后自动过期。
      */
     private long lockTtlSeconds = 1800L;
 }

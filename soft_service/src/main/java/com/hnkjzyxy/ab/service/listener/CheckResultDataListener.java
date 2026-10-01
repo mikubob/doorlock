@@ -2,6 +2,7 @@ package com.hnkjzyxy.ab.service.listener;
 
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
+import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.hnkjzyxy.ab.config.CheckResultImportProperties;
 import com.hnkjzyxy.ab.model.CheckResult;
 import com.hnkjzyxy.ab.model.CheckResultImportResult;
@@ -10,10 +11,12 @@ import com.hnkjzyxy.ab.utils.SnowFlowUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -44,11 +47,11 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
      * 若写成 {@code MM} / {@code dd} 则只能解析补零格式。
      */
     private static final DateTimeFormatter[] DATE_FORMATS = {
-            DateTimeFormatter.ofPattern("yyyy-M-d"),
-            DateTimeFormatter.ofPattern("yyyy/M/d"),
-            DateTimeFormatter.ofPattern("yyyy.M.d"),
-            DateTimeFormatter.ofPattern("yyyy年M月d日"),
-            DateTimeFormatter.ofPattern("yyyyMMdd")
+            DateTimeFormatter.ofPattern("uuuu-M-d").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("uuuu/M/d").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("uuuu.M.d").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("uuuu年M月d日").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("uuuuMMdd").withResolverStyle(ResolverStyle.STRICT)
     };
 
     /**
@@ -112,6 +115,11 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
     private int headRowCount;
 
     /**
+     * 整份文件是否已完成校验和事务入库，用于阻止重复提交。
+     */
+    private boolean completed;
+
+    /**
      * 构造导入监听器
      *
      * @param checkResultService  巡查结果服务
@@ -140,6 +148,7 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
      */
     @Override
     public void invoke(CheckResultModel row, AnalysisContext ctx) {
+        checkRowLimit();
         // getRowIndex() 从 0 开始且已消费表头，+1 得到 Excel 中肉眼可见的行号（表头为第 1 行）
         int rowIndex = ctx.readRowHolder().getRowIndex() + 1;
         try {
@@ -147,12 +156,60 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
             successCount++;
         } catch (RowParseException e) {
             failCount++;
-            errorRows.add(new CheckResultImportResult.RowError(rowIndex, e.getReason()));
+            addError(ctx, rowIndex, e.getReason());
             log.warn("[巡查导入] 第 {} 行解析失败，已跳过：{}", rowIndex, e.getReason());
         } catch (Exception e) {
             failCount++;
-            errorRows.add(new CheckResultImportResult.RowError(rowIndex, "未知错误 - " + e.getMessage()));
+            addError(ctx, rowIndex, "未知错误 - " + e.getMessage());
             log.error("[巡查导入] 第 {} 行未预期异常", rowIndex, e);
+        }
+    }
+
+    /**
+     * 处理行解析之前发生的单元格转换异常
+     * <p>
+     * 单元格转换失败登记为坏行，文件级异常继续向上传播。
+     * </p>
+     *
+     * @param exception 解析异常
+     * @param ctx       当前工作表解析上下文
+     * @throws Exception 文件级异常或整份导入被拒绝
+     */
+    @Override
+    public void onException(Exception exception, AnalysisContext ctx) throws Exception {
+        if (!(exception instanceof ExcelDataConvertException)) {
+            throw exception;
+        }
+        checkRowLimit();
+        ExcelDataConvertException error = (ExcelDataConvertException) exception;
+        failCount++;
+        addError(ctx, error.getRowIndex() + 1, "第 " + (error.getColumnIndex() + 1) + " 列无法转换");
+    }
+
+    /**
+     * 登记包含工作表名称和行号的错误明细
+     *
+     * @param ctx      当前工作表解析上下文
+     * @param rowIndex Excel 行号，从 1 开始
+     * @param message 错误原因
+     */
+    private void addError(AnalysisContext ctx, int rowIndex, String message) {
+        String sheetName = ctx.readSheetHolder().getSheetName();
+        errorRows.add(new CheckResultImportResult.RowError(rowIndex, "工作表「" + sheetName + "」：" + message));
+    }
+
+    /**
+     * 在缓存下一行前校验整份文件的行数上限
+     * <p>
+     * 行数统计覆盖全部工作表，超限异常向上传播，不按坏行跳过。
+     * </p>
+     *
+     * @throws ImportRejectedException 新增一行将超过导入行数上限
+     */
+    private void checkRowLimit() {
+        if (importProperties.getMaxRows() > 0 && successCount + failCount >= importProperties.getMaxRows()) {
+            throw new ImportRejectedException("单次导入数据量超过上限 " + importProperties.getMaxRows()
+                    + " 行，已放弃整次导入（未写入任何数据），请拆分文件后重试");
         }
     }
 
@@ -184,26 +241,38 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
         if (importProperties.isStrictHeadCheck()) {
             throw new ImportRejectedException(message);
         }
-        headWarning = message;
+        headWarning = headWarning == null ? message : headWarning + "；" + message;
         log.warn("[巡查导入] {}", message);
     }
 
     /**
-     * 全部解析完成后执行：整次导入闸门校验 + 单事务落库
-     * <p>
-     * 两道闸门均为**整次导入级别**，触发即放弃整次导入、不写入任何数据，
-     * 且以 {@link ImportRejectedException} 向上传播到接口层，避免返回「成功 0 条」的假成功。
-     * </p>
+     * 当前 sheet 解析完成，只统计表头，不写库。
+     * EasyExcel 对每个 sheet 都调用此方法，不能把它当作整份文件完成回调。
      *
      * @param ctx 解析上下文
      */
     @Override
     public void doAfterAllAnalysed(AnalysisContext ctx) {
-        headRowCount = ctx.readSheetHolder().getHeadRowNumber();
+        headRowCount += ctx.readSheetHolder().getHeadRowNumber();
+    }
+
+    /**
+     * 完成整份文件校验并统一提交数据
+     * <p>
+     * 由读取入口在 {@code doReadAll()} 正常返回后调用一次。
+     * 行数超限或配置为遇错即放弃时，拒绝整份文件并保持零写入。
+     * </p>
+     *
+     * @return 包含全部工作表统计与错误明细的导入回执
+     * @throws IllegalStateException 本次导入已完成或批量写入失败
+     * @throws ImportRejectedException 整份文件未通过导入校验
+     */
+    public CheckResultImportResult finishAndSave() {
+        if (completed) {
+            throw new IllegalStateException("本次导入已完成，不能重复写入");
+        }
         int totalRows = successCount + failCount;
 
-        // 闸门 1：数据量超限。必须在此处判定——只有解析结束才知道总行数，且超限属于「整份文件不可接受」，
-        // 不该与「某一行填错」混为一谈（放在 invoke 里会造成「记一条错误但超出部分照常入库」的假象）
         if (importProperties.getMaxRows() > 0 && totalRows > importProperties.getMaxRows()) {
             throw new ImportRejectedException("单次导入数据量 " + totalRows + " 行，超过上限 "
                     + importProperties.getMaxRows() + " 行，已放弃整次导入（未写入任何数据），请拆分文件后重试");
@@ -215,8 +284,10 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
         }
 
         persistAtomically();
+        completed = true;
         log.info("[巡查导入] 解析完成：总计 {} 行，成功 {}，失败 {}，表头 {} 行",
                 totalRows, successCount, failCount, headRowCount);
+        return getResult();
     }
 
     /**
@@ -231,7 +302,9 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
         transactionTemplate.executeWithoutResult(status -> {
             for (int i = 0; i < data.size(); i += batchSize) {
                 int end = Math.min(i + batchSize, data.size());
-                checkResultService.saveBatch(new ArrayList<>(data.subList(i, end)), batchSize);
+                if (!checkResultService.saveBatch(new ArrayList<>(data.subList(i, end)), batchSize)) {
+                    throw new IllegalStateException("巡查数据批量写入失败，已回滚整次导入");
+                }
             }
         });
         savedCount = data.size();
@@ -244,6 +317,9 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
      * @return 导入结果明细
      */
     public CheckResultImportResult getResult() {
+        if (!completed) {
+            throw new IllegalStateException("整份文件尚未完成导入，不能返回成功回执");
+        }
         CheckResultImportResult result = new CheckResultImportResult();
         result.setSuccess(true);
         result.setTotalRows(successCount + failCount);
@@ -364,8 +440,12 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
             throw new RowParseException(rowIndex, fieldName + "格式不正确：" + raw);
         }
         try {
-            return (int) Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
+            int value = new BigDecimal(cleaned).intValueExact();
+            if (value < 0) {
+                throw new ArithmeticException("人数不能为负数");
+            }
+            return value;
+        } catch (NumberFormatException | ArithmeticException e) {
             throw new RowParseException(rowIndex, fieldName + "格式不正确：" + raw);
         }
     }

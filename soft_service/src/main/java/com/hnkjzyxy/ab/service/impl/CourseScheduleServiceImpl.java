@@ -10,12 +10,15 @@ import com.hnkjzyxy.ab.model.CourseSchedule;
 import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
 import com.hnkjzyxy.ab.utils.RedisLockUtils;
+import com.hnkjzyxy.ab.utils.TransactionalMysqlLock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -46,11 +49,6 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      */
     private static final String SYNC_STATE_KEY = "schedule:sync:last";
 
-    /**
-     * 降级令牌：Redis 不可用时仅使用进程内锁
-     */
-    private static final String LOCAL_LOCK_TOKEN = "local-only";
-
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -61,18 +59,34 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
     private final OaApiClient oaApiClient;
+    /**
+     * 保护课表替换事务直到提交或回滚完成的数据库会话锁
+     */
+    private final TransactionalMysqlLock databaseLock;
 
     /**
-     * 进程内兜底锁：即使 Redis 不可用，也保证单个实例内的同步串行执行
+     * 进程内锁，避免同一实例重复发起同步；跨实例由 Redis 租约和数据库事务锁保护。
      */
     private final AtomicBoolean localRunning = new AtomicBoolean(false);
 
+    /**
+     * 创建课表服务并配置整体替换事务
+     *
+     * @param courseScheduleMapper 课表数据访问接口
+     * @param syncProperties       课表同步配置
+     * @param redisLockUtils       分布式锁工具
+     * @param stringRedisTemplate  同步状态缓存操作接口
+     * @param transactionManager   数据库事务管理器
+     * @param oaApiClient          OA 数据客户端
+     * @param databaseLock         数据库事务锁工具
+     */
     public CourseScheduleServiceImpl(CourseScheduleMapper courseScheduleMapper,
                                      ScheduleSyncProperties syncProperties,
                                      RedisLockUtils redisLockUtils,
                                      StringRedisTemplate stringRedisTemplate,
                                      PlatformTransactionManager transactionManager,
-                                     OaApiClient oaApiClient) {
+                                     OaApiClient oaApiClient,
+                                     TransactionalMysqlLock databaseLock) {
         this.courseScheduleMapper = courseScheduleMapper;
         this.syncProperties = syncProperties;
         this.redisLockUtils = redisLockUtils;
@@ -80,6 +94,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         // 显式使用 TransactionTemplate，避免同类方法自调用导致 @Transactional 失效
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.oaApiClient = oaApiClient;
+        this.databaseLock = databaseLock;
     }
 
     @Override
@@ -119,6 +134,15 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         return sync("manual").isSuccess();
     }
 
+    /**
+     * 执行带自动续期租约保护的课表同步
+     * <p>
+     * 分布式锁不可用时放弃本轮同步；先关闭租约并释放锁，再允许本实例开始下一轮。
+     * </p>
+     *
+     * @param source 同步触发来源
+     * @return 本次同步的执行状态与入库结果
+     */
     @Override
     public CourseScheduleSyncResult sync(String source) {
         if (!syncProperties.isEnabled()) {
@@ -126,16 +150,20 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             return CourseScheduleSyncResult.skipped("同步开关已关闭");
         }
 
-        String token = acquireLock(source);
-        if (token == null) {
-            return CourseScheduleSyncResult.skipped("其他实例正在同步，本次跳过");
+        if (!localRunning.compareAndSet(false, true)) {
+            return CourseScheduleSyncResult.skipped("本实例已有同步任务在执行，本次跳过");
         }
-
         CourseScheduleSyncResult result;
-        try {
-            result = doSync(source);
+        try (RedisLockUtils.LockLease lease = acquireLock(source)) {
+            if (lease == null) {
+                return CourseScheduleSyncResult.skipped("其他实例正在同步，本次跳过");
+            }
+            result = doSync(source, lease);
+        } catch (Exception e) {
+            log.error("[课表同步][{}] 无法安全持有分布式锁，本次未执行", source, e);
+            result = CourseScheduleSyncResult.skipped("分布式锁不可用，本次同步放弃");
         } finally {
-            releaseLock(token);
+            localRunning.set(false);
         }
         recordStatus(result);
         return result;
@@ -144,55 +172,34 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     /**
      * 获取同步锁
      * <p>
-     * 先抢进程内锁，再抢 Redis 分布式锁；Redis 不可用时降级为仅进程内串行，不阻断业务。
+     * 获取自动续期的 Redis 租约，Redis 不可用时放弃同步，不进行单机降级。
      * </p>
      *
      * @param source 触发来源
-     * @return 锁令牌，未抢到返回 null
+     * @return 锁租约，未抢到返回 null
      */
-    private String acquireLock(String source) {
-        if (!localRunning.compareAndSet(false, true)) {
-            log.warn("[课表同步][{}] 本实例已有同步任务在执行，本次跳过", source);
-            return null;
+    private RedisLockUtils.LockLease acquireLock(String source) {
+        RedisLockUtils.LockLease lease = redisLockUtils.tryLease(SYNC_LOCK_KEY, syncProperties.getLockTtlSeconds());
+        if (lease == null) {
+            log.warn("[课表同步][{}] 其他实例正在同步，本次跳过", source);
         }
-        try {
-            String token = redisLockUtils.tryLock(SYNC_LOCK_KEY, syncProperties.getLockTtlSeconds());
-            if (token == null) {
-                log.warn("[课表同步][{}] 未获取到分布式锁，其他实例正在同步，本次跳过", source);
-                localRunning.set(false);
-                return null;
-            }
-            return token;
-        } catch (Exception e) {
-            log.error("[课表同步][{}] 获取分布式锁异常，降级为单机串行执行", source, e);
-            return LOCAL_LOCK_TOKEN;
-        }
-    }
-
-    /**
-     * 释放同步锁
-     *
-     * @param token 锁令牌
-     */
-    private void releaseLock(String token) {
-        localRunning.set(false);
-        if (token != null && !LOCAL_LOCK_TOKEN.equals(token)) {
-            redisLockUtils.unlock(SYNC_LOCK_KEY, token);
-        }
+        return lease;
     }
 
     /**
      * 执行同步主流程
      *
      * @param source 触发来源
+     * @param lease  当前实例持有的分布式锁租约
      * @return 同步结果
      */
-    private CourseScheduleSyncResult doSync(String source) {
+    private CourseScheduleSyncResult doSync(String source, RedisLockUtils.LockLease lease) {
         long start = System.currentTimeMillis();
         CourseScheduleSyncResult result = new CourseScheduleSyncResult();
         result.setExecuted(true);
 
         try {
+            lease.requireOwned();
             // ========== 1. 拉取数据（失败会抛 OaApiException，绝不触碰正式表） ==========
             log.info("[课表同步][{}] 开始，正在拉取 OA 班牌数据…", source);
             String dataJson = oaApiClient.getClassBoardData("", "");
@@ -230,13 +237,8 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 log.warn("[课表同步][{}] 共 {} 条记录因缺少必要字段被跳过", source, invalidRows);
             }
 
-            // ========== 4. 数据量保护（防接口异常导致整表被抹掉） ==========
-            int previousRows = courseScheduleMapper.countAll();
+            int previousRows = replaceAtomically(schedules, lease);
             result.setPreviousRows(previousRows);
-            validateRows(schedules.size(), previousRows);
-
-            // ========== 5. 事务内整体替换 ==========
-            replaceAtomically(schedules);
             result.setSavedRows(schedules.size());
             result.setSuccess(true);
             result.setMessage("同步成功");
@@ -282,20 +284,42 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      * 使用 DELETE 而非 TRUNCATE：TRUNCATE 是 DDL 会隐式提交、无法回滚；
      * DELETE 受事务保护，写入失败时旧数据自动恢复；同时 InnoDB 的多版本并发控制
      * 保证事务提交前其他会话仍能读到旧数据，不存在「表为空的窗口期」。
+     * 数据量校验在数据库会话锁保护下进行；删除前、每批写入前和提交前验证租约有效性。
      * </p>
      *
      * @param schedules 待写入数据
+     * @param lease     当前实例持有的分布式锁租约
+     * @return 替换前的课表行数
      */
-    private void replaceAtomically(List<CourseSchedule> schedules) {
+    private int replaceAtomically(List<CourseSchedule> schedules, RedisLockUtils.LockLease lease) {
         int batchSize = syncProperties.getBatchSize() > 0 ? syncProperties.getBatchSize() : 500;
-        transactionTemplate.executeWithoutResult(status -> {
+        return transactionTemplate.execute(status -> {
+            databaseLock.acquire("assessment:course_schedule:sync");
+            lease.requireOwned();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                /**
+                 * 提交前验证租约，失效时阻止提交并回滚替换事务。
+                 *
+                 * @param readOnly 当前事务是否只读
+                 */
+                @Override
+                public void beforeCommit(boolean readOnly) {
+                    lease.requireOwned();
+                }
+            });
+            int previousRows = courseScheduleMapper.countAll();
+            validateRows(schedules.size(), previousRows);
             int deleted = courseScheduleMapper.deleteAll();
             log.info("[课表同步] 已清除旧数据 {} 条，开始批量写入 {} 条", deleted, schedules.size());
             for (int i = 0; i < schedules.size(); i += batchSize) {
+                lease.requireOwned();
                 int end = Math.min(i + batchSize, schedules.size());
                 List<CourseSchedule> batch = new ArrayList<>(schedules.subList(i, end));
-                saveBatch(batch, batchSize);
+                if (!saveBatch(batch, batchSize)) {
+                    throw new IllegalStateException("课表批量写入失败，本次替换已回滚");
+                }
             }
+            return previousRows;
         });
     }
 
@@ -358,13 +382,23 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         course.setClassDate(node.path("SKRQ").asText(null));            // 上课日期
 
         // 验证必要字段
-        if (course.getCourseName() == null || course.getClassName() == null
-                || course.getClassDate() == null) {
+        if (isBlank(course.getCourseName()) || isBlank(course.getClassName())
+                || isBlank(course.getClassDate())) {
             log.debug("[课表同步] 跳过无效数据：缺少课程名称 / 班级名称 / 上课日期");
             return null;
         }
 
         return course;
+    }
+
+    /**
+     * 判断必要字段是否为空或仅包含空白字符
+     *
+     * @param value 待校验字段值
+     * @return 字段为空或仅包含空白字符时返回 true
+     */
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
 }

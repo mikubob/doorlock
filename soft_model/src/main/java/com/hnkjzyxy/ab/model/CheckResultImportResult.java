@@ -48,7 +48,7 @@ public class CheckResultImportResult implements Serializable {
     private List<RowError> errors = new ArrayList<>();
 
     /**
-     * 实际解析到的表头行数，用于核对模板是否符合预期
+     * 全部工作表的表头行数之和，用于核对模板是否符合预期
      */
     private int headRowCount;
 
