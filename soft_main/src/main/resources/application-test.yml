@@ -143,3 +143,19 @@ upload:
 download:
   fileUrl: /application/evaluation/xlsx/test.xlsx
 
+
+# 巡查结果导入（T-03）
+# 说明：整次导入在单个事务内完成，解析失败的行会被跳过并回传行号与原因
+check-result:
+  import:
+    enabled: true
+    max-rows: 50000
+    batch-size: 500
+    # false=跳过坏行、其余入库；true=只要有一行坏数据就放弃整次导入
+    fail-fast-on-error: false
+    # 学院为空时拒绝导入，避免数据在学院维度统计中「隐形」
+    require-college: true
+    # FROM_UPLOADER | FROM_EXCEL | MANUAL
+    college-strategy: FROM_UPLOADER
+    # false=列序错位时只告警并写入回执；true=列序错位直接拒绝整次导入
+    strict-head-check: false

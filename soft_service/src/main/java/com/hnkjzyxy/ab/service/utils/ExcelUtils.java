@@ -1,6 +1,8 @@
 package com.hnkjzyxy.ab.service.utils;
 
 import com.alibaba.excel.EasyExcel;
+import com.hnkjzyxy.ab.config.CheckResultImportProperties;
+import com.hnkjzyxy.ab.model.CheckResultImportResult;
 import com.hnkjzyxy.ab.service.*;
 import com.hnkjzyxy.ab.service.listener.*;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
@@ -51,6 +53,9 @@ public class ExcelUtils {
 
     @Autowired
     private CourseService courseService;
+
+    @Autowired
+    private CheckResultImportProperties checkResultImportProperties;
 
     public static void exportAssess(List<AssessVo> assessVos, HttpServletResponse response) {
         try {
@@ -202,7 +207,19 @@ public class ExcelUtils {
         EasyExcel.read(file.getInputStream(), CourseModel.class, new CourseDataListener(courseService, snowFlowUtils)).doReadAll();
     }
 
-    public void readScheduleExcel(MultipartFile file) throws Exception {
+    /**
+     * 读取巡查结果 Excel 并导入
+     * <p>
+     * 解析全部完成后在监听器内部以单事务落库；解析失败的行被跳过并登记行号与原因，
+     * 不中断整次导入。
+     * </p>
+     *
+     * @param file          上传的 Excel 文件
+     * @param sourceCollege 来源学院，策略为 FROM_UPLOADER 时取上传人所属学院
+     * @return 导入回执，含总行数 / 成功数 / 失败数 / 错误清单
+     * @throws Exception 文件校验或解析异常
+     */
+    public CheckResultImportResult readScheduleExcel(MultipartFile file, String sourceCollege) throws Exception {
         String filename = file.getOriginalFilename();
         if (file.isEmpty()) {
             throw new RuntimeException("文件不能为空！");
@@ -215,8 +232,13 @@ public class ExcelUtils {
         if (length > 100) {
             throw new RuntimeException("上传的文件大小不能超过100MB!");
         }
-        //读取第二个sheet页
-        EasyExcel.read(file.getInputStream(), CheckResultModel.class, new CheckResultDataListener(checkResultService, snowFlowUtils)).doReadAll();
+        CheckResultDataListener listener = new CheckResultDataListener(checkResultService, snowFlowUtils,
+                transactionTemplate, checkResultImportProperties, sourceCollege);
+        // 显式声明表头行数，避免依赖 EasyExcel 版本默认值；同时读取文件中的全部 sheet
+        EasyExcel.read(file.getInputStream(), CheckResultModel.class, listener)
+                .headRowNumber(1)
+                .doReadAll();
+        return listener.getResult();
     }
 
 

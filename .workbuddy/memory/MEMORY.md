@@ -95,8 +95,46 @@
   **不要**用 `new DefaultRedisScript<>(text)` 再 `setLocation(...)` —— `sha1` 只在它作为 Spring Bean 时由 `afterPropertiesSet()` 初始化，手工 `new` 走不到，EVALSHA 会出错。
 - **禁止用 `Thread.sleep` 做等待或延迟**，按意图选工具：等容器就绪 → `ApplicationRunner` / `ApplicationReadyEvent`；等外部依赖 → 带退避的重试 / `RetryTemplate`；稍后异步 → 线程池 / 延迟队列；周期执行 → `@Scheduled`。
 
+## 测试与集成测试（重要踩坑）
+
+- **`@ActiveProfiles("xxx")` 是「替换」而非「叠加」** `application.yml` 里的 `spring.profiles.active`。
+  写测试 profile 时 **`application-dev.yml` 完全不加载**，必须自带数据源、`mybatis-plus.*`、
+  Redis、`yue.url`（安全白名单）、`absolute.jwt.*`、`upload.*`、`oa.*`、`schedule.sync.sync-on-startup:false` 等全部关键配置。
+  否则会以「表不存在」「占位符无法解析」等下游形式报错，极难定位。
+- **MyBatis-Plus 3.2.0 的 `table-prefix` 有效，但必须在当前 profile 里配**；
+  缺失时实体解析成 `check_result` 而非 `sys_check_result`。
+  排查手段：`TableInfoHelper.getTableInfo(CheckResult.class).getTableName()` + `env.getProperty(...)` 探针。
+  （反编译 `TableInfoHelper` 看不出前缀逻辑，**配置类问题一律以运行时探针为准**。）
+- **`soft_main/pom.xml` 硬写 `<skipTests>true</skipTests>`**，会压掉命令行 `-DskipTests=false` / `-Dsurefire.skip=false`。
+  要跑测试需临时改成 `<skipTests>${skipTests}</skipTests>`，**用完务必还原**。
+- 集成测试若需启动完整容器：`ScheduleLoad`（`CommandLineRunner`）会在启动期全表查 `sys_schedule_task`，
+  **该表不存在则容器启动即失败**（需建空表）；同时必须设 `schedule.sync.sync-on-startup: false`，
+  否则 `ApplicationRunner` 会真调 OA 并整表替换课表。
+
+## 测试代码现状（重要）
+
+**当前仓库中没有任何 T-03 相关的测试代码**（已于 2026-10-01 按要求删除）。
+曾有的 31 条用例（`CheckResultDataListenerTest` 25 条 + `CheckResultImportIntegrationTest` 6 条）
+及配套 `soft_main/src/test/resources/`（profile + 建库脚本）**均已移除**，因此**回归保护缺失**。
+→ 若后续要重建，请先读 `doc/T-03-Excel巡查导入映射失效与解析中断-完整解决方案.md` 第三/四轮补充。
+→ 唯一保留的测试是 `soft_main/src/test/java/.../TestMain.java`（原作者遗留，见下）。
+
+## 删除代码的安全动作（本项目踩过）
+
+`soft_main/src/test/` 下**混有原作者遗留的 `TestMain.java`**。
+删除自己写的测试前，**先 `git ls-files | grep test`（已跟踪=原有）对比 `git status`（`??`=我新增的）**划清边界，
+再对目标目录 `find -type f` 确认「只含自己的文件」，**不要直接 `rm -rf` 整个 `src/test`**。
+
 ## 已知代码问题（待处理，未改动）
 
 - 类名 `SamrtLockController` 拼写错误（应为 `SmartLockController`）。
 - `AuthController` 有两个同名重载 `getUserInfo`，在 Apifox 中易混淆。
 - `ScheduleController` 含 `/debug/userInfo` 临时调试接口，上线前应移除。
+- **`soft_main/src/test/java/.../TestMain`** 是遗留调试类：硬编码作者桌面路径（`E:\桌面\...xlsx`，
+  3 条用例必然失败），且**无 `@ActiveProfiles`，会直连生产库 `soft_manage` 跑 SQL**。
+  全量 `mvn test` 会因它 FAILURE —— 判断「是否本次改动导致失败」时必须先排除它。
+- `RedisConfig#redisTemplate` 的 value 用 Jackson JSON 序列化，而 `RedisUtils` 按 String 使用
+  → 字符串值在 Redis 中带引号（`"abc"`）。项目**没有**自定义 `stringRedisTemplate` Bean
+  （Boot 的 `RedisAutoConfiguration` 已提供），自行添加会触发 `BeanDefinitionOverrideException`。
+- `RedisUtils` 字段虽声明为 `RedisTemplate<String, String>`，但泛型擦除后**按 Bean 名 `redisTemplate` 注入**
+  → 实际用的是 `RedisConfig` 里那个 Jackson 序列化的模板，不是 String 专用模板。

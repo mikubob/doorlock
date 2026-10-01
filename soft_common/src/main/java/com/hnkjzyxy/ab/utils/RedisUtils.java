@@ -32,6 +32,18 @@ public class RedisUtils {
     private static final Logger log = LoggerFactory.getLogger(RedisUtils.class);
     private RedisTemplate<String, String> redisTemplate;
 
+    /**
+     * 注入 RedisTemplate
+     * <p>
+     * 注意：泛型是**擦除**的。本类按 {@code RedisTemplate<String, String>} 声明在构造器上，
+     * 但 {@code @Autowired} 的解析在泛型解析失败后会**退化成按名匹配**，
+     * 于是注入的是名为 {@code redisTemplate} 的那个 Bean（value 用 Jackson JSON 序列化）。
+     * 这是本项目的历史行为：字符串值会被写成带引号的 JSON（如 {@code "abc"}），
+     * 与 Redis 命令行看到的裸值不同。已在此显式记录，避免被误当成「String 专用模板」。
+     * </p>
+     *
+     * @param redisTemplate 与 {@code RedisConfig#redisTemplate} 同名的 Bean
+     */
     public RedisUtils(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }

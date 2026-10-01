@@ -23,6 +23,12 @@
             <artifactId>soft_common</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <!-- 导入回执、行级错误明细等响应模型统一放在 soft_model，由 soft_mapper 传递依赖引入 -->
+        <dependency>
+            <groupId>com.hnkjzyxy.soft</groupId>
+            <artifactId>soft_model</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
     <build>
         <resources>

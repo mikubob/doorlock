@@ -4,13 +4,16 @@ import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hnkjzyxy.ab.client.OaApiClient;
 import com.hnkjzyxy.ab.model.CheckResult;
+import com.hnkjzyxy.ab.model.CheckResultImportResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CheckResultService;
 import com.hnkjzyxy.ab.service.UserService;
+import com.hnkjzyxy.ab.service.listener.ImportRejectedException;
 import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +33,7 @@ import java.util.Objects;
  * @author Lucas
  * @date 2024/4/23 20:19
  */
+@Slf4j
 @RestController
 @RequestMapping("/schedule")
 public class ScheduleController {
@@ -189,10 +193,12 @@ public class ScheduleController {
 
     /**
      * 上传巡查数据
-     * 解析 Excel 批量导入教学巡查记录
+     * 解析 Excel 批量导入教学巡查记录，整次导入在单个事务内完成
      *
-     * @param file 巡查数据 Excel 文件
-     * @return 操作结果
+     * @param file           巡查数据 Excel 文件
+     * @param authentication 当前登录用户
+     * @return 导入成功时返回回执（总行数、成功数、失败数与逐行错误清单）；
+     * 整次导入被拒绝时返回 code=400 与拒绝原因，不写入任何数据
      */
     @PostMapping("/upload")
     //@RepeatSubmit
@@ -203,15 +209,18 @@ public class ScheduleController {
             throw new RuntimeException("用户不能为空！");
         }
 
+        CheckResultImportResult result;
         try {
-            checkResultService.uploadCheckResult(file);
+            result = checkResultService.uploadCheckResult(file, user);
+        } catch (ImportRejectedException e) {
+            // 整次导入被拒绝（数据量超限 / 有错即放弃 / 表头严格校验未通过）：明确告知失败，而非「成功 0 条」
+            log.warn("[巡查导入] 拒绝导入，上传人={}，原因={}", user.getUserName(), e.getReason());
+            return ApiResult.error("导入被拒绝：" + e.getReason());
         } catch (Exception e) {
-
             throw new RuntimeException(e.getMessage());
         }
 
-
-        return ApiResult.ok("上传成功！");
+        return ApiResult.ok("msg", result.getMessage()).put("data", result);
     }
 
 

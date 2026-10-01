@@ -2,6 +2,7 @@ package com.hnkjzyxy.ab.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.hnkjzyxy.ab.model.CheckResult;
+import com.hnkjzyxy.ab.model.CheckResultImportResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
@@ -19,7 +20,18 @@ public interface CheckResultService extends IService<CheckResult> {
 
     List<CheckResult> dataStatisticsByClasses(CheckResult resultVo, User user);
 
-    void uploadCheckResult(MultipartFile file) throws Exception;
+    /**
+     * 上传巡查结果 Excel 并导入
+     * <p>
+     * 整次导入在单个事务内完成，解析失败的行被跳过并登记行号与原因。
+     * </p>
+     *
+     * @param file 巡查结果 Excel 文件
+     * @param user 当前上传人，用于按策略推导数据归属学院
+     * @return 导入回执，含总行数 / 成功数 / 失败数 / 错误清单
+     * @throws Exception 文件校验或解析异常
+     */
+    CheckResultImportResult uploadCheckResult(MultipartFile file, User user) throws Exception;
 
     List<CheckResultByTeacherDataVo> teachCheckAnalysis(CheckResult resultVo);
 
