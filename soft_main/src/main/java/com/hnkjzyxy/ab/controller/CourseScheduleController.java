@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.controller;
 
 import com.hnkjzyxy.ab.model.CourseSchedule;
+import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,18 +25,21 @@ public class CourseScheduleController {
     private CourseScheduleService courseScheduleService;
 
     /**
-     * 刷新课程安排数据
+     * 刷新课程安排数据（从 OA 拉取并整体替换课表）
+     * <p>
+     * 同步失败或未执行时不会改动现有课表数据，返回体中的 data 字段包含本次同步明细。
+     * </p>
      *
-     * @return 操作结果
+     * @return 同步结果，data 为本次同步明细
      */
     @GetMapping("/refresh")
     public ApiResult refresh() {
-        Boolean refresh = courseScheduleService.refresh();
-        if (refresh){
-            return ApiResult.ok("刷新成功");
-        }else {
-            return ApiResult.error("刷新失败");
+        CourseScheduleSyncResult result = courseScheduleService.sync("manual");
+        if (result.isSuccess()) {
+            return ApiResult.ok("刷新成功").put("data", result);
         }
+        String message = result.getMessage() == null ? "刷新失败" : result.getMessage();
+        return ApiResult.error(message);
     }
 
     /**

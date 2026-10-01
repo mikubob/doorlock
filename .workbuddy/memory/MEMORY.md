@@ -28,7 +28,7 @@
 ## 环境注意事项
 
 - Windows 下 Write/Edit 偶发 `EBUSY: resource busy or locked`（IDE 索引占用），**直接重试即可**。
-- 仓库 `target/` 目录被 git 跟踪，`git diff` 会混入大量 class 变更，核对改动时用 `git diff -- <具体文件>`。
+- 仓库 `target/` **未被 git 跟踪**（`.gitignore` 有 `**/target/`）。`mvn clean/package` 不会污染 `git status`，可放心执行。
 
 ## 文档产出约定
 
@@ -66,6 +66,34 @@
 
 ### 排课回退用 SKRQ 而非 ZC+XQJ
 `sys_course_schedule.SKRQ` 是上课日期（`yyyyMMdd`），教务已把单双周/调课/停课烘焙进去。P0 直接比对 `SKRQ = 今天` 即可，无需周历推算；`ZC`+`XQJ` 的推算留给课表联动生成任务时用（配合新增 `sys_term_calendar`）。
+
+## 课表同步（T-01，2026-09-29 已实现，零 DDL）
+
+- 方案文档：`doc/T-01-课表同步清空风险-完整解决方案.md`。
+- **铁律：`sys_course_schedule` 的同步禁止 `TRUNCATE`**（DDL 隐式提交、无法回滚），必须「先拉取 → 校验 → 事务内 `DELETE` + `saveBatch` 整体替换」。`CourseScheduleMapper.truncateTable()` 已**整体删除**，不要加回来。
+- 所有同步入口（cron / startup / 手动 `/courseSchedule/refresh`）统一走 `CourseScheduleService.sync(source)` 单一入口，内部自带 Redis 分布式锁 + 四道数据量闸门（0 条 / `min-rows` / `shrink-guard-ratio` / `page-size` 截断）。
+- 配置项在 `schedule.sync.*`（`ScheduleSyncProperties`，soft_common）。**`sync-on-startup` 生产必须 false**。
+- **做 Redis 分布式锁必须用 `StringRedisTemplate`**：项目的 `RedisTemplate<String,Object>` 走 Jackson JSON 序列化，值带引号，Lua 里比对 token 会失败 → 锁永不过期。`RedisUtils` 实际注入的也是 StringRedisTemplate。
+- `SoftApplication` 上已有 `@ConfigurationPropertiesScan("com.hnkjzyxy.ab")`，新增配置类**只写 `@ConfigurationProperties`，不要再加 `@Component`**（同类型 Bean 会注册两次，按类型注入变歧义）。参照 `AuthUrlConfig`。
+- `sys_course_schedule` **只有主键 `id`，无业务唯一键**（要做增量 upsert 必须先加唯一索引）；不再 TRUNCATE → `AUTO_INCREMENT` 持续增长，按现量估算可用约 1.9 万年，不处理。
+- `OaRequestAPIUtils.getClassBoardData` **吞异常返回 `null`**（无法区分「网络失败」与「真的没数据」），且 URL 写死 `per_page=1000` 会静默截断。改造归 T-02 / R-04。
+- 依赖关系：`soft_service` → `soft_mapper` + `soft_common`（**不依赖 soft_main**），因此被 service 使用的配置类要放 soft_common / soft_model。
+
+## 资源文件位置约定（重要）
+
+**所有资源统一收敛在 `soft_main/src/main/resources/`**，Java 代码才按模块拆分。
+
+- 先例：`CourseScheduleMapper.java` 在 `soft_mapper`，`CourseScheduleMapper.xml` 在 `soft_main/src/main/resources/mapper/`，配置写 `classpath:mapper/*.xml`。
+- 因此 `soft_common` 的代码可以读取 `soft_main` 下的资源：**classpath 在运行期合并**（fat jar 内统一落在 `BOOT-INF/classes/`），与编译期模块依赖无关。已用 `ClassPathResource#exists` 探针实测：`soft_common/target/classes` + `soft_main/target/classes` → `true`；仅 `soft_common` → `false`。
+- 代价：这类工具类**运行期依赖 soft_main**，单模块复用会快速失败（已在 `RedisLockUtils` 里抛 `IllegalStateException`，不静默降级）。要恢复自包含，只需挪文件、代码零改动。
+- `soft_main/pom.xml` 自带 `<resources>` 块，**在本模块内覆盖父 POM**：`src/main/resources` 下所有文件（含 `.lua`）都按 `filtering=true` 处理。脚本内不要出现 `${}` / `@...@` 占位符。
+
+## Redis Lua 脚本与「等待」的写法约定
+
+- **Lua 脚本一律放独立文件**：`soft_main/src/main/resources/lua/*.lua`（按上面的资源约定，**不**放 soft_common）。加载用
+  `RedisScript.of(new ClassPathResource("lua/xxx.lua"), Long.class)`（路径是 classpath 相对路径，与物理模块无关）。
+  **不要**用 `new DefaultRedisScript<>(text)` 再 `setLocation(...)` —— `sha1` 只在它作为 Spring Bean 时由 `afterPropertiesSet()` 初始化，手工 `new` 走不到，EVALSHA 会出错。
+- **禁止用 `Thread.sleep` 做等待或延迟**，按意图选工具：等容器就绪 → `ApplicationRunner` / `ApplicationReadyEvent`；等外部依赖 → 带退避的重试 / `RetryTemplate`；稍后异步 → 线程池 / 延迟队列；周期执行 → `@Scheduled`。
 
 ## 已知代码问题（待处理，未改动）
 

@@ -58,6 +58,20 @@ image:
   width: 100
   height: 50
 
+# 课表同步（T-01）
+# 说明：sync-on-startup 开启后，应用启动完成时会同步一次课表；生产环境建议保持 false
+schedule:
+  sync:
+    enabled: true
+    sync-on-startup: false
+    cron: "0 0 3 * * ?"
+    batch-size: 500
+    # 数据量保护：低于下面任一阈值即放弃同步并保留旧数据
+    min-rows: 50
+    shrink-guard-ratio: 0.5
+    page-size: 1000
+    lock-ttl-seconds: 1800
+
 yue:
   url:
     - "/login"
