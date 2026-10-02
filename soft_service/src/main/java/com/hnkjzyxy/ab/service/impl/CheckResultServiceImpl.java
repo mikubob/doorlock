@@ -1,5 +1,6 @@
 package com.hnkjzyxy.ab.service.impl;
 
+import com.hnkjzyxy.ab.service.excel.CheckResultExcelImportService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.config.CheckResultImportProperties;
@@ -8,7 +9,6 @@ import com.hnkjzyxy.ab.mapper.CheckResultMapper;
 import com.hnkjzyxy.ab.model.CheckResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.service.CheckResultService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultImportResult;
@@ -40,8 +40,8 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
 
     @Autowired
     private CheckResultImportProperties checkResultImportProperties;
-    @Resource
-    private ExcelUtils excelUtils;
+    @Autowired
+    private CheckResultExcelImportService checkResultExcelImportService;
 
     @Override
     public List<CheckResult> getList(CheckResult resultVo, User user) {
@@ -106,7 +106,7 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         String sourceCollege = user == null ? null : user.getCollege();
         // 整次导入的事务边界统一收在监听器内部（解析完成 → 单事务落库），此处不再叠加事务，避免嵌套误导
         try {
-            return excelUtils.readScheduleExcel(file, sourceCollege);
+            return checkResultExcelImportService.readScheduleExcel(file, sourceCollege);
         } catch (ImportRejectedException e) {
             // 整次导入被拒绝属于正常的业务结果（数据量超限 / 有错即放弃 / 表头严格校验未通过），
             // 原样上抛由接口层呈现明确失败，避免被包装成「成功 0 条」的假成功

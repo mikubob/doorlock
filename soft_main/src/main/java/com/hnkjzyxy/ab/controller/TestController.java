@@ -5,7 +5,7 @@ import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.utils.IpUtil;
-import com.hnkjzyxy.ab.utils.ReadExcelUtils;
+import com.hnkjzyxy.ab.service.support.StudentScorePreviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +25,7 @@ public class TestController {
     @Autowired
     private UserService userService;
     @Autowired
-    private ReadExcelUtils readExcelUtils;
+    private StudentScorePreviewService studentScorePreviewService;
 
     public static void main(String[] args) {
 //        List<Integer> list = JSONArray.parseArray("[1,2,3,4,5]", Integer.class);
@@ -70,7 +70,7 @@ public class TestController {
      */
     @GetMapping("/excel")
     public ApiResult getExcel(MultipartFile file) {
-        List<Map<String, String>> maps = readExcelUtils.generalExcel(file);
+        List<Map<String, String>> maps = studentScorePreviewService.preview(file);
         return ApiResult.ok("data", maps);
     }
 

@@ -3,7 +3,7 @@ package com.hnkjzyxy.ab.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hnkjzyxy.ab.model.CheckResult;
-import com.hnkjzyxy.ab.model.CheckResultResponse;
+import com.hnkjzyxy.ab.vo.CheckResultStatisticsVo;
 import com.hnkjzyxy.ab.model.Course;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
@@ -189,7 +189,7 @@ public class CourseController {
             //4.带食物人数
             foodCarryingRate += checkResult.getFoodBringPerson();
         }
-        CheckResultResponse checkResultResponse = new CheckResultResponse();
+        CheckResultStatisticsVo checkResultResponse = new CheckResultStatisticsVo();
         // 缺勤率计算
         if (shouldArrival > 0) {
             double absenteeismRate = (shouldArrival - arrival) * 100.0 / shouldArrival;

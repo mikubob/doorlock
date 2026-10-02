@@ -1,12 +1,12 @@
 package com.hnkjzyxy.ab.service.impl;
 
+import com.hnkjzyxy.ab.service.excel.CourseExcelImportService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.mapper.CourseMapper;
 import com.hnkjzyxy.ab.model.Course;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.service.CourseService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,8 +36,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     @Autowired
     private TransactionTemplate transactionTemplate;
 
-    @Resource
-    private ExcelUtils excelUtils;
+    @Autowired
+    private CourseExcelImportService courseExcelImportService;
 
 
     @Override
@@ -64,7 +64,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         transactionTemplate.execute(status -> {
             try {
 
-                excelUtils.readCourseExcel(file);
+                courseExcelImportService.readCourseExcel(file);
 
             } catch (Exception e) {
 //                throw new RuntimeException("导入学期课表失败");

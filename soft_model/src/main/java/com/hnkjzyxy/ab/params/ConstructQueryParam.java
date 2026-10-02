@@ -1,6 +1,6 @@
 package com.hnkjzyxy.ab.params;
 
-import com.hnkjzyxy.ab.vo.QueryPage;
+import com.hnkjzyxy.ab.params.PageQueryParam;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ConstructQueryParam extends QueryPage {
+public class ConstructQueryParam extends PageQueryParam {
 
     /**
      * 建设项目ID

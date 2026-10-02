@@ -1,5 +1,6 @@
 package com.hnkjzyxy.ab.service.impl;
 
+import com.hnkjzyxy.ab.service.excel.StudentInfoExcelImportService;
 import com.alibaba.excel.util.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -17,7 +18,6 @@ import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.StudentInfoService;
 import com.hnkjzyxy.ab.service.UserRoleService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -53,8 +53,8 @@ public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, Stude
     private MajorDetailsMapper majorDetailsMapper;
     @Autowired
     private UserService userService;
-    @Resource
-    private ExcelUtils excelUtils;
+    @Autowired
+    private StudentInfoExcelImportService studentInfoExcelImportService;
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -63,7 +63,7 @@ public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, Stude
         transactionTemplate.execute(status -> {
             try {
                 // 读取课程Excel文件，导入学生数据
-                excelUtils.readStudentInfoExcel(file);
+                studentInfoExcelImportService.readStudentInfoExcel(file);
             } catch (Exception e) {
                 // 异常处理，抛出运行时异常，终止事务
                 throw new RuntimeException(e.getMessage());

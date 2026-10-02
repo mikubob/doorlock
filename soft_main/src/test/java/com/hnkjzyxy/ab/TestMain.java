@@ -1,12 +1,12 @@
 package com.hnkjzyxy.ab;
 
+import com.hnkjzyxy.ab.service.excel.UserExcelImportService;
 import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hnkjzyxy.ab.dto.excel.TaskModel;
 import com.hnkjzyxy.ab.model.Task;
 import com.hnkjzyxy.ab.service.TaskService;
 import com.hnkjzyxy.ab.service.listener.TaskDataListener;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ public class TestMain {
         put("区块链教研室", 16);
     }};
     @Autowired
-    private ExcelUtils excelUtils;
+    private UserExcelImportService userExcelImportService;
     @Resource
     private TaskService taskService;
     @Resource
@@ -44,7 +44,7 @@ public class TestMain {
 //    @Transactional
     void readUsers() {
         String fileUrl = "E:\\桌面\\软件学院教职员工工作考核管理系统\\用户基础数据导入V1.0.xls";
-        excelUtils.readUserExcel(fileUrl);
+        userExcelImportService.readUserExcel(fileUrl);
     }
 
     @Test

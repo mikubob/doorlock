@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Select;
 import java.util.List;
 
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface RoleMapper extends BaseMapper<Role> {
     @Delete("DELETE from sys_role_menu where role_id in (#{ids})")
     void roleMenu(String ids);

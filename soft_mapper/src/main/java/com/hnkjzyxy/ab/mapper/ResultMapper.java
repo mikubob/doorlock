@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Select;
 import java.util.HashSet;
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface ResultMapper extends BaseMapper<Result> {
 
     @Select("select count(*) from sys_result where (p_id = #{pId} and u_id = #{uId}) and (is_finish = 0 or is_finish = 1)")

@@ -13,8 +13,9 @@ import com.hnkjzyxy.ab.service.ScheduleService;
 import com.hnkjzyxy.ab.service.SmartLockService;
 import com.hnkjzyxy.ab.service.SwitchRecordService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.utils.SearchDeviceCommand;
-import com.hnkjzyxy.ab.utils.SmartLockSwitch;
+import com.hnkjzyxy.ab.smartlock.command.SearchDeviceCommand;
+import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
+import com.hnkjzyxy.ab.service.support.SmartLockStateService;
 import com.hnkjzyxy.ab.vo.UserVo;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
@@ -54,6 +55,10 @@ public class SamrtLockController {
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     SmartLockService smartLockService;
+    @Autowired
+    private SmartLockGateway smartLockGateway;
+    @Autowired
+    private SmartLockStateService smartLockStateService;
     HashSet<SearchEquptOnNetNum_Result.SearchResult> devicesList;
     @Autowired
     SwitchRecordService switchRecordService;
@@ -241,7 +246,7 @@ public class SamrtLockController {
         if (result) {
             //判断用户的意图(开/关)
             if (byId != null && lockInfo.getSwitchStatus() == 1) {
-                SmartLockSwitch.openDoor(byId.getIpAddress(), byId.getPortNumber(), byId.getSnCode(),byId.getRemarks());
+                smartLockGateway.openDoor(byId.getIpAddress(), byId.getPortNumber(), byId.getSnCode(),byId.getRemarks());
                 SwitchRecord switchRecord = new SwitchRecord();
                 switchRecord.setOperationMethod(1);
                 switchRecord.setLockId(byId.getLockId());
@@ -251,7 +256,7 @@ public class SamrtLockController {
                 switchRecordService.insert(switchRecord);
                 return ApiResult.ok("开锁成功");
             } else if (byId != null && lockInfo.getSwitchStatus() == 0) {
-                SmartLockSwitch.closeDoor(byId.getSnCode(), byId.getIpAddress(), byId.getPortNumber(),byId.getRemarks());
+                smartLockGateway.closeDoor(byId.getSnCode(), byId.getIpAddress(), byId.getPortNumber(),byId.getRemarks());
                 SwitchRecord switchRecord = new SwitchRecord();
                 switchRecord.setLockId(byId.getLockId());
                 switchRecord.setUserId(isLockOnlyToken ? -1 : userInfo.getUserId());
@@ -451,21 +456,22 @@ public class SamrtLockController {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 List<LockInfo> all = smartLockService.getAll();
-                SmartLockSwitch smartLockSwitch = new SmartLockSwitch(smartLockService);
 
                 // 为每个锁设备创建异步查询任务
-                List<CompletableFuture<LockInfo>> futures = all.stream().map(lockInfo -> CompletableFuture.supplyAsync(() -> {
+                List<CompletableFuture<LockInfo>> futures = all.stream().map(lockInfo -> {
                     try {
-                        System.out.println("查询前：" + lockInfo.toString());
-                        // 直接传递lockInfo给queryDoorStatus方法，避免静态变量竞态条件
-                        smartLockSwitch.queryDoorStatus(lockInfo.getIpAddress(), lockInfo.getPortNumber(), lockInfo.getSnCode(), lockInfo);
-                        System.out.println("查询后：" + lockInfo.toString());
-                        return lockInfo;
+                        return smartLockStateService.refreshStatus(lockInfo).handle((updated, error) -> {
+                            if (error != null) {
+                                System.err.println("查询锁状态失败: " + lockInfo.getSnCode() + ", 错误: " + error.getMessage());
+                                return lockInfo;
+                            }
+                            return updated;
+                        });
                     } catch (Exception e) {
                         System.err.println("查询锁状态失败: " + lockInfo.getSnCode() + ", 错误: " + e.getMessage());
-                        return lockInfo; // 即使查询失败也返回锁信息
+                        return CompletableFuture.completedFuture(lockInfo);
                     }
-                }, executorService)).collect(Collectors.toList());
+                }).collect(Collectors.toList());
 
                 // 等待所有异步任务完成
                 CompletableFuture<Void> allOf = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));

@@ -11,7 +11,7 @@ import org.apache.ibatis.annotations.Update;
  * @author: Spell a
  * @date: 2023/4/18 20:11
  */
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface MessageMapper extends BaseMapper<Message> {
 
     @Update("update sys_message set status = 1 where user_id = #{userId}")

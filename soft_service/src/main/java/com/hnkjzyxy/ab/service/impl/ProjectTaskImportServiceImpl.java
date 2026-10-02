@@ -20,7 +20,8 @@ import com.hnkjzyxy.ab.service.ProjectTaskGuard;
 import com.hnkjzyxy.ab.service.ProjectTaskImportService;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
-import com.hnkjzyxy.ab.vo.ProjectItemVo;
+import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
+import com.hnkjzyxy.ab.params.ProjectItemImportParam;
 import com.hnkjzyxy.ab.vo.ProjectTaskImportResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -109,14 +110,14 @@ public class ProjectTaskImportServiceImpl implements ProjectTaskImportService {
      * @throws ProjectTaskException 输入、权限、审核或生命周期校验失败时抛出
      */
     @Override
-    public ProjectTaskImportResult merge(List<ProjectItemVo> request, User operator) {
+    public ProjectTaskImportResult merge(List<ProjectItemImportParam> request, User operator) {
         long started = System.currentTimeMillis();
         if (request == null || request.isEmpty() || request.size() > 1000) {
             throw new ProjectTaskException(400, "请选择1至1000个不同的项目子项");
         }
         Integer projectId = request.get(0) == null ? null : request.get(0).getProjectId();
         Set<Integer> ids = new LinkedHashSet<>();
-        for (ProjectItemVo row : request) {
+        for (ProjectItemImportParam row : request) {
             if (row == null || projectId == null || !projectId.equals(row.getProjectId()) ||
                     row.getId() == null || row.getId() <= 0 || !ids.add(row.getId())) {
                 throw new ProjectTaskException(400, "子项ID不能为空或重复，所有子项必须属于同一项目");
@@ -179,7 +180,7 @@ public class ProjectTaskImportServiceImpl implements ProjectTaskImportService {
      * @throws ProjectTaskException 无管理权限、项目已冻结或来源字段不合法时抛出
      */
     @Override
-    public void saveItem(ProjectItemVo request, User operator) {
+    public void saveItem(ProjectItemSaveParam request, User operator) {
         if (request == null || request.getProjectId() == null) throw new ProjectTaskException(400, "项目ID不能为空");
         ProjectItemSource old = request.getId() == null ? null : mapper.source(request.getId());
         if (request.getId() != null && old == null) throw new ProjectTaskException(404, "子项不存在");

@@ -1,6 +1,6 @@
 package com.hnkjzyxy.ab.params;
 
-import com.hnkjzyxy.ab.vo.QueryPage;
+import com.hnkjzyxy.ab.params.PageQueryParam;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,7 +15,7 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class FlowParam extends QueryPage implements Serializable {
+public class FlowParam extends PageQueryParam implements Serializable {
 
     /**
      * 流程名称

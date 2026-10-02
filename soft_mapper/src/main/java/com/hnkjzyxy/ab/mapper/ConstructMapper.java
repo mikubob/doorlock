@@ -17,7 +17,7 @@ import java.util.List;
  * @author: Spell a
  * @date: 2023/5/8 15:37
  */
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface ConstructMapper extends BaseMapper<Construct> {
 
     @Insert("insert into sys_construct_user(con_id, u_id) VALUES(#{conId},#{uIds})")

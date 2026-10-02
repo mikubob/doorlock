@@ -1,6 +1,8 @@
 package com.hnkjzyxy.ab.config;
 
-import com.hnkjzyxy.ab.utils.SmartLockQuartz;
+import com.hnkjzyxy.ab.job.support.QuartzJobFactory;
+
+import com.hnkjzyxy.ab.job.SmartLockJob;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
@@ -34,7 +36,7 @@ public class QuartzConfig {
         dataMap.put("userId", userId);
         dataMap.put("taskId", taskId);
         dataMap.put("Channel", Channel);
-        return JobBuilder.newJob(SmartLockQuartz.class)
+        return JobBuilder.newJob(SmartLockJob.class)
                 .withIdentity("smartLockJob_" + lockId, "smartLockGroup")
                 .setJobData(dataMap)
                 .storeDurably()

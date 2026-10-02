@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface TaskMapper extends BaseMapper<Task> {
     List<TaskDto> selectGroupMetrics(@Param("pId") Integer projectId);
     List<TaskDto> selectTeachGroupMetrics(@Param("pId") Integer projectId,@Param("taskId") List<String> taskId);

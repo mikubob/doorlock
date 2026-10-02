@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface NoticeMapper extends BaseMapper<Notice> {
 
     @Select("select id,title,content,create_name createName,read_count readCount,status,create_time createTime from sys_notice " +

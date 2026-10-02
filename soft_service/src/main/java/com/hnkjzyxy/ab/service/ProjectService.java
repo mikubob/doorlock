@@ -7,7 +7,7 @@ import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.params.ProjectQueryParam;
 import com.hnkjzyxy.ab.result.ApiResult;
-import com.hnkjzyxy.ab.vo.ProjectItemVo;
+import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
 import com.hnkjzyxy.ab.vo.ResultVo;
 
 import java.util.List;
@@ -53,6 +53,6 @@ public interface ProjectService extends IService<Project> {
      * @param projectItemVo 分类或子项维护信息
      * @param operator 当前认证操作人
      */
-    void addOrUpdateProjectItem(ProjectItemVo projectItemVo, User operator);
+    void addOrUpdateProjectItem(ProjectItemSaveParam projectItemVo, User operator);
     List<Project> getProjectAndCollegeByYear(String year, String college,User user);
 }

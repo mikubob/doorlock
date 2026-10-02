@@ -5,7 +5,7 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.hnkjzyxy.ab.Enum.HnkjzyEncode;
+import com.hnkjzyxy.ab.enums.HnkjzyEncode;
 import com.hnkjzyxy.ab.annotation.RedisCache;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.dto.SubTaskDto;

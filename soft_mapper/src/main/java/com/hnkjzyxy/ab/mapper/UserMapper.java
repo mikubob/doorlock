@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface UserMapper extends BaseMapper<User> {
     @Select("SELECT t2.menu_id from sys_user_role t1\n" +
             "INNER JOIN sys_role_menu t2 on t1.role_id = t2.role_id\n" +

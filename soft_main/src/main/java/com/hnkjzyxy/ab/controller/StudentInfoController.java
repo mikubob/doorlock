@@ -1,12 +1,12 @@
 package com.hnkjzyxy.ab.controller;
 
+import com.hnkjzyxy.ab.export.ExcelResponseExporter;
 import cn.hutool.core.util.ObjectUtil;
 import com.hnkjzyxy.ab.dto.AdmissionDto;
 import com.hnkjzyxy.ab.dto.BatchAdmitDto;
 import com.hnkjzyxy.ab.model.StudentInfo;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.StudentInfoService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.vo.StudentInfoVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -135,7 +135,7 @@ public class StudentInfoController {
         if (ObjectUtil.isEmpty(resultVo)) {
             throw new RuntimeException("导出结果不能为空！");
         }
-        ExcelUtils.exportStudentInfo(resultVo, response);
+        ExcelResponseExporter.exportStudentInfo(resultVo, response);
     }
 
     /**

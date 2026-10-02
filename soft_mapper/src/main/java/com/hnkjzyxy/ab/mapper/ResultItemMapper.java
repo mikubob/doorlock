@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface ResultItemMapper extends BaseMapper<ResultItem> {
 
     @Select("select * from sys_result_item where parent_id = #{id} and step = #{sort} order by create_time desc")

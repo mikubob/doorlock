@@ -13,7 +13,7 @@ import org.apache.ibatis.annotations.Update;
 import java.util.Date;
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface ProjectMapper extends BaseMapper<Project> {
 
     @Select("select A.id,A.title,A.describe,A.send_name sendName,A.start_time startTime,A.end_time endTime,A.create_time createTime,A.status,A.is_collect isCollect " +

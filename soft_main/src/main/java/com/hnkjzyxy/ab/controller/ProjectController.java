@@ -1,5 +1,6 @@
 package com.hnkjzyxy.ab.controller;
 
+import com.hnkjzyxy.ab.export.ExcelResponseExporter;
 import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.druid.util.StringUtils;
 import com.alibaba.fastjson.JSON;
@@ -32,12 +33,13 @@ import com.hnkjzyxy.ab.service.ResultItemService;
 import com.hnkjzyxy.ab.service.ResultService;
 import com.hnkjzyxy.ab.service.RoleService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.utils.FilePathUtils;
-import com.hnkjzyxy.ab.utils.ReadExcelUtils;
+import com.hnkjzyxy.ab.service.excel.TaskExcelPreviewService;
 import com.hnkjzyxy.ab.utils.UploadUtils;
 import com.hnkjzyxy.ab.vo.ProjectItemVo;
+import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
+import com.hnkjzyxy.ab.params.ProjectItemImportParam;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import com.hnkjzyxy.ab.vo.ResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,7 +84,7 @@ public class ProjectController {
     @Autowired
     private ProjectService projectService;
     @Autowired
-    private ReadExcelUtils readExcelUtils;
+    private TaskExcelPreviewService taskExcelPreviewService;
     @Autowired
     private UserService userService;
     @Autowired
@@ -266,7 +268,7 @@ public class ProjectController {
      */
     @PostMapping("/uploadFile")
     public ApiResult uploadFile(@RequestParam("file") MultipartFile file) {
-        List<Task> tasks = readExcelUtils.readExcel(file);
+        List<Task> tasks = taskExcelPreviewService.preview(file);
         return ApiResult.ok("data", tasks);
     }
 
@@ -458,7 +460,7 @@ public class ProjectController {
         if (ObjectUtil.isEmpty(projectVo.getAssessList())) {
             throw new RuntimeException("导出结果不能为空！");
         }
-        ExcelUtils.exportAssess(projectVo.getAssessList(), response);
+        ExcelResponseExporter.exportAssess(projectVo.getAssessList(), response);
     }
 
     /**
@@ -623,7 +625,7 @@ public class ProjectController {
      * @param projectItemVo 项目子项信息
      */
     @PostMapping("/project/item")
-    public void addProjectItem(@RequestBody ProjectItemVo projectItemVo, Authentication authentication) {
+    public void addProjectItem(@RequestBody ProjectItemSaveParam projectItemVo, Authentication authentication) {
         projectService.addOrUpdateProjectItem(projectItemVo, taskOperator(authentication));
     }
 
@@ -643,7 +645,7 @@ public class ProjectController {
      * @param projectItems 项目子项列表
      */
     @PostMapping("/project/item/insertIntoTask")
-    public ApiResult insertIntoTask(@RequestBody(required = false) List<ProjectItemVo> projectItems, Authentication authentication) {
+    public ApiResult insertIntoTask(@RequestBody(required = false) List<ProjectItemImportParam> projectItems, Authentication authentication) {
         return ApiResult.ok("data", projectTaskImportService.merge(projectItems, taskOperator(authentication)));
     }
 

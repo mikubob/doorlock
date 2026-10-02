@@ -1,5 +1,6 @@
 package com.hnkjzyxy.ab.service.impl;
 
+import com.hnkjzyxy.ab.service.excel.TaskExcelImportService;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
@@ -8,7 +9,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.hnkjzyxy.ab.Enum.HnkjzyEncode;
+import com.hnkjzyxy.ab.enums.HnkjzyEncode;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.mapper.FlowMapper;
@@ -41,12 +42,11 @@ import com.hnkjzyxy.ab.service.ResultExtendService;
 import com.hnkjzyxy.ab.service.ResultService;
 import com.hnkjzyxy.ab.service.TaskService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
-import com.hnkjzyxy.ab.service.utils.PageUtils;
+import com.hnkjzyxy.ab.utils.PageUtils;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
-import com.hnkjzyxy.ab.service.utils.TaskTreeUtils;
+import com.hnkjzyxy.ab.service.support.ProjectTaskTreeSupport;
 import com.hnkjzyxy.ab.vo.FlowTaskVo;
-import com.hnkjzyxy.ab.vo.ProjectItemVo;
+import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import com.hnkjzyxy.ab.vo.ResultVo;
 import org.springframework.beans.BeanUtils;
@@ -101,15 +101,15 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     @Resource
     private FlowTaskMapper flowTaskMapper;
     @Resource
-    private TaskTreeUtils taskTreeUtils;
+    private ProjectTaskTreeSupport projectTaskTreeSupport;
     @Resource
     private RedisTemplate redisTemplate;
     @Resource
     private ResultExtendService resultExtendService;
     @Resource
     private TaskService taskService;
-    @Resource
-    private ExcelUtils excelUtils;
+    @Autowired
+    private TaskExcelImportService taskExcelImportService;
     @Autowired
     private TransactionTemplate transactionTemplate;
 
@@ -152,7 +152,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         wrapper.orderByDesc(Project::getId);
         this.page(page, wrapper);//这里的status为0是默认的，表示还没有发布；这是查询创建的项目的接口
         List<Project> projectList = page.getRecords();
-        taskTreeUtils.buildProject(projectList);//这个没有起到作用
+        projectTaskTreeSupport.buildProject(projectList);//这个没有起到作用
         HashMap<String, Object> map = new HashMap<>();
         map.put("total", page.getTotal());
         map.put("list", projectList);
@@ -265,7 +265,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
             item.setStatus(checkProjectStatus(item.getId(), param.getUserId(), item));
         });
         /*//拿到项目任务
-        taskTreeUtils.buildProject(projectList);*/
+        projectTaskTreeSupport.buildProject(projectList);*/
         HashMap<String, Object> map = new HashMap<>();
         map.put("total", page.getTotal());
         map.put("list", projectList);
@@ -371,7 +371,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
                         projectMapper.insert(project);
                         projectTaskGuard.lock(project.getId());
                         projectTaskGuard.initialize(project.getId());
-                        excelUtils.readTaskExcel(project.getFile(), project.getId());
+                        taskExcelImportService.readTaskExcel(project.getFile(), project.getId());
                     } catch (Exception e) {
                         e.printStackTrace();
                         throw new RuntimeException(e);
@@ -747,7 +747,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     @Override
-    public void addOrUpdateProjectItem(ProjectItemVo projectItemVo, User operator) {
+    public void addOrUpdateProjectItem(ProjectItemSaveParam projectItemVo, User operator) {
         projectTaskImportService.saveItem(projectItemVo, operator);
     }
 

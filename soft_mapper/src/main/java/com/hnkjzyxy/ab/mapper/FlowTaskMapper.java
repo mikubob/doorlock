@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface FlowTaskMapper extends BaseMapper<FlowTask> {
     @Select("select A.p_id pId, B.u_id uId,B.role_id roleId from sys_flow A " +
             "join sys_flow_task B on A.id = B.parent_id WHERE B.type = #{type} and B.status = 1")

@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface FlowMapper extends BaseMapper<Flow> {
 
     @Select("select * from sys_flow where p_id = #{pId} and status = 1")

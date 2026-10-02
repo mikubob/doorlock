@@ -2,7 +2,7 @@ package com.hnkjzyxy.ab.service.impl;
 
 import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.fastjson.JSON;
-import com.hnkjzyxy.ab.Enum.HnkjzyEncode;
+import com.hnkjzyxy.ab.enums.HnkjzyEncode;
 import com.hnkjzyxy.ab.dto.TaskDto;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
 import com.hnkjzyxy.ab.mapper.ResultMapper;

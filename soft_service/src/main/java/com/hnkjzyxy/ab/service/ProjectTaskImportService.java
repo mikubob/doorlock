@@ -2,7 +2,8 @@ package com.hnkjzyxy.ab.service;
 
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.model.User;
-import com.hnkjzyxy.ab.vo.ProjectItemVo;
+import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
+import com.hnkjzyxy.ab.params.ProjectItemImportParam;
 import com.hnkjzyxy.ab.vo.ProjectTaskImportResult;
 
 import java.util.List;
@@ -28,7 +29,7 @@ public interface ProjectTaskImportService {
      * @return 本次合并的执行计数
      * @throws ProjectTaskException 输入、权限、审核或生命周期校验失败时抛出
      */
-    ProjectTaskImportResult merge(List<ProjectItemVo> request, User operator);
+    ProjectTaskImportResult merge(List<ProjectItemImportParam> request, User operator);
     /**
      * 新增或修改项目分类、子项
      *
@@ -36,7 +37,7 @@ public interface ProjectTaskImportService {
      * @param operator 当前认证操作人
      * @throws ProjectTaskException 无管理权限、项目已冻结或来源字段不合法时抛出
      */
-    void saveItem(ProjectItemVo request, User operator);
+    void saveItem(ProjectItemSaveParam request, User operator);
     /**
      * 删除允许维护的来源分类或子项
      * <p>

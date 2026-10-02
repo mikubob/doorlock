@@ -1,5 +1,6 @@
 package com.hnkjzyxy.ab.controller;
 
+import com.hnkjzyxy.ab.export.ExcelResponseExporter;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hnkjzyxy.ab.client.OaApiClient;
@@ -9,7 +10,6 @@ import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CheckResultService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultImportResult;
@@ -193,7 +193,7 @@ public class ScheduleController {
         if (ObjectUtil.isEmpty(resultVo)) {
             throw new RuntimeException("导出结果不能为空！");
         }
-        ExcelUtils.exportSchedule(resultVo, response);
+        ExcelResponseExporter.exportSchedule(resultVo, response);
     }
 
 
@@ -294,7 +294,7 @@ public class ScheduleController {
         if (ObjectUtil.isEmpty(resultVo)) {
             throw new RuntimeException("导出结果不能为空！");
         }
-        ExcelUtils.exportScheduleByTeacher(resultVo, response);
+        ExcelResponseExporter.exportScheduleByTeacher(resultVo, response);
     }
 
     /**

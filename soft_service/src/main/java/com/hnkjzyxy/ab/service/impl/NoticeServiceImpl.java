@@ -15,7 +15,7 @@ import com.hnkjzyxy.ab.service.MessageService;
 import com.hnkjzyxy.ab.service.NoticeService;
 import com.hnkjzyxy.ab.service.ProjectService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.vo.QueryPage;
+import com.hnkjzyxy.ab.params.PageQueryParam;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +40,7 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, Notice> impleme
     private UserService userService;
 
     @Override
-    public Map<String, Object> getNoticeListByPage(QueryPage page) {
+    public Map<String, Object> getNoticeListByPage(PageQueryParam page) {
         HashMap<String, Object> map = new HashMap<>();
         List<Notice> list = noticeMapper.getNoticeListByPage((page.getPage().intValue() - 1) * page.getLimit().intValue(), page.getLimit().intValue());
         Integer total = noticeMapper.getNoticeTotal();

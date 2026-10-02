@@ -1,6 +1,6 @@
 package com.hnkjzyxy.ab.dto;
 
-import com.hnkjzyxy.ab.vo.QueryPage;
+import com.hnkjzyxy.ab.params.PageQueryParam;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,7 +17,7 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SubTaskDto extends QueryPage implements Serializable {
+public class SubTaskDto extends PageQueryParam implements Serializable {
 
     /**
      * 项目名称

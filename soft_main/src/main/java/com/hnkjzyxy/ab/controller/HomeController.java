@@ -21,7 +21,7 @@ import com.hnkjzyxy.ab.service.ProjectService;
 import com.hnkjzyxy.ab.service.ResultService;
 import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.vo.DataVo;
-import com.hnkjzyxy.ab.vo.QueryPage;
+import com.hnkjzyxy.ab.params.PageQueryParam;
 import com.hnkjzyxy.ab.vo.RadarChartVo;
 import com.hnkjzyxy.ab.vo.TeacherAndDepartmentVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +72,7 @@ public class HomeController {
     @GetMapping("/notice/list")
     //@RedisCache(key = HnkjxyConstants.NOTICE_LIST)
     //@Cacheable(value = {HnkjxyConstants.NOTICE_LIST},key = "#param.getPage() + '-' + #param.getLimit()")
-    public ApiResult getNoticeList(QueryPage param) {
+    public ApiResult getNoticeList(PageQueryParam param) {
         Map<String, Object> map = noticeService.getNoticeListByPage(param);
         return ApiResult.ok("data", map);
     }

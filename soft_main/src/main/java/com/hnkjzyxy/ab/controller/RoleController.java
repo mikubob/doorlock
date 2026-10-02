@@ -12,7 +12,7 @@ import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.RoleMenuService;
 import com.hnkjzyxy.ab.service.RoleService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.vo.UserQueryVo;
+import com.hnkjzyxy.ab.params.UserQueryParam;
 import com.hnkjzyxy.ab.vo.UserVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -64,7 +64,7 @@ public class RoleController {
      */
     @GetMapping("/role/list")
     @PreAuthorize("hasRole('admin')")
-    public ApiResult roleList(@Validated UserQueryVo userQueryVo) {
+    public ApiResult roleList(@Validated UserQueryParam userQueryVo) {
         Page<Role> rolePage = new Page<>(userQueryVo.getPage(), userQueryVo.getLimit());
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StrUtil.isNotBlank(userQueryVo.getName()), Role::getRoleName, userQueryVo.getName());

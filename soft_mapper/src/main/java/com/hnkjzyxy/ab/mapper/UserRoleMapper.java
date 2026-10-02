@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-//@CacheNamespace(implementation = RedisCacheConfig.class)
+//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface UserRoleMapper extends BaseMapper<UserRole> {
 
     @Select("select ur.role_id from sys_role ro,sys_user_role ur where ro.role_id = ur.role_id and ur.user_id = #{userId} and ro.weight != 1")

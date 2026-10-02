@@ -16,9 +16,10 @@ import com.hnkjzyxy.ab.service.UserRoleService;
 import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.utils.RedisUtils;
 import com.hnkjzyxy.ab.utils.UploadUtils;
-import com.hnkjzyxy.ab.vo.UserQueryVo;
-import com.hnkjzyxy.ab.vo.UserSave;
+import com.hnkjzyxy.ab.params.UserQueryParam;
+import com.hnkjzyxy.ab.params.UserSaveParam;
 import com.hnkjzyxy.ab.vo.UserVo;
+import com.hnkjzyxy.ab.params.UserEditParam;
 import com.wf.captcha.SpecCaptcha;
 import com.wf.captcha.base.Captcha;
 import org.springframework.beans.BeanUtils;
@@ -132,15 +133,15 @@ public class AuthController {
     /**
      * 修改当前登录用户信息
      *
-     * @param userVo 待修改的用户信息（邮箱、手机号）
+     * @param param 待修改的用户信息（邮箱、手机号）
      * @return 操作结果
      */
     @PostMapping("/edit/user")
-    @CacheEvict(value = {"user"}, key = "#userVo.userName")
-    public ApiResult editUserInfo(@Validated @RequestBody UserVo userVo, Authentication authentication) {
+    @CacheEvict(value = {"user"}, key = "#param.userName")
+    public ApiResult editUserInfo(@Validated @RequestBody UserEditParam param, Authentication authentication) {
         User userInfo = userService.getUserByName(authentication.getName());
-        userInfo.setEmail(userVo.getEmail());
-        userInfo.setPhone(userVo.getPhone());
+        userInfo.setEmail(param.getEmail());
+        userInfo.setPhone(param.getPhone());
         userService.updateById(userInfo);
         return ApiResult.ok("修改成功！");
     }
@@ -153,7 +154,7 @@ public class AuthController {
      */
     @PreAuthorize("hasRole('admin')")//必须拥有admin角色
     @GetMapping("/user/list")
-    public ApiResult pass(@Validated UserQueryVo queryPage) {
+    public ApiResult pass(@Validated UserQueryParam queryPage) {
         Page<User> page = new Page<>(queryPage.getPage(), queryPage.getLimit());
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(queryPage.getName())) {
@@ -227,7 +228,7 @@ public class AuthController {
     @PreAuthorize("hasRole('admin')")
     @PostMapping("/user/save")
     @CacheEvict(value = {HnkjxyConstants.USERS_LIST, HnkjxyConstants.APPROVE_USERS})
-    public ApiResult save(@RequestBody @Validated UserSave userSave) {
+    public ApiResult save(@RequestBody @Validated UserSaveParam userSave) {
         //User oldUser = userService.getUserByName(userSave.getUserName());
         //判断工号是否存在
         User oldUser = userService.getOne(new LambdaQueryWrapper<User>().eq(User::getUserName, userSave.getUserName()));

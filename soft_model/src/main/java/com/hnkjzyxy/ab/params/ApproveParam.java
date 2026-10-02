@@ -1,7 +1,7 @@
 package com.hnkjzyxy.ab.params;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.hnkjzyxy.ab.vo.QueryPage;
+import com.hnkjzyxy.ab.params.PageQueryParam;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,7 +17,7 @@ import javax.validation.constraints.NotNull;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ApproveParam extends QueryPage {
+public class ApproveParam extends PageQueryParam {
 
     /**
      * 项目ID
