@@ -67,10 +67,27 @@ public interface SmartLockService {
      */
     boolean deleteById(Integer lockId);
 
+    /**
+     * 统计门禁设备数量
+     *
+     * @return 查询得到的数值
+     */
     int countNum();
 
+    /**
+     * 新增门禁设备的完整信息
+     *
+     * @param lockInfo 智能门锁设备信息
+     * @return 操作或条件校验结果
+     */
     boolean addLockInfoAll(LockInfo lockInfo);
 
 
+    /**
+     * 按电子班牌SN查询关联的门禁设备
+     *
+     * @param boardSn 电子班牌SN
+     * @return 智能门锁设备信息
+     */
     LockInfo getByBoardSn(String boardSn);
 }

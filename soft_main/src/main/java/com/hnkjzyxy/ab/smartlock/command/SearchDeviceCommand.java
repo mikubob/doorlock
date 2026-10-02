@@ -64,12 +64,23 @@ public class SearchDeviceCommand implements INConnectorEvent {
      */
     int SearchTimes = 3;
 
+    /**
+     * 本轮已发现的设备集合，通过同步快照向调用方提供结果
+     */
     HashSet<SearchEquptOnNetNum_Result.SearchResult> devices = new HashSet<>();
     /**
      * 搜索到的设备列表
      */
     HashSet<String> deviceList = new HashSet<>();
 
+    /**
+     * 当前实例提交的搜索命令，用于隔离其他搜索实例的回调
+     */
+    private volatile SearchEquptOnNetNum currentCommand;
+
+    /**
+     * 初始化设备搜索命令并注册 SDK 通讯监听器
+     */
     public SearchDeviceCommand() {
         allocator = ConnectorAllocator.GetAllocator();
         allocator.AddListener(this);/**添加事件监听*/
@@ -109,6 +120,7 @@ public class SearchDeviceCommand implements INConnectorEvent {
          * 搜索命令对象
          */
         SearchEquptOnNetNum cmd = new SearchEquptOnNetNum(par);
+        currentCommand = cmd;
 
         /**
          * 添加到命令队列中执行
@@ -121,38 +133,59 @@ public class SearchDeviceCommand implements INConnectorEvent {
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void CommandCompleteEvent(INCommand inCommand, INCommandResult inCommandResult) {
         System.out.println("搜索完成");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void CommandProcessEvent(INCommand inCommand) {
         System.out.println("正在搜索中。。。。。。");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ConnectorErrorEvent(INCommand inCommand, boolean b) {
         System.out.println("连接出错");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ConnectorErrorEvent(ConnectorDetail connectorDetail) {
         System.out.println("连接出错");
     }
 
+    /**
+     * 处理当前搜索命令的超时结果并按剩余次数继续搜索
+     * <p>
+     * 门禁搜索在超时回调中返回已收集设备；按 SN 去重并同步更新本轮设备集合。
+     * </p>
+     *
+     * @param inCommand 发生超时的 SDK 命令，仅处理本实例当前搜索命令
+     */
     @Override
     public void CommandTimeout(INCommand inCommand) {
-        if (inCommand instanceof SearchEquptOnNetNum) {
+        if (inCommand == currentCommand) {
             SearchEquptOnNetNum searchCmd = (SearchEquptOnNetNum) inCommand;
             SearchEquptOnNetNum_Result result = (SearchEquptOnNetNum_Result) searchCmd.getCommandResult();
             System.out.print(result.SearchTotal);
-            for (int i = 0; i < result.SearchTotal; i++) {
-                SearchEquptOnNetNum_Result.SearchResult device = result.ResultList.get(i);
-                if (!deviceList.contains(device.SN)) {
-                    devices.add(device);
-                    System.out.println("设备信息：SN=" + device.SN + ",IP=" + device.TCP.GetIP() + ",TCPPort=" + device.TCP.GetTCPPort());
-                    deviceList.add(device.SN);
+            synchronized (devices) {
+                for (int i = 0; i < result.SearchTotal; i++) {
+                    SearchEquptOnNetNum_Result.SearchResult device = result.ResultList.get(i);
+                    if (deviceList.add(device.SN)) {
+                        devices.add(device);
+                        System.out.println("设备信息：SN=" + device.SN + ",IP=" + device.TCP.GetIP() + ",TCPPort=" + device.TCP.GetTCPPort());
+                    }
                 }
             }
             if (SearchTimes == 0) {
@@ -163,32 +196,54 @@ public class SearchDeviceCommand implements INConnectorEvent {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void PasswordErrorEvent(INCommand inCommand) {
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ChecksumErrorEvent(INCommand inCommand) {
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void WatchEvent(ConnectorDetail connectorDetail, INData inData) {
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ClientOnline(ConnectorDetail connectorDetail) {
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ClientOffline(ConnectorDetail connectorDetail) {
 
     }
 
+    /**
+     * 获取本轮搜索已发现设备的独立快照
+     *
+     * @return 查询结果列表
+     */
     public HashSet<SearchEquptOnNetNum_Result.SearchResult> getDevices() {
-        return devices;
+        synchronized (devices) {
+            return new HashSet<>(devices);
+        }
     }
 }

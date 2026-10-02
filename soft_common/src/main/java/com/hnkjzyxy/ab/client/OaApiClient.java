@@ -41,8 +41,14 @@ public class OaApiClient {
      */
     private static final int BIZ_CODE_SUCCESS = 10000;
 
+    /**
+     * OA 接口及应用凭据配置
+     */
     private final OaProperties props;
 
+    /**
+     * JSON 序列化及反序列化工具
+     */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**

@@ -24,6 +24,8 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
      * 插入操作自动填充
      * 当执行 insert 操作时，自动为 createTime 和 updateTime 字段设置当前时间
      * 仅当字段值为 null 时才进行填充，防止覆盖手动设置的值
+     *
+     * @param metaObject 待填充字段的 MyBatis 元对象
      */
     @Override
     public void insertFill(MetaObject metaObject) {
@@ -43,6 +45,8 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
      * 更新操作自动填充
      * 当执行 update 操作时，自动为 updateTime 字段设置当前时间
      * 更新时强制刷新为最新时间
+     *
+     * @param metaObject 待填充字段的 MyBatis 元对象
      */
     @Override
     public void updateFill(MetaObject metaObject) {

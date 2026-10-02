@@ -9,11 +9,19 @@ import Door.Access.Connector.ConnectorEvent;
 import Door.Access.Door8800.Command.Door.CloseDoor;
 import Door.Access.Door8800.Command.Door.Parameter.RemoteDoor_Parameter;
 
+/**
+ * 门禁关门命令封装，提交 SDK 命令并处理通讯回调
+ */
 public class CloseDoorCommand {
+    /**
+     * 关门命令通讯参数
+     */
     CommandDetail cmdDtl;
 
     /**
      * 开门指令类
+     *
+     * @param detail SDK 命令通讯参数
      */
     public CloseDoorCommand(CommandDetail detail) {
         cmdDtl = detail;
@@ -25,6 +33,8 @@ public class CloseDoorCommand {
 
     /**
      * 开门指令
+     *
+     * @param Channel 门禁通道编号
      */
     public void execute(String Channel) {
 
@@ -51,6 +61,11 @@ public class CloseDoorCommand {
         CommandAllocator.addCommand(cmd);
     }
 
+    /**
+     * 获取当前关门命令的通讯监听器
+     *
+     * @return SDK 通讯监听器
+     */
     private ConnectorEvent getConnectorEvent() {
         return new ConnectorEvent() {
             /**

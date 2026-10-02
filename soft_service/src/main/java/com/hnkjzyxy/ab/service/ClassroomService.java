@@ -12,6 +12,8 @@ public interface ClassroomService extends IService<Classroom> {
 
     /**
      * 动态查询教室列表
+     *
+     * @param classroom 教室信息
      * @return 教室列表
      */
     List<Classroom> getClassroomList(Classroom  classroom);

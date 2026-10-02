@@ -22,6 +22,9 @@ import java.util.HashMap;
  */
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void commence(HttpServletRequest req, HttpServletResponse resp, AuthenticationException e) throws IOException, ServletException {
         resp.setContentType("application/json;charset=utf-8");

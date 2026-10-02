@@ -42,6 +42,11 @@ import static org.mockito.Mockito.*;
 
 /** 验证跨模块资源、请求模型、事务及异步状态回写的行为。 */
 class StructureRefactorCompatibilityTest {
+    /**
+     * 验证请求类型兼容旧 JSON 且输出模型不承担输入校验
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void requestModelsAcceptExistingPayloadsAndKeepOutputModelsIndependent() throws Exception {
         ObjectMapper mapper = new ObjectMapper()
@@ -68,6 +73,11 @@ class StructureRefactorCompatibilityTest {
         assertEquals(2, mapper.valueToTree(selected).size());
     }
 
+    /**
+     * 验证 Mapper 模块资源发现及映射语句解析
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void mapperXmlResourcesLoadFromMapperModuleAndResolveStatements() throws Exception {
         Resource[] resources = new PathMatchingResourcePatternResolver()
@@ -88,6 +98,11 @@ class StructureRefactorCompatibilityTest {
         assertTrue(configuration.hasStatement("com.hnkjzyxy.ab.mapper.ProjectMapper.getProjectItemById"));
     }
 
+    /**
+     * 验证任务 Excel 导入保留隔离级别及异常回滚规则
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void taskExcelImportStillRollsBackAtTheOriginalTransactionBoundary() throws Exception {
         AnnotationTransactionAttributeSource source = new AnnotationTransactionAttributeSource();
@@ -114,6 +129,9 @@ class StructureRefactorCompatibilityTest {
         verify(manager, never()).commit(any());
     }
 
+    /**
+     * 验证设备查询结果相互隔离且通讯完成后才回写
+     */
     @Test
     void doorQueriesKeepTheirOwnResultsAndPersistOnlyAfterCommunicationCompletes() {
         SmartLockGateway gateway = mock(SmartLockGateway.class);
@@ -140,6 +158,9 @@ class StructureRefactorCompatibilityTest {
         verify(persistence).updateSwitchStatus(2, 0);
     }
 
+    /**
+     * 验证设备通讯失败时不写入数据库状态
+     */
     @Test
     void failedDoorQueriesDoNotWriteDatabaseState() {
         SmartLockGateway gateway = mock(SmartLockGateway.class);
@@ -153,6 +174,14 @@ class StructureRefactorCompatibilityTest {
         verifyNoInteractions(persistence);
     }
 
+    /**
+     * 创建用于异步状态查询验证的门禁设备对象
+     *
+     * @param id 包结构调整兼容性测试，验证资源加载、事务及异步状态回写ID
+     * @param ip IP地址
+     * @param sn 门禁设备SN
+     * @return 智能门锁设备信息
+     */
     private LockInfo lock(int id, String ip, String sn) {
         LockInfo lock = new LockInfo();
         lock.setLockId(id);

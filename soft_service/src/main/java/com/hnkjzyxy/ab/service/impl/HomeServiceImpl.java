@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Resource;
 
 /**
+ * 首页统计Service实现类
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -42,22 +44,46 @@ import javax.annotation.Resource;
 @Service
 public class HomeServiceImpl implements HomeService {
 
+    /**
+     * 考核项目业务服务
+     */
     @Resource
     private ProjectService projectService;
+    /**
+     * 考核项目数据访问接口
+     */
     @Resource
     private ProjectMapper projectMapper;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
+    /**
+     * TaskMapper数据访问接口
+     */
     @Resource
     private TaskMapper taskMapper;
+    /**
+     * 考核结果数据访问接口
+     */
     @Resource
     private ResultMapper resultMapper;
+    /**
+     * 角色数据访问接口
+     */
     @Resource
     private RoleMapper roleMapper;
 
+    /**
+     * 用户数据访问接口
+     */
     @Resource
     private UserMapper userMapper;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @RedisCache(key = HnkjxyConstants.RADAR_CHART)
     public RadarChartVo radarChart(HomeParam param, User user) {
@@ -173,6 +199,9 @@ public class HomeServiceImpl implements HomeService {
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public RadarChartVo getChartByTeacherOrDepartment(HomeParam param, User user) {
         RadarChartVo chartVo = new RadarChartVo();
@@ -261,6 +290,13 @@ public class HomeServiceImpl implements HomeService {
         return res;
     }
 
+    /**
+     * 判断角色集合是否共有教研室角色
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
+     */
     public Boolean checkRoles(List<Integer> roles, List<Integer> roleIds) { //roles 当前登录用户角色，roleIds用户id角色:这个都是一个用户所拥有的所有角色
         //除了普通用户角色之外, 属于同一个教研室
         //判断接收的角色中有没有跟他一个教研室
@@ -271,6 +307,13 @@ public class HomeServiceImpl implements HomeService {
     }
 
 
+    /**
+     * 判断角色集合是否存在共有角色
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
+     */
     private Boolean checkDeanRoles(List<Integer> roles, List<Integer> roleIds) { //roles 当前登录用户角色，roleIds用户id角色:这个都是一个用户所拥有的所有角色
         //二级学院下所有的教研室
         //判断接收的角色中有没有跟他一个教研室
@@ -282,6 +325,9 @@ public class HomeServiceImpl implements HomeService {
 
     /**
      * 根据项目id查询参与者的用户id
+     *
+     * @param projectId 考核项目ID
+     * @return 查询结果列表
      */
     public List<Integer> getUserListByProject(Integer projectId) {
         //根据年度项目名称查询项目

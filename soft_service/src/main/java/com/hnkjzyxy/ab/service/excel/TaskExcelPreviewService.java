@@ -10,9 +10,21 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 旧任务模板预览入口，实际导入由 TaskExcelImportService 承担。 */
+/**
+ * 旧任务模板预览服务，校验并读取工作簿，当前保留返回空列表的行为
+ */
 @Service
 public class TaskExcelPreviewService {
+    /**
+     * 校验并打开旧任务预览模板
+     * <p>
+     * 保留旧模板解析未启用的行为，不创建任务或写入数据库。
+     * </p>
+     *
+     * @param file 待预览的任务 Excel 文件
+     * @return 当前实现返回空任务列表，实际任务导入由 TaskExcelImportService 执行
+     * @throws RuntimeException 文件校验或工作簿解析失败时抛出
+     */
     public List<Task> preview(MultipartFile file) {
         String filename = file.getOriginalFilename();
         if (file.isEmpty()) {

@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * 任务 Excel 数据监听器，为导入任务设置项目归属及主键并批量保存
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -20,13 +22,25 @@ import java.util.stream.Collectors;
  */
 public class TaskDataListener extends AnalysisEventListener<TaskModel> {
 
+    /**
+     * 每批保存的最大行数
+     */
     private static final int BATCH_COUNT = 100;
     /**
      * 记录解析的数据总数
      */
     int count = 0;
+    /**
+     * TaskService业务服务
+     */
     private TaskService taskService;
+    /**
+     * 任务所属项目ID
+     */
     private Integer projectId;
+    /**
+     * 雪花ID生成工具
+     */
     private SnowFlowUtils snowFlowUtils;
 
     /**
@@ -34,6 +48,13 @@ public class TaskDataListener extends AnalysisEventListener<TaskModel> {
      */
     private List<TaskModel> data = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
 
+    /**
+     * 初始化任务 Excel 数据监听器，为导入任务设置项目归属及主键并批量保存
+     *
+     * @param taskService TaskService业务服务
+     * @param projectId 考核项目ID
+     * @param snowFlowUtils 雪花ID生成工具
+     */
     public TaskDataListener(TaskService taskService, Integer projectId, SnowFlowUtils snowFlowUtils) {
         this.taskService = taskService;
         this.projectId = projectId;
@@ -77,6 +98,9 @@ public class TaskDataListener extends AnalysisEventListener<TaskModel> {
         System.out.println("解析完毕，共" + (count - 1) + "条数据");
     }
 
+    /**
+     * 批量保存当前缓冲区中的项目任务
+     */
     public void saveData() {
         List<Task> tasks = data.stream().map(item -> {
             Task task = new Task();

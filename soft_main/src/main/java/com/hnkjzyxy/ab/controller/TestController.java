@@ -22,11 +22,22 @@ import java.util.Map;
  */
 @RestController
 public class TestController {
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 演示学生成绩预览服务
+     */
     @Autowired
     private StudentScorePreviewService studentScorePreviewService;
 
+    /**
+     * 本地调试入口
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
 //        List<Integer> list = JSONArray.parseArray("[1,2,3,4,5]", Integer.class);
 //        String string = list.toString();
@@ -38,6 +49,7 @@ public class TestController {
      * 接口连通性测试
      * 返回固定文本及请求来源 IP，用于自检服务是否可用
      *
+     * @param request HTTP 请求对象
      * @return 测试文本及客户端 IP
      */
     @GetMapping("/test")
@@ -50,6 +62,7 @@ public class TestController {
      * 查询全部用户列表
      *
      * @param param 查询参数
+     * @param authentication 当前登录认证信息
      * @return 用户列表
      */
     @GetMapping("/userList")
@@ -90,7 +103,9 @@ public class TestController {
     /**
      * 获取请求来源设备的 MAC 地址
      *
+     * @param request HTTP 请求对象
      * @return 客户端 MAC 地址
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
      */
     @GetMapping("/test/mac")
     public ApiResult testMac(HttpServletRequest request) throws Exception {

@@ -48,15 +48,39 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      */
     private static final String SYNC_STATE_KEY = "schedule:sync:last";
 
+    /**
+     * 课表时间字符串格式化器
+     */
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * JSON 序列化及反序列化工具
+     */
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * 课表数据访问接口
+     */
     private final CourseScheduleMapper courseScheduleMapper;
+    /**
+     * 课表同步开关、时间及数据校验配置
+     */
     private final ScheduleSyncProperties syncProperties;
+    /**
+     * Redis 分布式锁工具
+     */
     private final RedisLockUtils redisLockUtils;
+    /**
+     * 字符串 Redis 数据操作模板
+     */
     private final StringRedisTemplate stringRedisTemplate;
+    /**
+     * 编程式事务模板
+     */
     private final TransactionTemplate transactionTemplate;
+    /**
+     * OA 接口客户端
+     */
     private final OaApiClient oaApiClient;
     /**
      * 保护课表替换事务直到提交或回滚完成的数据库会话锁
@@ -96,29 +120,44 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         this.databaseLock = databaseLock;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CourseSchedule> getList(CourseSchedule courseSchedule) {
         return courseScheduleMapper.selectListByCondition(courseSchedule);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveCourseSchedule(CourseSchedule courseSchedule) {
         return courseScheduleMapper.insert(courseSchedule) > 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateCourseSchedule(CourseSchedule courseSchedule) {
         return courseScheduleMapper.updateById(courseSchedule) > 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteById(Integer id) {
         return courseScheduleMapper.deleteById(id) > 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteBatch(List<Integer> ids) {
@@ -128,6 +167,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         return courseScheduleMapper.deleteBatchIds(ids) > 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean refresh() {
         return sync("manual").isSuccess();

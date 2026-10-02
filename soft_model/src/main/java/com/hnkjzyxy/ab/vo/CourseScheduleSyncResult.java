@@ -17,6 +17,9 @@ import java.io.Serializable;
 @Data
 public class CourseScheduleSyncResult implements Serializable {
 
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**

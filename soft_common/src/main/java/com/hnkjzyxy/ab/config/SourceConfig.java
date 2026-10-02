@@ -8,9 +8,17 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 
+/**
+ * 数据库连接及 MyBatis-Plus 分页配置
+ */
 @Configuration
 public class SourceConfig {
 
+    /**
+     * 创建绑定 spring.datasource 配置的 Druid 数据源
+     *
+     * @return 数据源
+     */
     @Bean
     @ConfigurationProperties("spring.datasource")
     public DataSource dataSource() {

@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSON;
 import java.util.List;
 
 /**
+ * 跨平台文件路径分隔符转换工具
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -17,6 +19,11 @@ public class FilePathUtils {
      */
     public static final String FILE_SEPARATOR = System.getProperty("file.separator");
 
+    /**
+     * 本地调试入口
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         //这里是win的调用，所以打印出来的就是\  windows中的文件的路径是反斜杠
         //而mac和unix中的文件的路径是正的斜杠，也就是注释键
@@ -34,6 +41,12 @@ public class FilePathUtils {
         System.out.println(strings);
     }
 
+    /**
+     * 将路径分隔符转换为当前操作系统的形式
+     *
+     * @param path 本地文件路径
+     * @return 查询得到的文本信息
+     */
     public static String getRealFilePath(String path) {
 
         //两个replace就表示，无论是那个系统，都会把文件的路径地址变成当前的系统的文件的分割的方式。

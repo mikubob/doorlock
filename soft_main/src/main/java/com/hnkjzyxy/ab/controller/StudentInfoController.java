@@ -32,6 +32,9 @@ import javax.servlet.http.HttpServletResponse;
 @RestController
 @RequestMapping("/studentInfo")
 public class StudentInfoController {
+    /**
+     * 学生录取信息业务服务
+     */
     @Autowired
     private StudentInfoService studentInfoService;
 
@@ -83,6 +86,7 @@ public class StudentInfoController {
     /**
      * 获取当前学生用户的信息
      *
+     * @param authentication 当前登录认证信息
      * @return 当前登录学生的信息
      */
     @GetMapping("/ByStudentId")

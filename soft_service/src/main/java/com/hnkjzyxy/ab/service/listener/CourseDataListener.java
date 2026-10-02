@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * 课程 Excel 数据监听器，按批次保存读取到的课程数据
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -21,12 +23,21 @@ import java.util.stream.Collectors;
  */
 public class CourseDataListener extends AnalysisEventListener<CourseModel> {
 
+    /**
+     * 每批保存的最大行数
+     */
     private static final int BATCH_COUNT = 100;
     /**
      * 记录解析的数据总数
      */
     int count = 0;
+    /**
+     * 课程业务服务
+     */
     private CourseService courseService;
+    /**
+     * 雪花ID生成工具
+     */
     private SnowFlowUtils snowFlowUtils;
 
     /**
@@ -34,6 +45,12 @@ public class CourseDataListener extends AnalysisEventListener<CourseModel> {
      */
     private List<CourseModel> data = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
 
+    /**
+     * 初始化课程
+     *
+     * @param courseService 课程业务服务
+     * @param snowFlowUtils 雪花ID生成工具
+     */
     public CourseDataListener(CourseService courseService, SnowFlowUtils snowFlowUtils) {
         this.courseService = courseService;
         this.snowFlowUtils = snowFlowUtils;
@@ -76,6 +93,9 @@ public class CourseDataListener extends AnalysisEventListener<CourseModel> {
         System.out.println("解析完毕，共" + (count - 1) + "条数据");
     }
 
+    /**
+     * 批量保存当前缓冲区中的课程信息
+     */
     public void saveData() {
         List<Course> courses = data.stream().map(item -> {
             Course course = new Course();

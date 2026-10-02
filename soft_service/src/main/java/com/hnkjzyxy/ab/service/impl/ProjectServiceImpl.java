@@ -49,6 +49,7 @@ import com.hnkjzyxy.ab.vo.FlowTaskVo;
 import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import com.hnkjzyxy.ab.vo.ResultVo;
+import com.hnkjzyxy.ab.params.ProjectResultSubmitParam;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -76,43 +77,100 @@ import javax.annotation.Resource;
 @Service
 public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> implements ProjectService {
 
+    /**
+     * 考核项目数据访问接口
+     */
     @Resource
     private ProjectMapper projectMapper;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
+    /**
+     * 审批流程数据访问接口
+     */
     @Resource
     private FlowMapper flowMapper;
+    /**
+     * 用户业务服务
+     */
     @Resource
     private UserService userService;
+    /**
+     * 角色数据访问接口
+     */
     @Resource
     private RoleMapper roleMapper;
+    /**
+     * 用户数据访问接口
+     */
     @Resource
     private UserMapper userMapper;
+    /**
+     * 考核资料数据访问接口
+     */
     @Resource
     private InfoMapper infoMapper;
+    /**
+     * TaskMapper数据访问接口
+     */
     @Resource
     private TaskMapper taskMapper;
+    /**
+     * 考核结果数据访问接口
+     */
     @Resource
     private ResultMapper resultMapper;
+    /**
+     * 考核结果业务服务
+     */
     @Autowired
     private ResultService resultService;
+    /**
+     * 通知公告数据访问接口
+     */
     @Resource
     private NoticeMapper noticeMapper;
+    /**
+     * 流程节点数据访问接口
+     */
     @Resource
     private FlowTaskMapper flowTaskMapper;
+    /**
+     * 项目流程及任务统计信息补充组件
+     */
     @Resource
     private ProjectTaskTreeSupport projectTaskTreeSupport;
+    /**
+     * Redis 数据操作模板
+     */
     @Resource
     private RedisTemplate redisTemplate;
+    /**
+     * 结果扩展项业务服务
+     */
     @Resource
     private ResultExtendService resultExtendService;
+    /**
+     * TaskService业务服务
+     */
     @Resource
     private TaskService taskService;
+    /**
+     * 任务 Excel 导入服务
+     */
     @Autowired
     private TaskExcelImportService taskExcelImportService;
+    /**
+     * 编程式事务模板
+     */
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    /**
+     * 项目子项数据访问接口
+     */
     @Resource
     private ProjectItemMapper projectItemMapper;
 
@@ -129,6 +187,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
 
     //获取项目列表
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.PROJECTS},key = "#param.getUserId()+'-'+#param.getYear()+'-'+#param.getPage()+'-'+#param.getLimit()+'-'+#param.getTitle()",sync = true)
     public Map<String, Object> getProjectList(ProjectParam param) {
@@ -160,6 +221,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     //获取用户项目列表
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.USER_PROJECTS)
     //@Cacheable(value = {HnkjxyConstants.USER_PROJECTS},key = "#param.getUserId()+'-'+#param.getYear()+'-'+#param.getPage()+'-'+#param.getLimit()+'-'+#param.getTitle()",sync = true)
@@ -189,6 +253,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
     /**
      * 根据流程拿到项目id
+     *
+     * @param userId 用户ID
+     * @return 查询结果列表
      */
     public List<Integer> findPidByRoleIdFromFlow(Integer userId) {   //当前用户的角色列表和用户ID
         List<Integer> roles = getRoles(userId);//获得该用户的角色列表
@@ -214,6 +281,10 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
     /**
      * 查看用户是否包含某个角色
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
      */
     public Boolean containsRole(List<Integer> roles, List<Integer> roleIds) {
 
@@ -232,7 +303,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      *
      * @param pIds  该用户所参与的流程下的项目id
      * @param param 用户的id
-     * @return
+     * @return 包含 total 总条数及 list 当前页项目的映射
      */
 
     public Map<String, Object> getUserProjectByPage(List<Integer> pIds, ProjectParam param) {
@@ -278,7 +349,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      * @param pId  项目id
      * @param uId  用户id
      * @param item 项目对象
-     * @return
+     * @return 查询得到的数值
      */
     public Integer checkProjectStatus(Integer pId, Integer uId, Project item) {
 
@@ -312,6 +383,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     //获取最近结束的哪个项目信息
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.END_PROJECT},key = "#userId")
     public Project getEndProject(Integer userId) {
@@ -385,6 +459,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     //根据id获取项目
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     //@Cacheable(value = {HnkjxyConstants.PROJECT_BY_ID},key = "#id",sync = true)
@@ -413,6 +490,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     //发布项目
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.USER_PROJECT_YEAR, HnkjxyConstants.RADAR_CHART,
@@ -448,6 +528,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
     /**
      * 判断项目是否已过期
+     *
+     * @param item 考核项目信息
+     * @return 操作或条件校验结果
      */
     public Boolean checkProjectOverDue(Project item) {
         //比较：前者大于后者
@@ -458,12 +541,15 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     //提交项目结果
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.APPROVE_LIST, HnkjxyConstants.RADAR_CHART, HnkjxyConstants.ASSESS_LIST,
             HnkjxyConstants.COLUMNAR_CHART, HnkjxyConstants.NOT_SUB_LIST, HnkjxyConstants.RESULT_DETAIL, HnkjxyConstants.RESULT_LIST,
             HnkjxyConstants.END_PROJECT, HnkjxyConstants.USER_PROJECTS, HnkjxyConstants.NOTICE_LIST}, allEntries = true)
-    public void resultProject(ResultVo result, User user) {
+    public void resultProject(ProjectResultSubmitParam result, User user) {
         //判断项目是否已过期
         Project project = projectTaskGuard.lock(result.getProjectId());
         projectTaskGuard.validateTasks(result.getProjectId(), user.getUserId(), result.getResults(), false);
@@ -514,13 +600,17 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
 
 
     /**
-     * 暂存答案
+     * 校验任务后保存用户项目暂存数据
+     * <p>
+     * 先提交任务首次暂存冻结标记，再将暂存 JSON 写入 Redis；缓存有效期为15天。
+     * 缓存写入失败不会撤销冻结标记，旧格式的暂存 JSON 仍可由读取接口解析。
+     * </p>
      *
-     * @param result 暂存的结果
-     * @param user   当前用户
+     * @param result 项目结果暂存参数
+     * @param user 当前认证用户
      */
     @Override
-    public void projectStaging(ResultVo result, User user) {
+    public void projectStaging(ProjectResultSubmitParam result, User user) {
         projectTaskGuard.recordStaging(result.getProjectId(), user, result.getResults());
         String key = user.getUserName().concat("-" + result.getProjectId());
         try {
@@ -531,11 +621,11 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
     /**
-     * 拿到暂存答案
+     * 读取用户指定项目的暂存结果
      *
-     * @param user 当前用户
-     * @param pId  项目ID
-     * @return 暂存的结果
+     * @param user 当前认证用户
+     * @param pId 考核项目ID
+     * @return 暂存结果；缓存键不存在或缓存值为空时返回 null
      */
     @Override
     public ResultVo getProjectStaging(User user, Integer pId) {
@@ -552,6 +642,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.PROJECT_YEAR},key = "#param.getUserId()",sync = true)
     public List<String> getProjectYears(ProjectParam param) {
@@ -564,6 +657,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         return new ArrayList<String>(set);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.USER_PROJECT_YEAR},key = "#param.getUserId()",sync = true)
     public List<String> getUserProjectYears(ProjectParam param) {
@@ -581,6 +677,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.ASSESS_LIST)
     public ApiResult getProjectAssessList(ProjectQueryParam param, User user) {
@@ -687,6 +786,14 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         return ApiResult.ok(page);
     }
 
+    /**
+     * 补充项目考核列表的用户、分数及状态信息
+     *
+     * @param param 考核项目操作或查询参数
+     * @param projectVos 项目考核展示结果列表
+     * @param flow 流程节点信息
+     * @param item 被考核用户ID
+     */
     private void addProjectVos(ProjectQueryParam param, List<ProjectVo> projectVos, FlowTask flow, Integer item) {
         ProjectVo vo = new ProjectVo();
         vo.setProjectId(flow.getProjectId());
@@ -720,6 +827,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Project> getProjectByYear(String year, User user) {
         Role role = userRoleMapper.getRoleWeight(user.getUserId());
@@ -733,6 +843,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         return projectMapper.getProjectByYear(year, pIds);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getYearByProject(User user) {
         Role role = userRoleMapper.getRoleWeight(user.getUserId());
@@ -746,11 +859,17 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         return projectMapper.getYearByProject(pIds);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void addOrUpdateProjectItem(ProjectItemSaveParam projectItemVo, User operator) {
         projectTaskImportService.saveItem(projectItemVo, operator);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Project> getProjectAndCollegeByYear(String year, String college, User user) {
         Role role = userRoleMapper.getRoleWeight(user.getUserId());
@@ -767,9 +886,9 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     /**
      * 检查教研室主任看到的数据
      *
-     * @param roles
-     * @param roleIds
-     * @return
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
      */
     private Boolean checkRoles(List<Integer> roles, List<Integer> roleIds) { //roles 当前登录用户角色，roleIds用户id角色
         //除了普通用户角色之外, 属于同一个教研室
@@ -786,7 +905,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      *
      * @param roles   当前登录用户角色  软件学院院长
      * @param roleIds 所有项目的用户id角色
-     * @return
+     * @return 操作或条件校验结果
      */
     private Boolean checkDeanRoles(List<Integer> roles, List<Integer> roleIds) {
         return roles.stream().anyMatch(role -> {

@@ -35,14 +35,26 @@ import javax.annotation.Resource;
 @Service
 public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, CheckResult> implements CheckResultService {
 
+    /**
+     * 教学巡查结果数据访问接口
+     */
     @Autowired
     private CheckResultMapper checkresultMapper;
 
+    /**
+     * 巡查 Excel 导入规则配置
+     */
     @Autowired
     private CheckResultImportProperties checkResultImportProperties;
+    /**
+     * 巡查结果 Excel 导入服务
+     */
     @Autowired
     private CheckResultExcelImportService checkResultExcelImportService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> getList(CheckResult resultVo, User user) {
         LambdaQueryWrapper<CheckResult> wrapper = new LambdaQueryWrapper<>();
@@ -61,6 +73,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         return checkResults;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void addOrEdit(CheckResult resultVo) {
@@ -71,6 +86,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResultDataVo> dataStatistics(CheckResult resultVo) {
 
@@ -88,6 +106,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         return resultDataVos;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> dataStatisticsByClasses(CheckResult resultVo, User user) {
 
@@ -95,6 +116,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         return checkResults;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public CheckResultImportResult uploadCheckResult(MultipartFile file, User user) throws Exception {
         CheckResultImportProperties properties = checkResultImportProperties;
@@ -115,6 +139,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResultByTeacherDataVo> teachCheckAnalysis(CheckResult resultVo) {
         String startTime = resultVo.getStartTime();
@@ -128,6 +155,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         return resultDataVos;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> dataStatisticsByTeacher(CheckResult resultVo) {
 
@@ -138,6 +168,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> findByDateRangeAndCollege(String startDate, String endDate, String college, User user) {
         if (user.getNickName()=="管理员"){
@@ -147,17 +180,26 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Map<String, Object>> getCollegeStatistics(String startDate, String endDate, List<String> colleges) {
         return checkresultMapper.getCollegeStatistics(startDate, endDate, colleges);
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> findByCollege(List<String> colleges) {
         return checkresultMapper.findByCollege(colleges);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Map<String, Object>> getMonthlyAbsenceDetailByCollege(Integer year, String college,User user) {
         if (user.getNickName()=="管理员"){
@@ -166,6 +208,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         return checkresultMapper.getMonthlyAbsenceDetailByCollege(year, user.getCollege());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Map<String, Object>> getAbsenceClassesByCollegeAndDateRange(String startDate, String endDate, String college,User user) {
 
@@ -176,11 +221,17 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getAllColleges() {
         return checkresultMapper.getAllColleges();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> sortedByTime(String order) {
         if ("ascending".equals(order)) {
@@ -190,6 +241,9 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<CheckResult> sortedByCommuteTime(String commuteTime, String timeOrder) {
         return checkresultMapper.sortedByCommuteTime(commuteTime,timeOrder);

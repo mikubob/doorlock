@@ -29,15 +29,22 @@ import java.util.Objects;
  */
 @RestController
 public class MenuController {
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 
+    /**
+     * 菜单业务服务
+     */
     @Autowired
     private MenuService menuService;
 
     /**
      * 获取当前用户导航菜单及权限标识
      *
+     * @param authentication 当前登录认证信息
      * @return 菜单树列表与权限标识列表
      */
     @GetMapping("/menu/nav")
@@ -58,6 +65,11 @@ public class MenuController {
         return ApiResult.ok("data", hashMap);
     }
 
+    /**
+     * 查询完整菜单列表
+     *
+     * @return 统一接口响应
+     */
     @GetMapping("/menu/list")
     @PreAuthorize("hasRole('admin')")
     public ApiResult menuList() {

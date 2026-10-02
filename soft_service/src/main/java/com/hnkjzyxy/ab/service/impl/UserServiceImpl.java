@@ -25,19 +25,36 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * 用户Service实现类
+ *
  * @author 16702
  */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    /**
+     * 角色业务服务
+     */
     @Autowired
     private RoleService roleService;
+    /**
+     * 菜单业务服务
+     */
     @Autowired
     private MenuService menuService;
+    /**
+     * 用户数据访问接口
+     */
     @Resource
     private UserMapper userMapper;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {"authority"}, key = "#userId", sync = true)
     public String getUserAuthority(Integer userId) {
@@ -60,14 +77,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     /**
+     * 查询用户有权访问的菜单ID
      *
-     * @CacheEvict 是用来标注在需要清除缓存元素的方法或类上的。当标记在一个类上时表示其中所有的方法的执行都会触发缓存的清除操作。@CacheEvict 可以指定的属性有 value、key、condition、allEntries 和 beforeInvocation。
-     * 其中 value、key 和 condition 的语义与 @Cacheable 对应的属性类似。即 value 表示清除操作是发生在哪些 Cache 上的(对应 Cache 的名称)；
-     * key 表示需要清除的是哪个 key，如未指定则会使用默认策略生成的 key；condition 表示清除操作发生的条件。
-     * <p>
-     * 都接一个用户ID来
-     * 更新用户权限
-     * 删除用户权限
+     * @param userId 用户ID
+     * @return 用户有权访问的菜单ID集合
      */
 
     @Override
@@ -75,6 +88,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return userMapper.getNavMenu(userId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {HnkjxyConstants.USERS}, key = "#userName", sync = true)
     public User getUserByName(String userName) {
@@ -82,11 +98,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return this.getOne(new LambdaQueryWrapper<User>().eq(User::getUserName, userName));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public UserVo getUserInfo(String userName) {
         return userMapper.getUserInfo(userName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<UserVo> getUserVoList() {
         List<UserVo> userVoList = userMapper.getUserVoList();
@@ -96,6 +118,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return userVoList;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<UserVo> getApproveUsers() {
         List<UserVo> approveUsers = userMapper.getApproveUsers();
@@ -105,16 +130,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return approveUsers;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public UserVo getUserInfoById(Integer userId) {
         return userMapper.getUserInfoById(userId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<User> getUserByCollege(String college) {
         return  userMapper.getUserByCollege(college);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean updateLastLogin(Integer userId, Date lastLogin) {
         if (userId == null || lastLogin == null) {

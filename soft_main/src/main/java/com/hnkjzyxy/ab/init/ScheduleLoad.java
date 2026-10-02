@@ -13,14 +13,35 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * 启动时加载已启用的门禁定时任务并注册到 Quartz 调度器
+ */
 @Component
 public class ScheduleLoad implements CommandLineRunner {
+    /**
+     * 门禁定时任务业务服务
+     */
     @Autowired
     ScheduleService scheduleService;
+    /**
+     * Quartz 任务及触发器配置
+     */
     @Autowired
     private QuartzConfig quartzConfig;
+    /**
+     * Quartz 调度器工厂
+     */
     @Autowired
     private SchedulerFactoryBean schedulerFactoryBean;
+    /**
+     * 启动时恢复已启用的门禁定时任务
+     * <p>
+     * 从数据库加载状态为一的任务，删除调度器中的同名任务后重新注册。
+     * </p>
+     *
+     * @param args 应用启动参数
+     * @throws Exception 读取任务配置或向 Quartz 注册任务失败时抛出
+     */
     @Override
     public void run(String... args) throws Exception {
         List<ScheduleTask> all = scheduleService.getAll();

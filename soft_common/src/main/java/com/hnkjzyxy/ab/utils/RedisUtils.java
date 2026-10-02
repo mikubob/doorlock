@@ -34,10 +34,19 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Redis 常用数据操作工具
+ */
 @Component
 @SuppressWarnings({"unchecked", "all"})
 public class RedisUtils {
+    /**
+     * 日志记录器
+     */
     private static final Logger log = LoggerFactory.getLogger(RedisUtils.class);
+    /**
+     * Redis 数据操作模板
+     */
     private RedisTemplate<String, String> redisTemplate;
 
     /**
@@ -61,6 +70,7 @@ public class RedisUtils {
      *
      * @param key  键
      * @param time 时间(秒)
+     * @return 操作或条件校验结果
      */
     public boolean expire(String key, long time) {
         try {
@@ -80,6 +90,7 @@ public class RedisUtils {
      * @param key      键
      * @param time     时间(秒)
      * @param timeUnit 单位
+     * @return 操作或条件校验结果
      */
     public boolean expire(String key, long time, TimeUnit timeUnit) {
         try {
@@ -97,6 +108,7 @@ public class RedisUtils {
      * 获得缓存的基本对象。
      *
      * @param key 缓存键值
+     * @param <T> 数据类型
      * @return 缓存键值对应的数据
      */
     public <T> T getCacheObject(final String key) {
@@ -205,7 +217,7 @@ public class RedisUtils {
     /**
      * 删除缓存
      *
-     * @param key 可以传一个值 或多个
+     * @param keys 待删除的 Redis 键，可传入一个或多个
      */
     public void del(String... keys) {
         if (keys != null && keys.length > 0) {
@@ -432,7 +444,7 @@ public class RedisUtils {
      * @param key  键
      * @param item 项
      * @param by   要增加几(大于0)
-     * @return
+     * @return 递增后的 Hash 数值
      */
     public double hincr(String key, String item, double by) {
         return redisTemplate.opsForHash().increment(key, item, by);
@@ -444,7 +456,7 @@ public class RedisUtils {
      * @param key  键
      * @param item 项
      * @param by   要减少记(小于0)
-     * @return
+     * @return 递减后的 Hash 数值
      */
     public double hdecr(String key, String item, double by) {
         return redisTemplate.opsForHash().increment(key, item, -by);
@@ -456,7 +468,7 @@ public class RedisUtils {
      * 根据key获取Set中的所有值
      *
      * @param key 键
-     * @return
+     * @return 集合元素；读取失败时返回 null
      */
     public Set<String> sGet(String key) {
         try {
@@ -524,7 +536,7 @@ public class RedisUtils {
      * 获取set缓存的长度
      *
      * @param key 键
-     * @return
+     * @return 集合元素数量；读取失败时返回零
      */
     public long sGetSetSize(String key) {
         try {
@@ -560,7 +572,7 @@ public class RedisUtils {
      * @param key   键
      * @param start 开始
      * @param end   结束 0 到 -1代表所有值
-     * @return
+     * @return 指定索引范围的列表元素；读取失败时返回 null
      */
     public List<String> lGet(String key, long start, long end) {
         try {
@@ -575,7 +587,7 @@ public class RedisUtils {
      * 获取list缓存的长度
      *
      * @param key 键
-     * @return
+     * @return 列表长度；读取失败时返回零
      */
     public long lGetListSize(String key) {
         try {
@@ -591,7 +603,7 @@ public class RedisUtils {
      *
      * @param key   键
      * @param index 索引 index>=0时， 0 表头，1 第二个元素，依次类推；index<0时，-1，表尾，-2倒数第二个元素，依次类推
-     * @return
+     * @return 指定索引的列表元素；读取失败时返回 null
      */
     public Object lGetIndex(String key, long index) {
         try {
@@ -607,7 +619,7 @@ public class RedisUtils {
      *
      * @param key   键
      * @param value 值
-     * @return
+     * @return 写入成功时返回 true，发生异常时返回 false
      */
     public boolean lSet(String key, String value) {
         try {
@@ -625,7 +637,7 @@ public class RedisUtils {
      * @param key   键
      * @param value 值
      * @param time  时间(秒)
-     * @return
+     * @return 写入成功时返回 true，发生异常时返回 false
      */
     public boolean lSet(String key, String value, long time) {
         try {
@@ -645,7 +657,7 @@ public class RedisUtils {
      *
      * @param key   键
      * @param value 值
-     * @return
+     * @return 写入成功时返回 true，发生异常时返回 false
      */
     public boolean lSet(String key, List<String> value) {
         try {
@@ -663,7 +675,7 @@ public class RedisUtils {
      * @param key   键
      * @param value 值
      * @param time  时间(秒)
-     * @return
+     * @return 写入成功时返回 true，发生异常时返回 false
      */
     public boolean lSet(String key, List<String> value, long time) {
         try {
@@ -714,7 +726,9 @@ public class RedisUtils {
     }
 
     /**
-     * @param prefix 前缀
+     * 按前缀与ID集合拼接缓存键并批量删除
+     *
+     * @param prefix 缓存键前缀
      * @param ids    id
      */
     public void delByKeys(String prefix, Set<Long> ids) {

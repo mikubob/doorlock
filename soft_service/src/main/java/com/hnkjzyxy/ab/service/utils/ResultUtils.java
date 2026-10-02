@@ -1,6 +1,8 @@
 package com.hnkjzyxy.ab.service.utils;
 
 /**
+ * 考核分数分档计算工具
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -8,6 +10,12 @@ package com.hnkjzyxy.ab.service.utils;
  */
 public class ResultUtils {
 
+    /**
+     * 将比例分数乘以一百后按二十分区间转换为零至五档
+     *
+     * @param score 评分值
+     * @return 按当前分段规则计算的评分档位
+     */
     public static int calc(double score) {
         score *= 100;
         if (score >= 80) {

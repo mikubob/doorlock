@@ -19,19 +19,37 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
+/**
+ * 门禁定时任务，执行设备操作并记录开关锁信息和剩余执行次数
+ */
 @Component
 public class SmartLockJob implements Job {
 
+    /**
+     * 智能门锁业务服务
+     */
     @Autowired
     private SmartLockService smartLockService;
+    /**
+     * 门禁设备通讯接口
+     */
     @Autowired
     private SmartLockGateway smartLockGateway;
 
+    /**
+     * 开关锁记录业务服务
+     */
     @Autowired
     private SwitchRecordService switchRecordService;
+    /**
+     * 门禁定时任务业务服务
+     */
     @Autowired
     ScheduleService scheduleService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
         System.out.println("定时任务启动");
@@ -95,6 +113,11 @@ public class SmartLockJob implements Job {
     }
     /**
      * 处理执行次数控制
+     *
+     * @param context Quartz 任务执行上下文
+     * @param lockId 门禁设备ID
+     * @param userId 用户ID
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      */
     private void handleExecutionCount(JobExecutionContext context, int lockId,Integer userId ) throws SchedulerException {
         JobDataMap dataMap = context.getJobDetail().getJobDataMap();

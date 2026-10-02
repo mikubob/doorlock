@@ -7,6 +7,8 @@ import com.hnkjzyxy.ab.service.InfoService;
 import org.springframework.stereotype.Service;
 
 /**
+ * 考核资料Service实现类
+ *
  * @author 16702
  */
 @Service

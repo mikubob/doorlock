@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 建设项目Service实现类
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -36,14 +38,26 @@ import java.util.Map;
 @Service
 public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct> implements ConstructService {
 
+    /**
+     * 建设项目数据访问接口
+     */
     @Resource
     private ConstructMapper constructMapper;
+    /**
+     * 建设项目提交结果业务服务
+     */
     @Resource
     private ConstructResultService constructResultService;
+    /**
+     * 上传、下载及材料压缩工具
+     */
     @Resource
     private UploadUtils uploadUtils;
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @CacheEvict(value = {HnkjxyConstants.CONSTRUCT_YEARS,
             HnkjxyConstants.CONSTRUCT_LIST, HnkjxyConstants.CONSTRUCT_USER_LIST, HnkjxyConstants.CONSTRUCT_USER_YEARS,
@@ -68,6 +82,11 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         }
     }
 
+    /**
+     * 递归保存建设项目及其子项目
+     *
+     * @param construct 建设项目信息
+     */
     @Transactional
     public void saveConstruct(Construct construct) {
         this.saveOrUpdate(construct);
@@ -80,6 +99,9 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {HnkjxyConstants.CONSTRUCT_DETAIL}, key = "#id")
     public Construct getConstructById(String id) {
@@ -98,6 +120,11 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         return construct;
     }
 
+    /**
+     * 递归补充建设项目的子项目
+     *
+     * @param construct 建设项目信息
+     */
     public void setConstruct(Construct construct) {
         List<Construct> children = this.list(new QueryWrapper<Construct>().eq("p_id", construct.getId()));
         if (ObjectUtil.isNotEmpty(children) && children.size() > 0) {
@@ -109,12 +136,18 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {HnkjxyConstants.CONSTRUCT_YEARS}, key = "#userId")
     public List<String> getConstructYears(Integer userId) {
         return new ArrayList<>(constructMapper.getConstructYears(userId));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {HnkjxyConstants.CONSTRUCT_LIST}, key = "#param.getYear() + '-' + #param.getPage()+ '-' +#param.getLimit()+ '-' + #param.getUserId()+ '-' + #param.getTitleName()")
     public Map<String, Object> getConstructList(ConstructQueryParam param) {
@@ -130,6 +163,9 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         return map;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {HnkjxyConstants.CONSTRUCT_USER_YEARS}, key = "#userId")
     public List<String> getConstructYearsByUser(Integer userId) {
@@ -148,6 +184,9 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         return list;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Cacheable(value = {HnkjxyConstants.CONSTRUCT_USER_LIST}, key = "#param.getYear() + '-' + #param.getUserId()+ '-' +#param.getPage()+ '-' +#param.getLimit()+ '-' +#param.getTitleName()")
     public Map<String, Object> getConstructListByUserId(ConstructQueryParam param) {
@@ -169,6 +208,12 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         return map;
     }
 
+    /**
+     * 将建设项目查询参数应用到查询条件
+     *
+     * @param param 建设项目操作或查询参数
+     * @param wrapper 数据库查询条件
+     */
     private void checkWrapper(ConstructQueryParam param, LambdaQueryWrapper<Construct> wrapper) {
         if (StrUtil.isNotBlank(param.getYear())) {
             wrapper
@@ -180,6 +225,9 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     @CacheEvict(value = {HnkjxyConstants.CONSTRUCT_USER_LIST, HnkjxyConstants.CONSTRUCT_USER_YEARS}, allEntries = true)
@@ -194,6 +242,9 @@ public class ConstructServiceImpl extends ServiceImpl<ConstructMapper, Construct
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @CacheEvict(value = {HnkjxyConstants.CONSTRUCT_DETAIL}, allEntries = true)
     @Transactional

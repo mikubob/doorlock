@@ -25,9 +25,15 @@ import java.util.List;
 @Service
 public class UserDetailsImpl implements UserDetailsService {
 
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userService.getOne(new QueryWrapper<User>().eq("user_name", username));
@@ -46,7 +52,7 @@ public class UserDetailsImpl implements UserDetailsService {
      * 获取用户权限信息（角色、菜单权限）
      *
      * @param userId 用户Id
-     * @return
+     * @return 用户权限标识字符串
      */
     public List<GrantedAuthority> getUserAuthority(Integer userId) {
         String authority = userService.getUserAuthority(userId);

@@ -19,16 +19,28 @@ import java.util.List;
 @Service
 public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements ExamService {
 
+    /**
+     * 考试安排数据访问接口
+     */
     @Autowired
     private ExamMapper examMapper;
+    /**
+     * 教室业务服务
+     */
     @Autowired
     private ClassroomService classroomService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Exam> getExamList(Exam exam) {
         return examMapper.getExamList(exam);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean removeByBoardSn(Long boardSn) {
         return examMapper.removeByBoardSn(boardSn);

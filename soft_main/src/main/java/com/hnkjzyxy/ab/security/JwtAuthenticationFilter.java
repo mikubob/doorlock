@@ -31,24 +31,47 @@ import java.io.IOException;
  */
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 
+    /**
+     * JWT 生成及解析工具
+     */
     @Autowired
     private JwtUtils jwtUtils;
 
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 
+    /**
+     * 令牌缓存键后缀
+     */
     @Value("${absolute.jwt.suffix}")
     private String suffix;
 
+    /**
+     * Redis 数据操作工具
+     */
     @Autowired
     private RedisUtils redisUtils;
+    /**
+     * Redis 数据操作模板
+     */
     @Autowired
     private RedisTemplate redisTemplate;
 
+    /**
+     * 初始化JwtAuthenticationFilter
+     *
+     * @param authenticationManager 认证管理器
+     */
     public JwtAuthenticationFilter(AuthenticationManager authenticationManager) {
         super(authenticationManager);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
 //        String ipAddr = IpUtil.getIpAddr(request);

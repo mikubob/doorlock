@@ -20,5 +20,11 @@ public interface ExamMapper extends BaseMapper<Exam> {
      */
     List<Exam> getExamList(Exam exam);
 
+    /**
+     * 按电子班牌SN删除考试安排
+     *
+     * @param boardSn 电子班牌SN
+     * @return 操作或条件校验结果
+     */
     boolean removeByBoardSn(Long boardSn);
 }

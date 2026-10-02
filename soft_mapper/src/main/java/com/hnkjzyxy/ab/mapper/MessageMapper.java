@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 /**
+ * 用户消息数据访问接口
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -14,6 +16,11 @@ import org.apache.ibatis.annotations.Update;
 //@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface MessageMapper extends BaseMapper<Message> {
 
+    /**
+     * 将用户通知消息标记为已读
+     *
+     * @param userId 用户ID
+     */
     @Update("update sys_message set status = 1 where user_id = #{userId}")
     void readNotice(@Param("userId") Integer userId);
 }

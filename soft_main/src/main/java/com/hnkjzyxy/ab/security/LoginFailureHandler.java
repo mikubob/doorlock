@@ -22,6 +22,9 @@ import java.io.IOException;
 @Component
 public class LoginFailureHandler implements AuthenticationFailureHandler {
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onAuthenticationFailure(HttpServletRequest req, HttpServletResponse resp, AuthenticationException e) throws IOException, ServletException {
         resp.setContentType("application/json;charset=utf-8");

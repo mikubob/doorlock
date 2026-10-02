@@ -23,11 +23,20 @@ import java.io.IOException;
 @Component
 public class CaptchaFilter extends OncePerRequestFilter {
 
+    /**
+     * Redis 数据操作工具
+     */
     @Autowired
     private RedisUtils redisUtils;
+    /**
+     * 登录失败响应处理器
+     */
     @Autowired
     private LoginFailureHandler loginFailureHandler;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse resp, FilterChain filterChain) throws ServletException, IOException {
         //只拦截login请求
@@ -44,6 +53,11 @@ public class CaptchaFilter extends OncePerRequestFilter {
         filterChain.doFilter(req, resp);
     }
 
+    /**
+     * 校验请求验证码并清理已使用的缓存验证码
+     *
+     * @param req HTTP 请求对象
+     */
     public void validate(HttpServletRequest req) {
         String code = req.getParameter("code");
         String key = req.getParameter("token");

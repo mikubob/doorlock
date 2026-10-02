@@ -38,11 +38,20 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/course")
 public class CourseController {
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 
+    /**
+     * 课程业务服务
+     */
     @Autowired
     private CourseService courseService;
+    /**
+     * 教学巡查结果业务服务
+     */
     @Autowired
     private CheckResultService checkResultService;
 
@@ -51,6 +60,7 @@ public class CourseController {
      * 查询课程巡查列表
      *
      * @param resultVo 课程查询条件（可选）
+     * @param authentication 当前登录认证信息
      * @return 课程列表
      */
     @PostMapping("/list")
@@ -74,6 +84,7 @@ public class CourseController {
      *
      * @param file     课程数据 Excel 文件
      * @param isDelete 是否清空原有课程数据（1=清空后重新导入）
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/upload")
@@ -101,6 +112,7 @@ public class CourseController {
     /**
      * 获取班级列表
      *
+     * @param authentication 当前登录认证信息
      * @return 当前用户可见的班级名称列表
      */
     @GetMapping("/classes/list")
@@ -157,6 +169,7 @@ public class CourseController {
      * @param startDate 开始日期
      * @param endDate   结束日期
      * @param college   学院名称
+     * @param authentication 当前登录认证信息
      * @return 学院课程巡查汇总统计
      */
     @GetMapping("/getcollegecoursecnalysis")
@@ -218,6 +231,7 @@ public class CourseController {
      * @param startDate 开始日期
      * @param endDate   结束日期
      * @param college   学院名称
+     * @param authentication 当前登录认证信息
      * @return 缺勤率最高的 10 个班级
      */
     @GetMapping("/gethighestabsenteeismrate")
@@ -277,18 +291,19 @@ public class CourseController {
      *
      * 返回数据结构示例：
      * <pre>
-     * [{
-     *   "absenceRate": 0.00,        // 缺勤率：0.00% 表示该月没有缺勤
-     *   "month": 11,                // 月份
-     *   "totalArrival": 102,        // 总实到人数
-     *   "totalAbsence": 0,          // 总缺勤人数
-     *   "className": "软件游戏3232班", // 班级名称
-     *   "totalShouldArrival": 102   // 总应到人数
-     * }]
-     * </pre>
+     *  [{
+     *    "absenceRate": 0.00,        // 缺勤率：0.00% 表示该月没有缺勤
+     *    "month": 11,                // 月份
+     *    "totalArrival": 102,        // 总实到人数
+     *    "totalAbsence": 0,          // 总缺勤人数
+     *    "className": "软件游戏3232班", // 班级名称
+     *    "totalShouldArrival": 102   // 总应到人数
+     *  }]
+     *  </pre>
      *
      * @param year    年份
      * @param college 学院名称
+     * @param authentication 当前登录认证信息
      * @return 按班级分组的月度缺勤明细
      */
     @GetMapping("/getmonthlyabsenteeismrate")
@@ -323,6 +338,7 @@ public class CourseController {
      * @param startDate 开始日期
      * @param endDate   结束日期
      * @param college   学院名称
+     * @param authentication 当前登录认证信息
      * @return 缺勤率最高的 10 个班级
      */
     @GetMapping("/getabsenceclassesbycollege")
@@ -342,6 +358,7 @@ public class CourseController {
      * 获取学院列表
      * 管理员返回全部学院，其他用户仅返回本人所属学院
      *
+     * @param authentication 当前登录认证信息
      * @return 学院名称列表
      */
     @GetMapping("/getallcolleges")
@@ -379,13 +396,29 @@ public class CourseController {
      * 班级数据统计辅助类
      */
     private static class ClassStatistics {
+        /**
+         * 课程统计应到人数累计值
+         */
         private int shouldArrival = 0;
+        /**
+         * 课程统计实到人数累计值
+         */
         private int arrival = 0;
 
+        /**
+         * 累加应到人数
+         *
+         * @param count 需要累加的数量
+         */
         public void addShouldArrival(int count) {
             this.shouldArrival += count;
         }
 
+        /**
+         * 累加实到人数
+         *
+         * @param count 需要累加的数量
+         */
         public void addArrival(int count) {
             this.arrival += count;
         }

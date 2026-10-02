@@ -30,15 +30,30 @@ import java.util.HashMap;
  */
 @Component
 public class LoginSuccessHandler implements AuthenticationSuccessHandler {
+    /**
+     * JWT 生成及解析工具
+     */
     @Autowired
     private JwtUtils jwtUtils;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 令牌缓存键后缀
+     */
     @Value("${absolute.jwt.suffix}")
     private String suffix;
+    /**
+     * Redis 数据操作工具
+     */
     @Autowired
     private RedisUtils redisUtils;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onAuthenticationSuccess(HttpServletRequest req, HttpServletResponse resp, Authentication authentication) throws IOException, ServletException {
         resp.setContentType("application/json;charset=utf-8");

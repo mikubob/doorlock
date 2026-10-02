@@ -20,9 +20,18 @@ import java.util.List;
  */
 @Service
 public class MajorDetailsServiceImpl extends ServiceImpl<MajorDetailsMapper, MajorDetails> implements MajorDetailsService {
+    /**
+     * 专业录取名额数据访问接口
+     */
     @Autowired
     private MajorDetailsMapper majorDetailsMapper;
 
+    /**
+     * 新增专业录取名额信息
+     *
+     * @param majorDetails 专业录取名额信息
+     * @return 统一接口响应
+     */
     public ApiResult addMajorDetails(MajorDetails majorDetails) {
         if (checkUnique(majorDetails.getMajorCode(), majorDetails.getMajorName(), majorDetails.getId())) {
             return ApiResult.error("专业编码或名称已存在");
@@ -33,6 +42,9 @@ public class MajorDetailsServiceImpl extends ServiceImpl<MajorDetailsMapper, Maj
         return ApiResult.ok();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult updateMajorDetails(MajorDetails majorDetails) {
         if (checkUnique(majorDetails.getMajorCode(), majorDetails.getMajorName(), majorDetails.getId())) {
@@ -42,12 +54,18 @@ public class MajorDetailsServiceImpl extends ServiceImpl<MajorDetailsMapper, Maj
         return ApiResult.ok();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult deleteMajorDetails(Long id) {
         majorDetailsMapper.deleteById(id);
         return ApiResult.ok();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult getMajorDetails() {
         List<MajorDetails> majorDetailsList = majorDetailsMapper.selectMajorDetails();

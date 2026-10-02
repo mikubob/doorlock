@@ -10,14 +10,30 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 import java.util.List;
 
-/** 从数据库补充项目的流程信息和任务树统计。 */
+/**
+ * 项目任务树信息补充组件，查询项目的流程及任务统计信息
+ */
 @Component
 public class ProjectTaskTreeSupport {
+    /**
+     * TaskMapper数据访问接口
+     */
     @Resource
     private TaskMapper taskMapper;
+    /**
+     * 审批流程数据访问接口
+     */
     @Resource
     private FlowMapper flowMapper;
 
+    /**
+     * 补充项目流程ID及任务数量
+     * <p>
+     * 分别查询项目任务和关联流程，任务数量沿用 TaskTreeUtils 当前的计数规则。
+     * </p>
+     *
+     * @param projectList 待补充信息的项目列表，原对象会被更新
+     */
     public void buildProject(List<Project> projectList) {
         projectList.forEach(item -> {
             LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();

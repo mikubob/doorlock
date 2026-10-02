@@ -14,14 +14,38 @@ import org.springframework.beans.BeanUtils;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 学生录取信息 Excel 监听器，按批次保存读取到的学生数据
+ */
 public class StudentInfoDataListener extends AnalysisEventListener<StudentInfoModel> {
+    /**
+     * 每批保存的最大行数
+     */
     private static final int BATCH_COUNT = 100;
     //记录解析的数据总数
+    /**
+     * 已读取的学生行数
+     */
     int count = 0;
+    /**
+     * 学生录取信息业务服务
+     */
     private StudentInfoService studentInfoService;
+    /**
+     * 雪花ID生成工具
+     */
     private SnowFlowUtils snowFlowUtils;
+    /**
+     * 待批量保存的学生数据
+     */
     private List<StudentInfoModel> data = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
 
+    /**
+     * 初始化学生录取信息
+     *
+     * @param studentInfoService 学生录取信息业务服务
+     * @param snowFlowUtils 雪花ID生成工具
+     */
     public StudentInfoDataListener(StudentInfoService studentInfoService, SnowFlowUtils snowFlowUtils) {
         this.studentInfoService = studentInfoService;
         this.snowFlowUtils = snowFlowUtils;
@@ -64,6 +88,9 @@ public class StudentInfoDataListener extends AnalysisEventListener<StudentInfoMo
         System.out.println("解析完毕，共" + (count - 1) + "条数据");
     }
 
+    /**
+     * 批量保存当前缓冲区中的学生录取信息
+     */
     public void saveData() {
         List<StudentInfo> courses = data.stream().map(item -> {
             StudentInfo studentInfo = new StudentInfo();

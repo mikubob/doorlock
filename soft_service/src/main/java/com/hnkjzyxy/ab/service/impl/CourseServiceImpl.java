@@ -20,6 +20,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
+ * 课程Service实现类
+ *
  * @version 1.0
  * @projectName: assessment
  * @author: Lucas
@@ -29,17 +31,29 @@ import java.util.stream.Collectors;
 @Service
 public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> implements CourseService {
 
+    /**
+     * 课程数据访问接口
+     */
     @Autowired
     private CourseMapper courseMapper;
 
 
+    /**
+     * 编程式事务模板
+     */
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    /**
+     * 课程 Excel 导入服务
+     */
     @Autowired
     private CourseExcelImportService courseExcelImportService;
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Course> getList(Course dto, User user) {
 
@@ -57,6 +71,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void uploadCourseFile(MultipartFile file, User user) {
@@ -75,6 +92,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         });
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getClassesList( User directUser) {
         LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<Course>();
@@ -91,6 +111,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return classesList;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getclassroomList() {
         LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<Course>();
@@ -100,6 +123,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return classesList;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getTeacherList() {
         LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<Course>();
@@ -109,6 +135,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return classesList;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getCounsellorList() {
         LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<Course>();
@@ -118,17 +147,26 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return classesList;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void updateAllState() {
         //先删除原有数据
         courseMapper.updateAllState();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getColege() {
         return courseMapper.getColege();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getClassByCollege(String college) {
         List<String> classes =courseMapper.getClassByCollege(college);

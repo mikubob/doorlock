@@ -15,9 +15,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 
+/**
+ * 门禁 Quartz 调度配置，创建任务、触发器和调度器
+ */
 @Configuration
 public class QuartzConfig {
 
+    /**
+     * 支持依赖注入的 Quartz Job 工厂
+     */
     @Autowired
     private QuartzJobFactory quartzJobFactory; // 注入自定义JobFactory
 
@@ -134,6 +140,11 @@ public class QuartzConfig {
         return String.format("0 %d %d ? * %s", minute, hour, days.toString());
     }
 
+    /**
+     * 创建使用自定义 Job 工厂的 Quartz 调度器
+     *
+     * @return Quartz 调度器工厂
+     */
     @Bean
     public SchedulerFactoryBean schedulerFactoryBean() {
         SchedulerFactoryBean schedulerFactoryBean = new SchedulerFactoryBean();

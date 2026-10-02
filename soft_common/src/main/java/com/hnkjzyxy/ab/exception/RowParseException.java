@@ -15,6 +15,9 @@ import lombok.Getter;
 @Getter
 public class RowParseException extends RuntimeException {
 
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**

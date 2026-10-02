@@ -18,6 +18,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
+ * 业务缓存切面，根据方法及参数生成缓存键并缓存返回数据
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -28,16 +30,28 @@ import java.util.Map;
 public class RedisCacheAop {
 
     /**
-     * 统一缓存自定义注解拦截实现
+     * 业务缓存切面，根据方法及参数生成缓存键并缓存返回数据
      */
     @Aspect
     @Component
     public class CacheAspect {
 
+        /**
+         * 缓存键拼接使用的空字符串
+         */
         private static final String EMPTY = "";
+        /**
+         * 缓存键中的分隔符
+         */
         private static final String POINT = "::";
+        /**
+         * 统一缓存键前缀
+         */
         private static final String CACHE_KEY_PREFIX = "cache.aspect:";
 
+        /**
+         * Redis 数据操作工具
+         */
         @Resource
         private RedisUtils redisUtils;
 
@@ -55,9 +69,10 @@ public class RedisCacheAop {
         /**
          * 拦截添加缓存注解的方法
          *
-         * @param pjpParam
-         * @return
-         * @throws Throwable
+         * @param pjpParam 被拦截方法的参数数组
+         * @param redisCache 业务缓存注解配置
+         * @return 缓存命中值或被拦截方法执行后得到的结果
+         * @throws Throwable 被拦截的业务方法执行失败时抛出
          * @see RedisCache
          */
         @Around("pointCut()&&@annotation(redisCache)")
@@ -91,11 +106,11 @@ public class RedisCacheAop {
         /**
          * 生成缓存key
          *
-         * @param redisCache
-         * @param className
-         * @param methodName
-         * @param pjpParam
-         * @return
+         * @param redisCache 业务缓存注解配置
+         * @param className 被拦截方法所属类名
+         * @param methodName 被拦截方法名称
+         * @param pjpParam 被拦截方法的参数数组
+         * @return 由缓存前缀、类名、方法名和参数组成的缓存键
          */
         private String getCacheKey(RedisCache redisCache, String className, String methodName, ProceedingJoinPoint pjpParam) {
             //缓存key前缀

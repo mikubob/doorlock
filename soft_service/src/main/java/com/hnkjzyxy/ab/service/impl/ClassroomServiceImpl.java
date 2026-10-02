@@ -15,10 +15,16 @@ import java.util.List;
 @Service
 public class ClassroomServiceImpl extends ServiceImpl<ClassroomMapper, Classroom> implements ClassroomService {
 
+    /**
+     * 教室数据访问接口
+     */
     @Autowired
     private ClassroomMapper classroomMapper;
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Classroom> getClassroomList(Classroom classroom) {
         return classroomMapper.getClassroomList(classroom);

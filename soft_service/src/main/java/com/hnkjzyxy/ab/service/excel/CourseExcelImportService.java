@@ -9,14 +9,28 @@ import com.hnkjzyxy.ab.service.listener.CourseDataListener;
 import com.hnkjzyxy.ab.service.CourseService;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
 
-/** 负责对应业务模板的 Excel 导入，保留原解析和事务规则。 */
+/**
+ * 课程模板 Excel 导入服务，读取工作表并交由课程监听器保存
+ */
 @Service
 public class CourseExcelImportService {
+    /**
+     * 课程业务服务
+     */
     @Autowired
     private CourseService courseService;
+    /**
+     * 雪花ID生成工具
+     */
     @Autowired
     private SnowFlowUtils snowFlowUtils;
 
+    /**
+     * 读取课程 Excel 模板并导入课程
+     *
+     * @param file 课程 Excel 文件
+     * @throws Exception 文件校验、工作簿读取或课程保存失败时抛出
+     */
     public void readCourseExcel(MultipartFile file) throws Exception {
         String filename = file.getOriginalFilename();
         if (file.isEmpty()) {

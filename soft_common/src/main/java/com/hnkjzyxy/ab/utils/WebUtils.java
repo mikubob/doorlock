@@ -4,6 +4,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
+ * HTTP 响应内容输出工具
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -11,6 +13,12 @@ import java.io.IOException;
  */
 public class WebUtils {
 
+    /**
+     * 将字符串作为 JSON 内容写入响应
+     *
+     * @param response HTTP 响应对象
+     * @param string 待输出的字符串
+     */
     public static void renderString(HttpServletResponse response, String string) {
         try {
             response.setStatus(200);

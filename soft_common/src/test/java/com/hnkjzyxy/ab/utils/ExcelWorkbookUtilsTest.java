@@ -8,7 +8,15 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * 工作簿读取测试，验证稀疏行及单元格转换
+ */
 class ExcelWorkbookUtilsTest {
+    /**
+     * 验证稀疏行读取以及原有单元格转换规则
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void readsSparseRowsAndPreservesOriginalCellConversions() throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();

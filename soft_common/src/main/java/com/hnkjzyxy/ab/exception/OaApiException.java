@@ -16,6 +16,9 @@ package com.hnkjzyxy.ab.exception;
  */
 public class OaApiException extends RuntimeException {
 
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**

@@ -8,6 +8,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
+/**
+ * 开关锁记录Service接口
+ */
 public interface SwitchRecordService {
 
     /**

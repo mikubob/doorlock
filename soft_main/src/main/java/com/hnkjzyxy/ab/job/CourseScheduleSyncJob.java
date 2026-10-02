@@ -25,8 +25,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class CourseScheduleSyncJob {
 
+    /**
+     * 课表业务服务
+     */
     private final CourseScheduleService courseScheduleService;
 
+    /**
+     * 初始化CourseScheduleSyncJob
+     *
+     * @param courseScheduleService 课表业务服务
+     */
     public CourseScheduleSyncJob(CourseScheduleService courseScheduleService) {
         this.courseScheduleService = courseScheduleService;
     }

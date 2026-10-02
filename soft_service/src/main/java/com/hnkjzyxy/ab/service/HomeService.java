@@ -35,5 +35,11 @@ public interface HomeService {
      */
     RadarChartVo getChartByTeacherOrDepartment(HomeParam param, User user);
 
+    /**
+     * 查询项目涉及的教师及教研室信息
+     *
+     * @param projectId 考核项目ID
+     * @return 教师及教研室信息
+     */
     TeacherAndDepartmentVo getTeacherAndDepartment(Integer projectId);
 }

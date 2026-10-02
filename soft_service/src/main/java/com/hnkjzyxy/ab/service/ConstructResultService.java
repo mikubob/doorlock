@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.hnkjzyxy.ab.model.ConstructResult;
 
 /**
+ * 建设项目提交结果Service接口
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -11,5 +13,10 @@ import com.hnkjzyxy.ab.model.ConstructResult;
  */
 public interface ConstructResultService extends IService<ConstructResult> {
 
+    /**
+     * 删除建设项目提交结果及相关材料
+     *
+     * @param id 建设项目提交结果ID
+     */
     void removeConstructResult(String id);
 }

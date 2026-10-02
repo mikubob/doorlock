@@ -28,6 +28,17 @@ import com.hnkjzyxy.ab.smartlock.command.CloseDoorCommand;
 @Component
 public class SmartLockClient implements SmartLockGateway {
 
+    /**
+     * 通过 SDK 提交开门命令
+     * <p>
+     * 命令结果由设备通讯回调处理，本方法不等待设备完成操作。
+     * </p>
+     *
+     * @param ipAddress 门禁设备IP地址
+     * @param port 门禁设备TCP端口
+     * @param snStr 门禁设备SN
+     * @param Channel 门禁通道编号
+     */
     @Override
     public void openDoor(String ipAddress, int port, String snStr,String Channel) {
         ConnectorAllocator allocator = ConnectorAllocator.GetAllocator();
@@ -88,6 +99,14 @@ public class SmartLockClient implements SmartLockGateway {
         allocator.AddCommand(cmd);
     }
 
+    /**
+     * 通过 SDK 异步查询第一门状态
+     *
+     * @param ipAddress 门禁设备IP地址
+     * @param port 门禁设备TCP端口
+     * @param snStr 门禁设备SN
+     * @return SDK 回调完成后的门状态值；超时、连接或密码错误时异常完成
+     */
     @Override
     public CompletableFuture<Integer> queryDoorStatus(String ipAddress, int port, String snStr) {
         ConnectorAllocator allocator = ConnectorAllocator.GetAllocator();
@@ -158,6 +177,17 @@ public class SmartLockClient implements SmartLockGateway {
         return futurePrice;
     }
 
+    /**
+     * 通过 SDK 提交关门命令
+     * <p>
+     * 命令结果由设备通讯回调处理，本方法不等待设备完成操作。
+     * </p>
+     *
+     * @param sn 门禁设备SN
+     * @param ip 门禁设备IP地址
+     * @param port 门禁设备TCP端口
+     * @param Channel 门禁通道编号
+     */
     @Override
     public void closeDoor(String sn, String ip, int port,String Channel) {
         CommandDetail detail = CommandAllocator.getTcpCommandDetail(sn, ip, port);

@@ -43,12 +43,24 @@ import static com.hnkjzyxy.ab.controller.ProjectController.getApiResult;
 @RestController
 public class ConstructController {
 
+    /**
+     * 建设项目业务服务
+     */
     @Autowired
     private ConstructService constructService;
+    /**
+     * 建设项目提交结果业务服务
+     */
     @Autowired
     private ConstructResultService constructResultService;
+    /**
+     * 上传、下载及材料压缩工具
+     */
     @Resource
     private UploadUtils uploadUtils;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 
@@ -57,6 +69,7 @@ public class ConstructController {
      * 新增建设项目
      *
      * @param construct 建设项目信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/add/construct")
@@ -98,6 +111,7 @@ public class ConstructController {
      * 获取建设项目年份列表
      *
      * @param type 查询类型（0=我创建的，1=我接收的，其他=全部）
+     * @param authentication 当前登录认证信息
      * @return 建设项目年份列表
      */
     @GetMapping("/construct/years/{type}")
@@ -127,6 +141,7 @@ public class ConstructController {
      * 查询我接收的建设项目列表
      *
      * @param param 建设项目分页查询条件
+     * @param authentication 当前登录认证信息
      * @return 建设项目列表及分页数据
      */
     @GetMapping("/construct/list/user")

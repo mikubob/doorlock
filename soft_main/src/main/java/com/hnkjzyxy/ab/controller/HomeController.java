@@ -48,18 +48,39 @@ import javax.validation.Valid;
 @RestController
 public class HomeController {
 
+    /**
+     * 通知公告业务服务
+     */
     @Autowired
     private NoticeService noticeService;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 考核项目业务服务
+     */
     @Autowired
     private ProjectService projectService;
+    /**
+     * 考核结果业务服务
+     */
     @Autowired
     private ResultService resultService;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
+    /**
+     * 用户消息业务服务
+     */
     @Resource
     private MessageService messageService;
+    /**
+     * 首页统计业务服务
+     */
     @Resource
     private HomeService homeService;
 
@@ -92,6 +113,7 @@ public class HomeController {
      * 发布公告
      *
      * @param param 公告内容（标题、正文、是否置顶等）
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/notice/publish")
@@ -115,6 +137,7 @@ public class HomeController {
      * 同一时间仅允许一条公告处于置顶状态
      *
      * @param id 公告ID
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/notice/isTop/{id}")
@@ -164,6 +187,7 @@ public class HomeController {
     /**
      * 获取最近一次项目结束时间
      *
+     * @param authentication 当前登录认证信息
      * @return 当前用户最近结束的项目信息
      */
     @GetMapping("/end/project")
@@ -178,6 +202,7 @@ public class HomeController {
      * 按身份维度返回项目结果平均值（个人=本人项目，教研室主任=本教研室，院长=全项目）
      *
      * @param param 查询条件（项目ID、年份）
+     * @param authentication 当前登录认证信息
      * @return 柱状图数据
      */
     @GetMapping("/columnar/chart")
@@ -194,6 +219,7 @@ public class HomeController {
      * 获取项目结果雷达图
      *
      * @param param 查询条件（项目ID、年份）
+     * @param authentication 当前登录认证信息
      * @return 雷达图维度和数值
      */
     @GetMapping("/radar/chart")
@@ -209,6 +235,7 @@ public class HomeController {
     /**
      * 获取项目年份列表
      *
+     * @param authentication 当前登录认证信息
      * @return 当前用户相关项目的年份列表
      */
     @GetMapping("/project/years/list")
@@ -225,6 +252,7 @@ public class HomeController {
      * 根据年份查询项目列表
      *
      * @param year 年份
+     * @param authentication 当前登录认证信息
      * @return 该年份下的项目列表
      */
     @GetMapping("/year/project/{year}")
@@ -240,6 +268,7 @@ public class HomeController {
     /**
      * 获取通知列表
      *
+     * @param auth 当前登录认证信息
      * @return 当前登录用户的通知列表
      */
     @GetMapping("/notices")
@@ -258,6 +287,7 @@ public class HomeController {
     /**
      * 将当前用户的通知全部标记为已读
      *
+     * @param auth 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/readNotice")
@@ -276,6 +306,7 @@ public class HomeController {
      * 按老师统计雷达图
      *
      * @param param 查询条件（项目ID、年份）
+     * @param authentication 当前登录认证信息
      * @return 雷达图维度和数值
      */
     @GetMapping("/radar/chart/teacher")
@@ -293,6 +324,7 @@ public class HomeController {
      * 按教研室统计雷达图
      *
      * @param param 查询条件（项目ID、年份）
+     * @param authentication 当前登录认证信息
      * @return 雷达图维度和数值
      */
     @GetMapping("/radar/chart/department")
@@ -310,6 +342,7 @@ public class HomeController {
      * 根据项目ID获取参与教师及教研室
      *
      * @param param 查询条件（项目ID）
+     * @param authentication 当前登录认证信息
      * @return 项目参与教师与教研室信息
      */
     @GetMapping("/radar/teacherOrDepartment")

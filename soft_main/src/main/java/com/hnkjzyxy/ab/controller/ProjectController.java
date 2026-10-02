@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.controller;
 
 import com.hnkjzyxy.ab.export.ExcelResponseExporter;
+import com.hnkjzyxy.ab.export.EvidenceWordExporter;
 import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.druid.util.StringUtils;
 import com.alibaba.fastjson.JSON;
@@ -42,6 +43,7 @@ import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
 import com.hnkjzyxy.ab.params.ProjectItemImportParam;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import com.hnkjzyxy.ab.vo.ResultVo;
+import com.hnkjzyxy.ab.params.ProjectResultSubmitParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -79,31 +81,70 @@ import javax.validation.Valid;
 @RestController
 public class ProjectController {
 
+    /**
+     * 模板下载文件目录
+     */
     @Value("${download.fileUrl}")
     private String downFile;
+    /**
+     * 考核项目业务服务
+     */
     @Autowired
     private ProjectService projectService;
+    /**
+     * 旧任务 Excel 模板预览服务
+     */
     @Autowired
     private TaskExcelPreviewService taskExcelPreviewService;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 上传、下载及材料压缩工具
+     */
     @Autowired
     private UploadUtils uploadUtils;
+    /**
+     * 审批流程业务服务
+     */
     @Autowired
     private FlowService flowService;
+    /**
+     * 结果扩展项业务服务
+     */
     @Autowired
     private ResultExtendService  resultExtendService;
+    /**
+     * 流程节点业务服务
+     */
     @Resource
     private FlowTaskService flowTaskService;
+    /**
+     * 考核结果数据访问接口
+     */
     @Resource
     private ResultMapper resultMapper;
+    /**
+     * 角色业务服务
+     */
     @Resource
     private RoleService roleService;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
+    /**
+     * 审批明细业务服务
+     */
     @Autowired
     ResultItemService resultItemService;
 
+    /**
+     * 项目任务导入业务服务
+     */
     @Resource
     private ProjectTaskImportService projectTaskImportService;
 
@@ -126,12 +167,32 @@ public class ProjectController {
         return operator;
     }
 
+    /**
+     * 考核项目数据访问接口
+     */
     @Resource
     private ProjectMapper projectMapper;
 
+    /**
+     * 考核结果业务服务
+     */
     @Resource
     private ResultService resultService;
 
+    /**
+     * 佐证材料 Word 下载组件
+     */
+    @Autowired
+    private EvidenceWordExporter evidenceWordExporter;
+
+    /**
+     * 按查询类型将数据列表或用户列表包装为接口响应
+     *
+     * @param type 查询或节点类型
+     * @param list 待处理数据列表
+     * @param userList 用户信息列表
+     * @return 查询类型对应的接口响应；类型不支持时返回错误响应
+     */
     public static ApiResult getApiResult(String type, List<String> list, List<String> userList) {
         if ("0".equals(type)) {
             return ApiResult.ok("data", list);
@@ -153,6 +214,8 @@ public class ProjectController {
      * 获取项目年份列表
      *
      * @param type 查询类型（0=我创建的项目年份，1=我参与的项目年份，其他=全部）
+     * @param param 考核项目操作或查询参数
+     * @param authentication 当前登录认证信息
      * @return 项目年份列表
      */
     @GetMapping("/project/years/{type}")
@@ -172,6 +235,7 @@ public class ProjectController {
      * 查询我创建的项目列表
      *
      * @param param 项目分页查询条件
+     * @param authentication 当前登录认证信息
      * @return 项目列表及分页数据
      */
     @GetMapping("/project/list")
@@ -190,6 +254,7 @@ public class ProjectController {
      * 查询我参与的项目列表
      *
      * @param param 项目分页查询条件
+     * @param authentication 当前登录认证信息
      * @return 项目列表及分页数据
      */
     @GetMapping("/user/project/list")
@@ -207,6 +272,7 @@ public class ProjectController {
      * 根据项目ID查询项目详情
      *
      * @param id 项目ID
+     * @param authentication 当前登录认证信息
      * @return 项目详情
      */
     @GetMapping("/project/{id}")
@@ -223,6 +289,7 @@ public class ProjectController {
      * 新建或编辑项目
      *
      * @param project 项目信息（含 id 时为编辑，否则为新建）
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/new/project")
@@ -239,6 +306,7 @@ public class ProjectController {
      * 下载项目导入模板
      *
      * @param response HTTP 响应流，直接输出 Excel 模板文件
+     * @throws IOException 文件读取或输出失败时抛出
      */
     @GetMapping("/project/download/excel")
     public void download(HttpServletResponse response) throws IOException {
@@ -250,6 +318,7 @@ public class ProjectController {
      * 已发布的项目不允许删除，删除后状态置为已删除
      *
      * @param id 项目ID
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/delProject/{id}")
@@ -276,6 +345,7 @@ public class ProjectController {
      * 发布项目
      *
      * @param id 项目ID
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/project/publish/{id}")
@@ -310,11 +380,12 @@ public class ProjectController {
      * 提交项目结果
      *
      * @param resultVo 项目结果信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/project/result")
     //@RepeatSubmit
-    public ApiResult projectResult(@Valid @RequestBody ResultVo resultVo, Authentication authentication) {
+    public ApiResult projectResult(@Valid @RequestBody ProjectResultSubmitParam resultVo, Authentication authentication) {
         User user = userService.getUserByName(authentication.getName());
         if (ObjectUtil.isEmpty(resultVo.getResults())) {
             throw new RuntimeException("项目结果不能为空！");
@@ -330,6 +401,7 @@ public class ProjectController {
      * 上传项目佐证材料（支持多文件）
      *
      * @param files 材料文件数组
+     * @param authentication 当前登录认证信息
      * @return 文件访问地址列表
      */
     @PostMapping("/fileUpload")
@@ -347,13 +419,18 @@ public class ProjectController {
     }
 
     /**
-     * 暂存项目结果
+     * 校验任务后保存用户项目暂存数据
+     * <p>
+     * 先提交任务首次暂存冻结标记，再将暂存 JSON 写入 Redis；缓存有效期为15天。
+     * 缓存写入失败不会撤销冻结标记，旧格式的暂存 JSON 仍可由读取接口解析。
+     * </p>
      *
-     * @param result 项目结果信息
-     * @return 操作结果
+     * @param result 项目结果暂存参数
+     * @param authentication 当前登录认证信息
+     * @return 统一接口响应
      */
     @PostMapping("/project/Staging")
-    public ApiResult projectStaging(@Valid @RequestBody ResultVo result, Authentication authentication) {
+    public ApiResult projectStaging(@Valid @RequestBody ProjectResultSubmitParam result, Authentication authentication) {
         User user = userService.getUserByName(authentication.getName());
         if (Objects.isNull(user)) {
             throw new RuntimeException("用户不能为空！");
@@ -364,10 +441,11 @@ public class ProjectController {
     }
 
     /**
-     * 获取项目考核暂存数据（开始考核）
+     * 读取用户指定项目的暂存结果
      *
-     * @param pId 项目ID
-     * @return 该项目的暂存结果
+     * @param pId 考核项目ID
+     * @param authentication 当前登录认证信息
+     * @return 暂存结果；缓存键不存在或缓存值为空时返回 null
      */
     @GetMapping("/project/Staging/{pId}")
     public ApiResult getProjectStaging(@PathVariable String pId, Authentication authentication) {
@@ -383,6 +461,7 @@ public class ProjectController {
      * 分页查询项目考核列表
      *
      * @param param 项目考核查询条件
+     * @param authentication 当前登录认证信息
      * @return 项目考核列表及分页数据
      */
     @GetMapping("/project/assess/list")
@@ -397,6 +476,7 @@ public class ProjectController {
     /**
      * 获取全部已发布项目列表
      *
+     * @param authentication 当前登录认证信息
      * @return 已发布项目列表
      */
     @GetMapping("/projects")
@@ -412,6 +492,7 @@ public class ProjectController {
     /**
      * 获取所有部门（教研室）列表
      *
+     * @param authentication 当前登录认证信息
      * @return 部门列表
      */
     @GetMapping("/department")
@@ -468,6 +549,7 @@ public class ProjectController {
      * 推荐使用 /project/subTaskScores
      *
      * @param dto 子任务查询条件
+     * @param authentication 当前登录认证信息
      * @return 子任务得分数据
      */
     @GetMapping("/project/subTaskScore")
@@ -503,6 +585,7 @@ public class ProjectController {
      * 根据ID查询用户子任务得分
      *
      * @param dto 子任务查询条件
+     * @param authentication 当前登录认证信息
      * @return 子任务得分数据
      */
     @GetMapping("/project/subTaskScores")
@@ -522,6 +605,7 @@ public class ProjectController {
      * 查询项目下的全部分类
      *
      * @param projectId 项目ID
+     * @param authentication 当前登录认证信息
      * @return 该项目下的分类名称列表
      */
     @GetMapping("/project/projectCategory/{projectId}")
@@ -548,6 +632,7 @@ public class ProjectController {
      * 批量修改用户子任务得分
      *
      * @param dto 待更新的子任务得分列表
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PutMapping("/project/subTaskScore")
@@ -576,7 +661,7 @@ public class ProjectController {
         //需要的参数是什么？ 用户的id，taskId , projectId, 文件的路径地址（一个String类型的字符串，里面是由很多的数组
 
         String evidences = dto.getEvidence();//这个字符串其实就是所有的evidence的路径的字符串，用逗号分割的
-        resultService.downloadEvidenceToWord(evidences, response);
+        evidenceWordExporter.export(evidences, response);
 
     }
 
@@ -610,6 +695,7 @@ public class ProjectController {
      * 根据项目ID查询项目子项
      *
      * @param projectId 项目ID
+     * @param authentication 当前登录认证信息
      * @return 项目子项列表
      */
     @GetMapping("/project/item/{projectId}")
@@ -623,6 +709,7 @@ public class ProjectController {
      * 既可用于新增分类，也可用于新增分类下的子项
      *
      * @param projectItemVo 项目子项信息
+     * @param authentication 当前登录认证信息
      */
     @PostMapping("/project/item")
     public void addProjectItem(@RequestBody ProjectItemSaveParam projectItemVo, Authentication authentication) {
@@ -633,6 +720,7 @@ public class ProjectController {
      * 删除项目子项
      *
      * @param id 项目子项ID
+     * @param authentication 当前登录认证信息
      */
     @DeleteMapping("/project/item/{id}")
     public void deleteProjectItem(@PathVariable("id") Integer id, Authentication authentication) {
@@ -643,6 +731,8 @@ public class ProjectController {
      * 将项目子项导入为任务
      *
      * @param projectItems 项目子项列表
+     * @param authentication 当前登录认证信息
+     * @return 统一接口响应
      */
     @PostMapping("/project/item/insertIntoTask")
     public ApiResult insertIntoTask(@RequestBody(required = false) List<ProjectItemImportParam> projectItems, Authentication authentication) {

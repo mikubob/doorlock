@@ -7,12 +7,20 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 /**
+ * 客户端IP及网络设备MAC地址查询工具
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
  * @date: 2023/4/16 14:29
  */
 public class IpUtil {
+    /**
+     * 从代理转发头或连接信息中取得客户端IP地址
+     *
+     * @param request HTTP 请求对象
+     * @return 查询得到的文本信息
+     */
     public static String getIpAddr(HttpServletRequest request) {
         String ip = request.getHeader("x-forwarded-for");
 
@@ -60,6 +68,12 @@ public class IpUtil {
     }
 
 
+    /**
+     * 通过本机网络命令查询指定IP的MAC地址
+     *
+     * @param ip IP地址
+     * @return 查询得到的文本信息
+     */
     public static String getMacAddrByIp(String ip) {
         StringBuilder sb = new StringBuilder();
         try {

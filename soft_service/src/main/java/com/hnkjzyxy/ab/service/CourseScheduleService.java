@@ -13,26 +13,41 @@ public interface CourseScheduleService extends IService<CourseSchedule> {
 
     /**
      * 条件查询课程列表
+     *
+     * @param courseSchedule 课表信息
+     * @return 课表列表
      */
     List<CourseSchedule> getList(CourseSchedule courseSchedule);
 
     /**
      * 新增课程
+     *
+     * @param courseSchedule 课表信息
+     * @return 操作或条件校验结果
      */
     boolean saveCourseSchedule(CourseSchedule courseSchedule);
 
     /**
      * 更新课程
+     *
+     * @param courseSchedule 课表信息
+     * @return 操作或条件校验结果
      */
     boolean updateCourseSchedule(CourseSchedule courseSchedule);
 
     /**
      * 删除课程
+     *
+     * @param id 课表ID
+     * @return 操作或条件校验结果
      */
     boolean deleteById(Integer id);
 
     /**
      * 批量删除
+     *
+     * @param ids 课表ID集合
+     * @return 操作或条件校验结果
      */
     boolean deleteBatch(List<Integer> ids);
 

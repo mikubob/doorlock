@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 @TableName("sys_course_schedule")
 public class CourseSchedule implements Serializable {
     
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**

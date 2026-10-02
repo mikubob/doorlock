@@ -1,6 +1,5 @@
 package com.hnkjzyxy.ab.controller;
 
-import Door.Access.Door8800.Command.System.Result.SearchEquptOnNetNum_Result;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hnkjzyxy.ab.config.QuartzConfig;
@@ -13,9 +12,9 @@ import com.hnkjzyxy.ab.service.ScheduleService;
 import com.hnkjzyxy.ab.service.SmartLockService;
 import com.hnkjzyxy.ab.service.SwitchRecordService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.smartlock.command.SearchDeviceCommand;
 import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
 import com.hnkjzyxy.ab.service.support.SmartLockStateService;
+import com.hnkjzyxy.ab.service.support.SmartLockDiscoveryService;
 import com.hnkjzyxy.ab.vo.UserVo;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
@@ -32,10 +31,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -53,21 +50,49 @@ public class SamrtLockController {
      * 线程池：用于异步执行查询门锁状态任务
      */
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+    /**
+     * 智能门锁业务服务
+     */
     @Autowired
     SmartLockService smartLockService;
+    /**
+     * 门禁设备通讯接口
+     */
     @Autowired
     private SmartLockGateway smartLockGateway;
+    /**
+     * 门禁状态查询及回写服务
+     */
     @Autowired
     private SmartLockStateService smartLockStateService;
-    HashSet<SearchEquptOnNetNum_Result.SearchResult> devicesList;
+    /**
+     * 门禁设备发现及登记服务
+     */
+    @Autowired
+    private SmartLockDiscoveryService smartLockDiscoveryService;
+    /**
+     * 开关锁记录业务服务
+     */
     @Autowired
     SwitchRecordService switchRecordService;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     UserService userService;
+    /**
+     * 门禁定时任务业务服务
+     */
     @Autowired
     ScheduleService scheduleService;
+    /**
+     * Quartz 任务及触发器配置
+     */
     @Autowired
     QuartzConfig quartzConfig;
+    /**
+     * Quartz 调度器工厂
+     */
     @Autowired
     private SchedulerFactoryBean schedulerFactoryBean;
 
@@ -124,10 +149,8 @@ public class SamrtLockController {
      * 搜索结果暂存于内存，供刷新锁设备记录使用
      */
     @GetMapping("/searchcheck")
-    public void search() throws UnknownHostException {
-        SearchDeviceCommand searchDeviceCommand = new SearchDeviceCommand();
-        searchDeviceCommand.start();
-        devicesList = searchDeviceCommand.getDevices();
+    public void search() {
+        smartLockDiscoveryService.startDiscovery();
     }
 
     /**
@@ -138,35 +161,7 @@ public class SamrtLockController {
      */
     @PostMapping("/insertLock")
     public ApiResult insertLock() {
-        HashSet<LockInfo> devicelist = new HashSet<>(smartLockService.getAll());
-
-        boolean flag = false;
-        boolean result = false;
-        //检查数据库中是否存在锁
-        if (!devicesList.isEmpty()) {
-            //遍历通过网络搜索到的锁
-            for (SearchEquptOnNetNum_Result.SearchResult device : devicesList) {
-//                遍历数据库锁
-                for (LockInfo lock : devicelist) {
-                    //对比锁的sn码，检查是否有重复锁（目的：去除重复锁，将不重复的加入数据库）
-                    if (lock != null && lock.getSnCode() != null) {
-                        if (lock.getSnCode().equals(device.SN)) {
-                            flag = true;
-                        }
-                    }
-                }
-                if (!flag) {
-                    LockInfo lockpojo = new LockInfo();
-                    lockpojo.setIpAddress(device.TCP.GetIP());
-                    lockpojo.setPortNumber(device.TCP.GetTCPPort());
-                    lockpojo.setSnCode(device.SN);
-                    System.out.println("设备信息：SN=" + device.SN + ",IP=" + device.TCP.GetIP() + ",TCPPort=" + device.TCP.GetTCPPort());
-                    smartLockService.add(lockpojo);
-                    result = smartLockService.add(lockpojo);
-                }
-            }
-        }
-        if (result) {
+        if (smartLockDiscoveryService.registerDiscoveredDevices()) {
             return ApiResult.ok("添加成功");
         }
         return ApiResult.error("添加失败");
@@ -211,6 +206,7 @@ public class SamrtLockController {
      * 支持普通用户 token 与开锁专用 token，并自动记录开关锁操作日志
      *
      * @param lockInfo 锁状态信息（boardSn、switchStatus）
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/updateSwitchStatus")
@@ -333,7 +329,10 @@ public class SamrtLockController {
      * taskStatus 为 1 时同步注册 Quartz 定时任务
      *
      * @param scheduleTask 定时任务信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
+     * @throws JsonProcessingException JSON 数据解析失败时抛出
      */
     @PostMapping("/updateTimerStatus")
     public ApiResult updateTimerStatus(@RequestBody ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException, JsonProcessingException {
@@ -353,7 +352,9 @@ public class SamrtLockController {
      * 写入数据库并按周生成 Cron 表达式，注册 Quartz 定时开关锁任务
      *
      * @param scheduleTask 定时任务信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果及生成的 Cron 表达式
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      */
     @PostMapping("/addTimer")
     public ApiResult addTimer(@RequestBody ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException {
@@ -393,7 +394,10 @@ public class SamrtLockController {
      * 修改定时任务信息
      *
      * @param scheduleTask 定时任务信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
+     * @throws JsonProcessingException JSON 数据解析失败时抛出
      */
     @PostMapping("/updateTimer")
     public ApiResult updateTimer(@RequestBody ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException, JsonProcessingException {
@@ -423,6 +427,7 @@ public class SamrtLockController {
      *
      * @param scheduleTask 定时任务信息（lockId）
      * @return 操作结果
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      */
     @PostMapping("/cancelWeeklyTimer")
     public ApiResult cancelWeeklyTimer(@RequestBody ScheduleTask scheduleTask) throws SchedulerException {
@@ -432,6 +437,13 @@ public class SamrtLockController {
         return ApiResult.error("未找到对应的定时任务");
     }
 
+    /**
+     * 删除指定锁的 Quartz 定时任务并更新任务状态
+     *
+     * @param scheduleTask 门禁定时任务信息
+     * @return 删除了已存在调度任务时返回一，未找到调度任务时返回零
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
+     */
     public int cancelTimer(ScheduleTask scheduleTask) throws SchedulerException {
         Scheduler scheduler = schedulerFactoryBean.getScheduler();
         JobKey jobKey = new JobKey("smartLockJob_" + scheduleTask.getLockId(), "smartLockGroup");
@@ -487,6 +499,14 @@ public class SamrtLockController {
         }, executorService);
     }
 
+    /**
+     * 按数据库任务配置重新注册门禁定时任务
+     *
+     * @param scheduleTask 门禁定时任务请求参数
+     * @param authentication 当前登录认证信息
+     * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
+     * @throws JsonProcessingException JSON 数据解析失败时抛出
+     */
     public void setTimerTask(ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException, JsonProcessingException {
         ScheduleTask scheduleTask1 = scheduleService.getById(scheduleTask.getTaskId());
         // 获取用户信息
@@ -521,6 +541,12 @@ public class SamrtLockController {
         scheduler.scheduleJob(jobDetail, trigger);
     }
 
+    /**
+     * 将定时任务请求转换为持久化对象并设置时间字段
+     *
+     * @param scheduleTaskDto 门禁定时任务请求参数
+     * @return 门禁定时任务信息
+     */
     public ScheduleTask trantoScheduleTask(ScheduleTaskDto scheduleTaskDto) {
         ScheduleTask scheduleTaskTemp = new ScheduleTask();
         scheduleTaskTemp.setLockId(scheduleTaskDto.getLockId());
@@ -547,6 +573,12 @@ public class SamrtLockController {
         return scheduleTaskTemp;
     }
 
+    /**
+     * 读取已有设备并应用非空的状态、教室编号及备注字段
+     *
+     * @param lockInfo 智能门锁设备信息
+     * @return 智能门锁设备信息
+     */
     public LockInfo setLockInfoPojo(LockInfo lockInfo) {
         LockInfo byId = smartLockService.getById(lockInfo.getLockId());
         if (lockInfo.getSwitchStatus() != null) {

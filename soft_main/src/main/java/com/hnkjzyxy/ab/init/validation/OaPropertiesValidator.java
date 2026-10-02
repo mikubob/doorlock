@@ -26,12 +26,28 @@ import org.springframework.util.StringUtils;
 @Component
 public class OaPropertiesValidator implements InitializingBean {
 
+    /**
+     * OA 接口及应用凭据配置
+     */
     private final OaProperties oaProperties;
 
+    /**
+     * 初始化OaPropertiesValidator
+     *
+     * @param oaProperties OA 接口及应用凭据配置
+     */
     public OaPropertiesValidator(OaProperties oaProperties) {
         this.oaProperties = oaProperties;
     }
 
+    /**
+     * 在容器初始化时检查 OA 应用凭据
+     * <p>
+     * 凭据有效时记录脱敏后的应用 key，不输出应用 secret。
+     * </p>
+     *
+     * @throws IllegalStateException oa.app-key 或 oa.app-secret 为空时抛出并终止初始化
+     */
     @Override
     public void afterPropertiesSet() {
         if (!StringUtils.hasText(oaProperties.getAppKey()) || !StringUtils.hasText(oaProperties.getAppSecret())) {

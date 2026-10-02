@@ -21,6 +21,9 @@ import java.io.IOException;
  */
 @Component
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void handle(HttpServletRequest req, HttpServletResponse resp, AccessDeniedException e) throws IOException, ServletException {
         resp.setContentType("application/json;charset=utf-8");

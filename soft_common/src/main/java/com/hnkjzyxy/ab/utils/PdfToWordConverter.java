@@ -25,8 +25,8 @@ public class PdfToWordConverter {
     /**
      * 测试代码
      *
-     * @param args
-     * @throws Exception
+     * @param args 启动参数
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
      */
     public static void main(String[] args) throws Exception {
 //        File filepath = new File("D:\\pdf2");
@@ -46,7 +46,7 @@ public class PdfToWordConverter {
      *
      * @param path         pdf文件的文件存在的根路径
      * @param wordFilePath 指定的word文件路径
-     * @throws Exception
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
      */
     public static void pdfFilesToWordFile(String path, String wordFilePath) throws Exception {
         //1、 读取pdf文件
@@ -109,7 +109,7 @@ public class PdfToWordConverter {
      *
      * @param filePath 文件路径名
      * @return 图片路径名
-     * @throws IOException
+     * @throws IOException 文件读取或输出失败时抛出
      */
     private static String convertPdfToImage(String filePath) throws IOException {
 
@@ -141,8 +141,8 @@ public class PdfToWordConverter {
     /**
      * 去掉文件扩展名
      *
-     * @param file
-     * @return
+     * @param file 待处理文件
+     * @return 移除最后一个扩展名的文件名称
      */
     private static String getFileNameWithoutExtension(File file) {
         String name = file.getName();

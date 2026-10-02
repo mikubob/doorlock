@@ -29,16 +29,26 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/teach/count")
 public class TeacherPortfolioController {
+    /**
+     * 用户业务服务
+     */
     @Autowired
     UserService userService;
+    /**
+     * 考核项目业务服务
+     */
     @Autowired
     ProjectService projectService;
+    /**
+     * 教师档案统计业务服务
+     */
     @Autowired
     TeacherPortfolioService teacherPortfolioService;
     /**
      * 获取教学成果雷达图
      *
      * @param param 教学统计查询条件（含学院）
+     * @param authentication 当前登录认证信息
      * @return 雷达图数据
      */
     @PostMapping("/teachAll")
@@ -57,6 +67,7 @@ public class TeacherPortfolioController {
      * 按老师统计雷达图
      *
      * @param param 教学统计查询条件
+     * @param authentication 当前登录认证信息
      * @return 雷达图数据
      */
     @PostMapping("/radar/chart/teacher")
@@ -74,6 +85,7 @@ public class TeacherPortfolioController {
      *
      * @param year    年份
      * @param college 学院名称
+     * @param authentication 当前登录认证信息
      * @return 项目列表
      */
     @GetMapping("/year/project")
@@ -90,6 +102,7 @@ public class TeacherPortfolioController {
      * 按教师维度分析雷达图数据
      *
      * @param param 教学统计查询条件
+     * @param authentication 当前登录认证信息
      * @return 以教师分组的雷达图数据
      */
     @PostMapping("/radar/chart/analysisteacher")
@@ -105,6 +118,7 @@ public class TeacherPortfolioController {
      * 根据学院查询教师雷达图数据
      *
      * @param college 学院名称
+     * @param authentication 当前登录认证信息
      * @return 该学院的教师数据
      */
     @GetMapping("/radar/chart/Teacherbycollege")

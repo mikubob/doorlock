@@ -7,6 +7,8 @@ import com.hnkjzyxy.ab.service.ResultItemService;
 import org.springframework.stereotype.Service;
 
 /**
+ * 审批明细Service实现类
+ *
  * @author 16702
  */
 @Service

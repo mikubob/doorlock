@@ -579,7 +579,7 @@ public Map<String, Object> getLists(SubTaskIdDto dto, User user) {
 ### T-07 / T-08 / T-09 【P2】PDF 转 Word 工具：路径、多页、比例三个问题
 
 **位置**：`soft_common/src/main/java/com/hnkjzyxy/ab/utils/PdfToWordConverter.java`
-调用方：`ResultServiceImpl#downloadEvidenceToWord`（证据材料导出 Word）
+调用方：`EvidenceWordService#generate` 生成证据材料 Word，`EvidenceWordExporter#export` 负责 HTTP 下载及临时文件回收（2026-10-02 职责拆分更新）。
 
 **问题分析**
 
@@ -796,6 +796,8 @@ map.put("list", listSort);
 ## 三、B 类：需要业务决策
 
 ### T-04 【P1】项目子项导入为任务时，是否清理原有数据
+
+> 2026-10-02 包结构更新：本节保留最初的问题代码及方案示例；当前实现使用 `params.ProjectItemImportParam` 接收选中项、`params.ProjectItemSaveParam` 接收维护参数，`vo.ProjectItemVo` 仅用于查询返回。实际导入策略及职责以 `ProjectTaskImportService` 和《T-04 完整解决方案》为准。
 
 **位置**：`soft_main/src/main/java/com/hnkjzyxy/ab/controller/ProjectController.java:613`
 

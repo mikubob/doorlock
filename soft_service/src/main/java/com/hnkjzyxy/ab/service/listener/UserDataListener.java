@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 用户 Excel 数据监听器，保存用户、密码及角色关联
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -24,7 +26,13 @@ import java.util.Map;
  */
 public class UserDataListener extends AnalysisEventListener<UserModel> {
 
+    /**
+     * 每批保存的最大行数
+     */
     private static final int BATCH_COUNT = 100;
+    /**
+     * 导入时使用的角色名称与角色ID映射
+     */
     Map<String, Integer> roleNames = new HashMap<String, Integer>() {{
         put("行政", 4);
         put("机房", 5);
@@ -43,8 +51,17 @@ public class UserDataListener extends AnalysisEventListener<UserModel> {
      * 记录解析的数据总数
      */
     int count = 0;
+    /**
+     * 用户业务服务
+     */
     private UserService userService;
+    /**
+     * 密码编码器
+     */
     private PasswordEncoder bCryptPasswordEncoder;
+    /**
+     * 用户角色关联业务服务
+     */
     private UserRoleService userRoleService;
 
     /**
@@ -52,6 +69,13 @@ public class UserDataListener extends AnalysisEventListener<UserModel> {
      */
     private List<UserModel> data = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
 
+    /**
+     * 初始化用户
+     *
+     * @param userService 用户业务服务
+     * @param bCryptPasswordEncoder 密码编码器
+     * @param userRoleService 用户角色关联业务服务
+     */
     public UserDataListener(UserService userService, PasswordEncoder bCryptPasswordEncoder, UserRoleService userRoleService) {
         this.userService = userService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
@@ -95,6 +119,9 @@ public class UserDataListener extends AnalysisEventListener<UserModel> {
         System.out.println("解析完毕，共" + (count) + "条数据");
     }
 
+    /**
+     * 保存当前缓冲区中的用户及其角色关联
+     */
     public void saveData() {
         System.out.println("开始初始化用户数据");
         for (UserModel item : data) {

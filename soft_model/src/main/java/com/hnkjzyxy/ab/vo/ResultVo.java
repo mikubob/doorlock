@@ -8,10 +8,9 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.List;
-import javax.validation.constraints.NotNull;
 
 /**
- * 项目结果提交参数
+ * 项目结果及暂存数据的返回对象
  */
 @Getter
 @Setter
@@ -27,7 +26,6 @@ public class ResultVo implements Serializable {
     /**
      * 项目ID
      */
-    @NotNull(message = "项目id不能为空！")
     private Integer projectId;
 
     /**
@@ -51,7 +49,7 @@ public class ResultVo implements Serializable {
     private String opinion;
 
     /**
-     * 是否打回（0=否，1=是）
+     * 暂存或提交结果的完成标记（0=未完成，1=完成）
      */
     private Integer isFlag;
 

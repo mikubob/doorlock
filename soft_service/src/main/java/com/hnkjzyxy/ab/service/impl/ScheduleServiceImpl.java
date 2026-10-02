@@ -11,22 +11,37 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * 门禁定时任务Service实现类
+ */
 @Service
 public class ScheduleServiceImpl implements ScheduleService {
+    /**
+     * 门禁定时任务数据访问接口
+     */
     @Autowired
     private ScheduleMapper scheduleMapper;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<ScheduleTask> getAll() {
         return scheduleMapper.getAll();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<ScheduleTask> getByTime(LocalDateTime startTime, LocalDateTime endTime) {
         return scheduleMapper.getByTime(startTime, endTime);
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int insert(ScheduleTask scheduleTask) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy年MM月dd日");
@@ -74,12 +89,18 @@ public class ScheduleServiceImpl implements ScheduleService {
         return 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int update(ScheduleTask scheduleTask) {
         return scheduleMapper.update(scheduleTask);
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int delete(Integer id) {
         if (scheduleMapper.delete(id) > 0) {
@@ -88,6 +109,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         return 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int updateStatus(ScheduleTask scheduleTask) {
         if (scheduleMapper.updateStatus(scheduleTask.getTaskId(), scheduleTask.getTaskStatus(), scheduleTask.getLoopCount()) > 0) {
@@ -96,16 +120,25 @@ public class ScheduleServiceImpl implements ScheduleService {
         return 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ScheduleTask getById(int id) {
         return scheduleMapper.getById(id);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<ScheduleTask> getByUserId(int userId) {
         return scheduleMapper.getByUserId(userId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int updateLoopCount(int loopCount, int taskId) {
         if (scheduleMapper.updateLoopCount(loopCount, taskId) > 0) {

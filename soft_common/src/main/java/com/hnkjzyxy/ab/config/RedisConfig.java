@@ -22,12 +22,20 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.net.UnknownHostException;
 
+/**
+ * Redis 缓存配置，注册缓存键生成器和对象序列化模板
+ */
 @Configuration
 @Slf4j
 @EnableConfigurationProperties(CacheProperties.class)
 @EnableCaching
 public class RedisConfig {
 
+    /**
+     * 创建由类名、方法名和参数组成的缓存键生成器
+     *
+     * @return 缓存键生成器
+     */
     @Bean
     public KeyGenerator keyGenerator() {
         return (o, method, params) -> {
@@ -42,6 +50,13 @@ public class RedisConfig {
         };
     }
 
+    /**
+     * 配置字符串键及 JSON 对象值的 Redis 模板
+     *
+     * @param redisConnectionFactory Redis 连接工厂
+     * @return 支持 JSON 对象值的 Redis 模板
+     * @throws UnknownHostException 主机地址解析失败时抛出
+     */
     @Bean
     @SuppressWarnings("all")
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory)
@@ -68,8 +83,8 @@ public class RedisConfig {
     /**
      * spingcache与redis结合的配置类
      *
-     * @param cacheProperties
-     * @return
+     * @param cacheProperties Spring Boot 缓存配置
+     * @return Redis 缓存序列化及有效期配置
      */
     @Bean
     public RedisCacheConfiguration redisCacheConfiguration(CacheProperties cacheProperties) {

@@ -25,6 +25,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
+ * Spring Security 认证、权限校验、过滤器及跨域配置
+ *
  * @author Shinelon
  * @version 1.0
  * @time 2022/7/11 14:19
@@ -34,34 +36,58 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableGlobalMethodSecurity(prePostEnabled = true) // 启用方法级别的权限认证
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
+    /**
+     * 登录失败响应处理器
+     */
     @Autowired
     private LoginFailureHandler loginFailureHandler;//登录成功处理器
 
+    /**
+     * 登录成功响应处理器
+     */
     @Autowired
     private LoginSuccessHandler loginSuccessHandler;//登录失败处理器
 
+    /**
+     * 登录验证码校验过滤器
+     */
     @Autowired
     private CaptchaFilter captchaFilter;//验证码过滤器
 
+    /**
+     * 未认证请求处理器
+     */
     @Autowired
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+    /**
+     * 访问权限不足处理器
+     */
     @Autowired
     private JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
+    /**
+     * 认证用户信息加载服务
+     */
     @Autowired
     private UserDetailsImpl userDetails;
 
+    /**
+     * 退出登录响应处理器
+     */
     @Autowired
     private JwtLogoutSuccessHandler jwtLogoutSuccessHandler;
 
+    /**
+     * 匿名访问接口白名单配置
+     */
     @Autowired
     private AuthUrlConfig config;
 
     /**
      * 告知security加密方式
      *
-     * @return
+     * @return 密码编码器
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -69,11 +95,20 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
 
+    /**
+     * 创建 JWT 认证过滤器并注入认证管理器
+     *
+     * @return JWT 认证过滤器
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() throws Exception {
         return new JwtAuthenticationFilter(authenticationManager());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         // 调试：打印白名单配置
@@ -125,8 +160,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     /**
      * 注入userDetails，然后security会与数据库完成密码的配对
      *
-     * @param auth
-     * @throws Exception
+     * @param auth 当前登录认证信息
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
      */
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
@@ -136,7 +171,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     /**
      * 百度找到的跨域方法（上面的configure()无法直接跨域）
      *
-     * @return
+     * @return 跨域配置源
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {

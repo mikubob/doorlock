@@ -35,10 +35,19 @@ import java.util.stream.Collectors;
  */
 @RestController
 public class RoleController {
+    /**
+     * 角色业务服务
+     */
     @Autowired
     private RoleService roleService;
+    /**
+     * 角色菜单关联业务服务
+     */
     @Autowired
     private RoleMenuService roleMenuService;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 

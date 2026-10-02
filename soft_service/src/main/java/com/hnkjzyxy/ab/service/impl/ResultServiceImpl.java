@@ -29,22 +29,16 @@ import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.ProjectTaskGuard;
 import com.hnkjzyxy.ab.service.ResultService;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
-import com.hnkjzyxy.ab.utils.FilePathUtils;
-import com.hnkjzyxy.ab.utils.PdfToWordConverter;
-import com.hnkjzyxy.ab.utils.UploadUtils;
 import com.hnkjzyxy.ab.vo.DataVo;
 import com.hnkjzyxy.ab.vo.LineDataVo;
 import com.hnkjzyxy.ab.vo.LineVo;
 import com.hnkjzyxy.ab.vo.PieDataVo;
 import com.hnkjzyxy.ab.vo.PieVo;
 import com.hnkjzyxy.ab.vo.SubTaskVo;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -58,8 +52,10 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
-import javax.servlet.http.HttpServletResponse;
 
+/**
+ * 考核结果Service实现类
+ */
 @Service
 public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> implements ResultService {
 
@@ -74,24 +70,48 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     @Resource
     private ProjectTaskImportMapper projectTaskImportMapper;
 
+    /**
+     * 考核结果数据访问接口
+     */
     @Resource
     private ResultMapper resultMapper;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
+    /**
+     * 审批明细数据访问接口
+     */
     @Resource
     private ResultItemMapper resultItemMapper;
+    /**
+     * 用户数据访问接口
+     */
     @Resource
     private UserMapper userMapper;
+    /**
+     * 角色数据访问接口
+     */
     @Resource
     private RoleMapper roleMapper;
+    /**
+     * 考核项目数据访问接口
+     */
     @Resource
     private ProjectMapper projectMapper;
+    /**
+     * TaskMapper数据访问接口
+     */
     @Resource
     private TaskMapper taskMapper;
 
-    @Value("${upload.fileUrl}")
-    private String filepath;
-
+    /**
+     * 将一至七的编号转换为中文星期名称
+     *
+     * @param i 星期编号，一至七
+     * @return 中文星期名称；编号不在一至七时返回空字符串
+     */
     public String getStringWeek(int i) {
         switch (i) {
             case 1:
@@ -112,6 +132,11 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return "";
     }
 
+    /**
+     * 生成本周周一至周日的日期字符串
+     *
+     * @return 日期字符串数组
+     */
     private String[] getAllDateAndWeek() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         Calendar calendar = Calendar.getInstance();
@@ -126,12 +151,23 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return dates;
     }
 
+    /**
+     * 获取当前年度减四的统计起始年度
+     *
+     * @return 当前年份减四的年度
+     */
     public Integer getYear() {
         Calendar date = Calendar.getInstance();
         String year = String.valueOf(date.get(Calendar.YEAR));
         return Integer.valueOf(year) - 4;
     }
 
+    /**
+     * 生成年份及其之前四年的年度列表
+     *
+     * @param year 统计年度
+     * @return 查询结果列表
+     */
     public List<String> getYears(Integer year) {
         ArrayList<String> years = new ArrayList<>();
         for (int i = year; i >= year - 4; i--) {
@@ -141,6 +177,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @RedisCache(key = HnkjxyConstants.COLUMNAR_CHART)
     public DataVo columnarChart(HomeParam param, User user) {
@@ -246,6 +285,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return dataVo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<String, Object> getList(SubTaskDto dto, User user) {
         //1、判断用户是否为院长的角色
@@ -266,6 +308,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return map;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<String, Object> getLists(SubTaskIdDto dto, User user) {
         //1、判断用户是否为院长的角色
@@ -291,59 +336,8 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
 
 
     /**
-     * 下载证据到word文件
-     *
-     * @param evidences 证据集合
-     * @param response  response对象
+     * {@inheritDoc}
      */
-    @Override
-    public void downloadEvidenceToWord(String evidences, HttpServletResponse response) {
-
-        //1、通过pdf的文件的路径，生成word文件（调用工具，先pdf变成image，然后再image变成word）
-        File tempFile = null;
-        try {
-            //创建临时文件word
-            tempFile = File.createTempFile("tempFile", ".docx");
-
-            //pdf文件存在的根部路径
-            List<String> strings = JSON.parseArray(evidences, String.class);
-            String path = FilePathUtils.getRealFilePath("/pdf/file/");//目的就是去除字符串前面的/pdf/file的内容
-            List<String> collect = strings.stream().map(item -> {
-                return item.substring(path.length());
-            }).collect(Collectors.toList());
-
-            //遍历pdf文件，将pdf文件转成word文件
-            for (String item : collect) {
-                File file = new File(filepath + item);
-                File parentFile = file.getParentFile();
-                //调用工具类，将pdf文件写入到临时的word文件中
-                PdfToWordConverter.pdfFilesToWordFile(parentFile.getAbsolutePath(), tempFile.getAbsolutePath());
-            }
-        } catch (Exception e) {
-            log.error("生成word文件失败！", e);
-            throw new RuntimeException(e.getMessage());
-
-        }
-
-        //2、下载word文件到response对象中
-        try {
-            UploadUtils.download(response, tempFile.getPath());
-        } catch (IOException e) {
-            log.error("下载word文件失败！", e);
-            throw new RuntimeException(e);
-        }
-
-        //3、临时的word文件
-        if (tempFile.exists()) {
-            boolean delete = tempFile.delete();
-            if (!delete) {
-                System.out.println("临时文件删除失败！");
-            } else {
-                System.out.println("临时文件删除成功！");
-            }
-        }
-    }
-
     @Override
     public Map<String, Object> getListByCategoryName(Task param) {
         if (param.getPId() == null) {
@@ -359,6 +353,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult getUserResultWeekCount(Integer userId) {
         String[] week = getAllDateAndWeek();
@@ -375,6 +372,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return ApiResult.ok("data", vo);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.PROJECT_SCORE},key = "#year+'-'+#user.getUserId()")
     public LineVo finishProjectScore(Integer year, User user) {
@@ -399,6 +399,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return vo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.PROJECT_SCALE},key = "#year+'-'+#user.getUserId()")
     //@Cacheable(value = {HnkjxyConstants.PROJECT_SCALE})
@@ -423,6 +426,12 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return vo;
     }
 
+    /**
+     * 汇总指定年度的项目完成评分数据
+     *
+     * @param year 统计年度
+     * @return 折线图统计数据
+     */
     public LineVo getFinishProjectScore(Integer year) {
         //拿到所有教研室角色信息
         List<Role> roles = roleMapper.getRoleWeight(HnkjzyEncode.DEPARTMENT.getCode());
@@ -463,6 +472,14 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return vo;
     }
 
+    /**
+     * 汇总指定年度的项目完成评分数据
+     *
+     * @param year 统计年度
+     * @param user 当前用户
+     * @param flag 处理标记
+     * @return 折线图统计数据
+     */
     public LineVo getFinishProjectScore(Integer year, User user, Integer flag) {
         List<Integer> roles = userRoleMapper.getRoles(user.getUserId());
         //拿到跟自己一个教研室的用户信息
@@ -510,11 +527,17 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return vo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getFinishScaleYears(User user) {
         return resultMapper.getFinishScaleYears(null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getFinishProjectYears(User user) {
         return resultMapper.getFinishScaleYears(null);
@@ -567,6 +590,12 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
 
     }
 
+    /**
+     * 汇总指定年度的项目完成占比数据
+     *
+     * @param year 统计年度
+     * @return 饼图统计数据
+     */
     private PieVo getFinishProjectScale(Integer year) {
         //拿到所有教研室角色信息
         List<Role> roles = roleMapper.getRoleWeight(2);
@@ -593,6 +622,14 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
         return vo;
     }
 
+    /**
+     * 汇总指定年度的项目完成占比数据
+     *
+     * @param user 当前用户
+     * @param year 统计年度
+     * @param flag 处理标记
+     * @return 饼图统计数据
+     */
     private PieVo getFinishProjectScale(User user, Integer year, Integer flag) {
         List<Integer> roles = userRoleMapper.getRoles(user.getUserId());
         //拿到跟自己一个教研室的用户信息
@@ -630,6 +667,10 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
 
     /**
      * 判断是否属于同一教研室
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
      */
     public Boolean checkRoles(List<Integer> roles, List<Integer> roleIds) {
         //除了普通用户角色之外 并且是一个教研室的 weight 2
@@ -643,9 +684,9 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     /**
      * 判断二级学院的多个教研室
      *
-     * @param roles
-     * @param roleIds
-     * @return
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
      */
     public Boolean checkDeanRoles(List<Integer> roles, List<Integer> roleIds) {
         return roles.stream().anyMatch(item -> {

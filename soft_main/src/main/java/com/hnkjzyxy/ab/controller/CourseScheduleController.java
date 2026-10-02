@@ -24,6 +24,9 @@ import java.util.List;
 //@PreAuthorize("permitAll()") // 放行整个 Controller，无需认证
 public class CourseScheduleController {
 
+    /**
+     * 课表业务服务
+     */
     @Autowired
     private CourseScheduleService courseScheduleService;
 
@@ -58,6 +61,9 @@ public class CourseScheduleController {
 
     /**
      * 查询课程列表（支持条件查询）- POST方式
+     *
+     * @param courseSchedule 课表信息
+     * @return 统一接口响应
      */
     @PostMapping("/list")
     public ApiResult list(@RequestBody(required = false) CourseSchedule courseSchedule) {
@@ -68,6 +74,9 @@ public class CourseScheduleController {
     /**
      * 根据ID查询课程详情
      * 注意：此通配符路由必须放在具体路由之后，避免匹配到 "list" 等字符串
+     *
+     * @param id 课表ID
+     * @return 统一接口响应
      */
     @GetMapping("/{id}")
     public ApiResult getById(@PathVariable Integer id) {
@@ -80,6 +89,9 @@ public class CourseScheduleController {
 
     /**
      * 新增课程
+     *
+     * @param courseSchedule 课表信息
+     * @return 统一接口响应
      */
     @PostMapping("/add")
     public ApiResult add(@RequestBody CourseSchedule courseSchedule) {
@@ -110,6 +122,9 @@ public class CourseScheduleController {
 
     /**
      * 更新课程
+     *
+     * @param courseSchedule 课表信息
+     * @return 统一接口响应
      */
     @PutMapping("/update")
     public ApiResult update(@RequestBody CourseSchedule courseSchedule) {
@@ -132,6 +147,9 @@ public class CourseScheduleController {
 
     /**
      * 删除课程
+     *
+     * @param id 课表ID
+     * @return 统一接口响应
      */
     @DeleteMapping("/delete/{id}")
     public ApiResult delete(@PathVariable Integer id) {
@@ -150,6 +168,9 @@ public class CourseScheduleController {
 
     /**
      * 批量删除课程
+     *
+     * @param ids 课表ID集合
+     * @return 统一接口响应
      */
     @DeleteMapping("/deleteBatch")
     public ApiResult deleteBatch(@RequestBody List<Integer> ids) {

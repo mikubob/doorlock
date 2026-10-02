@@ -25,20 +25,37 @@ import java.util.Map;
 import javax.annotation.Resource;
 
 /**
+ * 通知公告Service实现类
+ *
  * @author 16702
  */
 @Service
 public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, Notice> implements NoticeService {
 
+    /**
+     * 通知公告数据访问接口
+     */
     @Resource
     private NoticeMapper noticeMapper;
+    /**
+     * 用户消息业务服务
+     */
     @Resource
     private MessageService messageService;
+    /**
+     * 考核项目业务服务
+     */
     @Resource
     private ProjectService projectService;
+    /**
+     * 用户业务服务
+     */
     @Resource
     private UserService userService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<String, Object> getNoticeListByPage(PageQueryParam page) {
         HashMap<String, Object> map = new HashMap<>();
@@ -50,17 +67,26 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, Notice> impleme
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Notice getNoticeDetailById(Integer id) {
         return noticeMapper.getNoticeById(id);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void addPageView(Integer id) {
         noticeMapper.addPageView(id);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void publishNotice(NoticeParam param) {
@@ -78,6 +104,9 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, Notice> impleme
         noticeMapper.insert(notice);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void noticeReturn(ResultItem resultItem) {
         Project project = projectService.getById(resultItem.getPId());

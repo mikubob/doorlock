@@ -67,9 +67,21 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
      */
     private static final String ANCHOR_COLUMN_NAME = "日期";
 
+    /**
+     * 教学巡查结果业务服务
+     */
     private final CheckResultService checkResultService;
+    /**
+     * 雪花ID生成工具
+     */
     private final SnowFlowUtils snowFlowUtils;
+    /**
+     * 编程式事务模板
+     */
     private final TransactionTemplate transactionTemplate;
+    /**
+     * 巡查 Excel 导入规则配置
+     */
     private final CheckResultImportProperties importProperties;
 
     /**

@@ -29,20 +29,42 @@ import java.util.zip.ZipOutputStream;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * 上传文件存储、下载响应及压缩包处理工具
+ */
 @Component
 @Slf4j
 public class UploadUtils {
 
+    /**
+     * 图片文件存储根目录
+     */
     @Value("${upload.imgUrl}")
     private String imgUrl;
+    /**
+     * 佐证材料文件存储根目录
+     */
     @Value("${upload.fileUrl}")
     private String fileUrl;
+    /**
+     * 建设项目材料文件存储根目录
+     */
     @Value("${upload.conFileUrl}")
     private String conFileUrl;
 
+    /**
+     * 雪花ID生成工具
+     */
     @Resource
     private SnowFlowUtils snowFlowUtils;
 
+    /**
+     * 将指定本地文件写入下载响应
+     *
+     * @param response HTTP 响应对象
+     * @param downFileUrl 待下载文件的本地路径
+     * @throws IOException 文件读取或输出失败时抛出
+     */
     public static void download(HttpServletResponse response, String downFileUrl) throws IOException {
         response.setCharacterEncoding("utf8");
         //定义文件路径
@@ -93,6 +115,15 @@ public class UploadUtils {
         }
     }
 
+    /**
+     * 上传头像或电子签名图片
+     *
+     * @param file 待处理文件
+     * @param avatar 原头像或电子签名访问路径
+     * @param userName 用户名（工号）
+     * @param flag 处理标记
+     * @return 上传成功时返回文件访问路径，失败或文件为空时返回空 Optional
+     */
     public Optional<String> uploadImg(MultipartFile file, String avatar, String userName, String flag) {
 
         //1 判断是否为空
@@ -150,6 +181,13 @@ public class UploadUtils {
         return Optional.empty();
     }
 
+    /**
+     * 上传用户佐证材料
+     *
+     * @param file 待处理文件
+     * @param fileName 文件名称
+     * @return 上传成功时返回文件访问路径，失败或文件为空时返回空 Optional
+     */
     public Optional<String> uploadFile(MultipartFile file, String fileName) {
         if (!file.isEmpty()) {
             String filename = file.getOriginalFilename();
@@ -173,6 +211,12 @@ public class UploadUtils {
         return Optional.empty();
     }
 
+    /**
+     * 查询指定目录下的电子签名图片访问路径
+     *
+     * @param dir 图片相对目录
+     * @return 查询结果列表
+     */
     public List<String> getSignImg(String dir) {
         File file = new File(imgUrl + dir);
         List<String> list = new ArrayList<>();
@@ -183,6 +227,11 @@ public class UploadUtils {
         return list;
     }
 
+    /**
+     * 按访问路径删除电子签名图片
+     *
+     * @param url 文件访问路径
+     */
     public void delSignImg(String url) {
 //        url = url.substring("/pic/file".length());
         url = url.substring(FilePathUtils.getRealFilePath("/pic/file/").length());
@@ -196,6 +245,13 @@ public class UploadUtils {
         }
     }
 
+    /**
+     * 上传建设项目材料
+     *
+     * @param file 待处理文件
+     * @param conUrl 建设材料相对目录
+     * @return 上传成功时返回文件访问路径，失败或文件为空时返回空 Optional
+     */
     public Optional<String> uploadConFile(MultipartFile file, String conUrl) {
         if (!file.isEmpty()) {
             String filename = file.getOriginalFilename();
@@ -218,6 +274,12 @@ public class UploadUtils {
         return Optional.empty();
     }
 
+    /**
+     * 将建设项目目录中的材料打包下载
+     *
+     * @param conUrl 建设材料相对目录
+     * @param response HTTP 响应对象
+     */
     public void downloadPDFs(String conUrl, HttpServletResponse response) {
         try {
             String url = conFileUrl + conUrl;
@@ -236,6 +298,12 @@ public class UploadUtils {
         }
     }
 
+    /**
+     * 递归收集目录中的文件路径
+     *
+     * @param paths 接收文件路径的列表
+     * @param file 待处理文件
+     */
     public void getFiles(List<String> paths, File file) {
         if (file.exists() && file.isDirectory()) {
             File[] files = file.listFiles();
@@ -249,6 +317,13 @@ public class UploadUtils {
         }
     }
 
+    /**
+     * 将指定文件集合压缩到建设材料目录
+     *
+     * @param fileName 文件名称
+     * @param filePathList 待处理本地文件路径列表
+     * @return 生成的本地文件
+     */
     public File compressedFileToZip(String fileName, List<String> filePathList) {
         String fileZip = conFileUrl + fileName + ".zip";
         OutputStream os = null;
@@ -295,6 +370,11 @@ public class UploadUtils {
         return file;
     }
 
+    /**
+     * 按建设材料访问路径删除对应的本地文件
+     *
+     * @param path 本地文件路径
+     */
     public void isConFile(String path) {
 //        path = path.substring("/pdf/conFile/".length());
         path = path.substring(FilePathUtils.getRealFilePath("/pdf/conFile/").length());
@@ -304,6 +384,12 @@ public class UploadUtils {
         }
     }
 
+    /**
+     * 将佐证材料集合打包下载
+     *
+     * @param evidence 佐证材料路径列表
+     * @param response HTTP 响应对象
+     */
     public void downloadEvidence(List<String> evidence, HttpServletResponse response) {
         try {
             SimpleDateFormat format = new SimpleDateFormat("yyyy-MM HH:mm:ss");
@@ -333,8 +419,8 @@ public class UploadUtils {
      * 下载成zip文件
      *
      * @param fileName     zip文件的名称 : 时间戳点zip文件
-     * @param filePathList
-     * @return
+     * @param filePathList 待处理本地文件路径列表
+     * @return 生成的本地文件
      */
     public File compressedAssetsToZip(String fileName, List<String> filePathList) {
         //文件的名称为 时间戳点zip文件

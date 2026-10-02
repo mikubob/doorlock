@@ -20,6 +20,9 @@ import java.util.List;
 @AllArgsConstructor
 public class CheckResultImportResult implements Serializable {
 
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**
@@ -80,6 +83,9 @@ public class CheckResultImportResult implements Serializable {
     @AllArgsConstructor
     public static class RowError implements Serializable {
 
+        /**
+         * 序列化版本标识
+         */
         private static final long serialVersionUID = 1L;
 
         /**

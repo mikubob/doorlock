@@ -17,6 +17,9 @@ import java.lang.reflect.Method;
  */
 @Component
 public abstract class RepeatSubmitInterceptor implements HandlerInterceptor {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         if (handler instanceof HandlerMethod) {

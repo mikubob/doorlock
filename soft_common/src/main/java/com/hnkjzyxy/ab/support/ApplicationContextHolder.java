@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ApplicationContextHolder implements ApplicationContextAware {
+    /**
+     * 当前 Spring 应用上下文
+     */
     private static ApplicationContext applicationContext;
 
     /**
@@ -53,6 +56,9 @@ public class ApplicationContextHolder implements ApplicationContextAware {
         return applicationContext.getBeanDefinitionNames();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         ApplicationContextHolder.applicationContext = applicationContext;

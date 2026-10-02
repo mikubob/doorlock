@@ -14,12 +14,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class LockPasswordServiceImpl implements LockPasswordService {
     
+    /**
+     * 门禁密码数据访问接口
+     */
     @Autowired
     private LockPasswordMapper lockPasswordMapper;
     
+    /**
+     * 密码编码器
+     */
     @Autowired
     private PasswordEncoder passwordEncoder;
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean verifyPassword(String password) {
         // 查询启用的密码记录
@@ -32,6 +41,9 @@ public class LockPasswordServiceImpl implements LockPasswordService {
         return passwordEncoder.matches(password, lockPassword.getPassword());
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean verifyOldPassword(String oldPassword) {
         // 查询启用的密码记录
@@ -45,6 +57,9 @@ public class LockPasswordServiceImpl implements LockPasswordService {
         return passwordEncoder.matches(oldPassword, lockPassword.getPassword());
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public LockPassword getEnabledPassword() {
         QueryWrapper<LockPassword> wrapper = new QueryWrapper<>();
@@ -53,6 +68,9 @@ public class LockPasswordServiceImpl implements LockPasswordService {
         return lockPasswordMapper.selectOne(wrapper);
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean setPassword(String password, String description) {
         // 先禁用所有旧密码

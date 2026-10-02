@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 @TableName("sys_exam")
 public class Exam implements Serializable {
     
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**

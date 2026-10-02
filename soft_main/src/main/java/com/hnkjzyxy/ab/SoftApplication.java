@@ -8,6 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
+ * 考核管理后端 Spring Boot 应用启动入口
+ *
  * @author 16702
  */
 
@@ -19,6 +21,11 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 public class SoftApplication {
 
+    /**
+     * 启动 Spring Boot 应用
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(SoftApplication.class);
     }

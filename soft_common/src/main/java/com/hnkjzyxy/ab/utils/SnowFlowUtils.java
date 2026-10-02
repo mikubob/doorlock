@@ -56,9 +56,21 @@ public class SnowFlowUtils {
      */
     private long maxDatacenterId = -1L ^ (-1L << datacenterIdBits);
 
+    /**
+     * 工作节点编号左移位数
+     */
     private long workerIdShift = sequenceBits;
+    /**
+     * 数据中心编号左移位数
+     */
     private long datacenterIdShift = sequenceBits + workerIdBits;
+    /**
+     * 时间戳左移位数
+     */
     private long timestampLeftShift = sequenceBits + workerIdBits + datacenterIdBits;
+    /**
+     * 序列位掩码，限制同毫秒序列范围
+     */
     private long sequenceMask = -1L ^ (-1L << sequenceBits);
 
     /**
@@ -66,6 +78,13 @@ public class SnowFlowUtils {
      */
     private long lastTimestamp = -1L;
 
+    /**
+     * 初始化雪花ID生成器的节点编号及序列
+     *
+     * @param workerId 工作节点编号
+     * @param datacenterId 数据中心编号
+     * @param sequence 序列编号
+     */
     public void SnowFlow(long workerId, long datacenterId, long sequence) {
         // 检查机房id和机器id是否超过31 不能小于0
         if (workerId > maxWorkerId || workerId < 0) {

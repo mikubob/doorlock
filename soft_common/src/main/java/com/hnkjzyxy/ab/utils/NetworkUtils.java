@@ -5,7 +5,16 @@ import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
 
+/**
+ * 本机网络地址查询工具
+ */
 public class NetworkUtils {
+    /**
+     * 查询本机局域网地址，优先使用非回环的站点本地地址
+     *
+     * @return 本机局域网地址
+     * @throws UnknownHostException 主机地址解析失败时抛出
+     */
     public static InetAddress getLocalHostLANAddress() throws UnknownHostException {
         try {
             InetAddress candidateAddress = null;

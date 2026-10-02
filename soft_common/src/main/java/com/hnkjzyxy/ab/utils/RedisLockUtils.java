@@ -47,8 +47,16 @@ public class RedisLockUtils {
             "if redis.call('GET', KEYS[1]) == ARGV[1] then "
                     + "return redis.call('EXPIRE', KEYS[1], ARGV[2]) end return 0", Long.class);
 
+    /**
+     * 字符串 Redis 数据操作模板
+     */
     private final StringRedisTemplate stringRedisTemplate;
 
+    /**
+     * 初始化RedisLockUtils
+     *
+     * @param stringRedisTemplate 字符串 Redis 数据操作模板
+     */
     public RedisLockUtils(StringRedisTemplate stringRedisTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
     }

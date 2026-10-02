@@ -34,7 +34,15 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * 包结构调整 Web 回归测试，验证参数绑定、清理开关及 Excel 下载
+ */
 class StructureRefactorWebTest {
+    /**
+     * 验证联系方式请求兼容旧字段并使用认证用户身份
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void editingContactDetailsAcceptsExistingFieldsAndUsesAuthenticatedIdentity() throws Exception {
         UserService users = mock(UserService.class);
@@ -57,6 +65,11 @@ class StructureRefactorWebTest {
         assertEquals("13800138000", updated.getValue().getPhone());
     }
 
+    /**
+     * 验证子项维护及导入接口使用独立请求类型
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void projectItemEndpointsBindSeparateSaveAndSelectionRequests() throws Exception {
         ProjectService projects = mock(ProjectService.class);
@@ -87,6 +100,9 @@ class StructureRefactorWebTest {
         assertEquals(3, selection.getProjectId());
     }
 
+    /**
+     * 验证文件清理任务默认关闭且显式启用后执行清理
+     */
     @Test
     void cleanupJobRemainsDisabledByDefault() {
         EvidenceFileCleanupService service = mock(EvidenceFileCleanupService.class);
@@ -96,6 +112,11 @@ class StructureRefactorWebTest {
         verify(service).clearFiles();
     }
 
+    /**
+     * 验证 Excel 下载保留工作表名称及原列标题
+     *
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
+     */
     @Test
     void exporterStillWritesAnXlsxWithTheOriginalHeaders() throws Exception {
         AssessVo row = new AssessVo();

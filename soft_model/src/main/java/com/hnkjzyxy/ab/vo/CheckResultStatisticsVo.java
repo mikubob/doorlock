@@ -27,9 +27,19 @@ public class CheckResultStatisticsVo {
      */
     String foodCarryingRate;
 
+    /**
+     * 初始化CheckResultStatisticsVo
+     */
     public CheckResultStatisticsVo() {
     }
 
+    /**
+     * 初始化CheckResultStatisticsVo
+     *
+     * @param absenteeismRate 缺勤率
+     * @param numberLeaveRequests 请假人数
+     * @param foodCarryingRate 带食品比例
+     */
     public CheckResultStatisticsVo(String absenteeismRate, String numberLeaveRequests, String foodCarryingRate) {
 
         this.absenteeismRate = absenteeismRate;
@@ -37,6 +47,9 @@ public class CheckResultStatisticsVo {
         this.foodCarryingRate = foodCarryingRate;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String toString() {
         return "CheckResultStatisticsVo{" +

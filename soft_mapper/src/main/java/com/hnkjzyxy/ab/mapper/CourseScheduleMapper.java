@@ -17,6 +17,9 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
 
     /**
      * 动态条件查询课程列表
+     *
+     * @param courseSchedule 课表信息
+     * @return 课表列表
      */
     List<CourseSchedule> selectListByCondition(CourseSchedule courseSchedule);
 

@@ -68,6 +68,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Resource;
 
 /**
+ * 审批流程Service实现类
+ *
  * @author 16702
  */
 @Service
@@ -79,41 +81,92 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     @Resource
     private ProjectTaskGuard projectTaskGuard;
 
+    /**
+     * 审批流程数据访问接口
+     */
     @Resource
     private FlowMapper flowMapper;
+    /**
+     * 流程节点数据访问接口
+     */
     @Resource
     private FlowTaskMapper flowTaskMapper;
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
+    /**
+     * 考核结果数据访问接口
+     */
     @Resource
     private ResultMapper resultMapper;
+    /**
+     * 考核项目数据访问接口
+     */
     @Resource
     private ProjectMapper projectMapper;
+    /**
+     * 用户数据访问接口
+     */
     @Resource
     private UserMapper userMapper;
+    /**
+     * 审批明细数据访问接口
+     */
     @Resource
     private ResultItemMapper resultItemMapper;
+    /**
+     * 流程节点业务服务
+     */
     @Resource
     private FlowTaskService flowTaskService;
+    /**
+     * 考核项目业务服务
+     */
     @Autowired
     private ProjectService projectService;
+    /**
+     * 角色数据访问接口
+     */
     @Resource
     private RoleMapper roleMapper;
+    /**
+     * 考核结果业务服务
+     */
     @Autowired
     private ResultService resultService;
+    /**
+     * 用户业务服务
+     */
     @Resource
     private UserService userService;
+    /**
+     * TaskService业务服务
+     */
     @Resource
     private TaskService taskService;
+    /**
+     * 审批明细业务服务
+     */
     @Resource
     private ResultItemService resultItemService;
+    /**
+     * 结果扩展项业务服务
+     */
     @Resource
     private ResultExtendService resultExtendService;
+    /**
+     * 通知公告业务服务
+     */
     @Resource
     private NoticeService noticeService;
 
 
     //获取流程列表
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.FLOW_LIST)
     //@Cacheable(value = {HnkjxyConstants.FLOW_LIST},key = "#param.getUserId()+'-'+#param.getYear()+'-'+#param.getPage()+'-'+#param.getLimit()+'-'+#param.getFlowName()",sync = true)
@@ -153,6 +206,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     }
 
     //创建流程
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     //@CacheEvict(value = {HnkjxyConstants.FLOW_LIST,HnkjxyConstants.FLOW_YEARS,HnkjxyConstants.FLOW_DETAIL},allEntries = true)
@@ -187,6 +243,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override //当前用户获取项目审批列表
     @RedisCache(key = HnkjxyConstants.APPROVE_LIST)
     //@Cacheable(value = {HnkjxyConstants.APPROVE_LIST}, key = "#user.getUserId()+'-'+#param.getYear()+'-'+#param.getPage()+'-'+#param.getLimit()+'-'+#param.getTitle()")
@@ -208,6 +267,12 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 拿到审批节点的人
+     *
+     * @param approval 待审批节点列表
+     * @param user 当前用户
+     * @param roles 当前用户角色ID集合
+     * @param roleWeight 角色权重
+     * @return 查询结果列表
      */
     public List<Integer> getApproveProjectPIds(List<ApproveVo> approval, User user, List<Integer> roles, Integer roleWeight) {
         return approval.stream().map(item -> {
@@ -239,6 +304,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 是否有审批权限
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
      */
     public Boolean isCheckApprove(List<Integer> roles, List<Integer> roleIds) {
         return roles.stream().anyMatch(item -> !item.equals(1) && roleIds.contains(item));
@@ -246,6 +315,11 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 判断该项目是否已有人提交
+     *
+     * @param vo 审批节点数据
+     * @param roles 当前用户角色ID集合
+     * @param flag 处理标记
+     * @return 查询得到的数值
      */
     public Integer checkProjectSubmitCount(ApproveVo vo, List<Integer> roles, Boolean flag) {
         List<Result> results = resultMapper.selectResultCountByPId(vo.getPId(), vo.getSort().intValue() - 1);
@@ -261,6 +335,13 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 返回审批列表
+     *
+     * @param pIds 考核项目ID集合
+     * @param param 审批流程操作或查询参数
+     * @param roles 当前用户角色ID集合
+     * @param user 当前用户
+     * @param roleWeight 角色权重
+     * @return 查询数据及相关统计信息
      */
     public HashMap<String, Object> checkProjectApprove(List<Integer> pIds, ProjectParam param, List<Integer> roles, User user, Integer roleWeight) {
         HashMap<String, Object> map = new HashMap<>();
@@ -304,6 +385,14 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return map;
     }
 
+    /**
+     * 汇总项目接收人，并按需筛选当前角色可见的用户
+     *
+     * @param pId 考核项目ID
+     * @param roles 当前用户角色ID集合
+     * @param flag 处理标记
+     * @return 查询结果列表
+     */
     public HashSet<Integer> getUsers(Integer pId, List<Integer> roles, Boolean flag) {
         //拿到该项目的所有接收人
         List<FlowTask> list = flowMapper.getFlowList("CC", pId);
@@ -346,6 +435,12 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 判断接收人中是否包含本教研室的人获取接收人列表
+     *
+     * @param pId 考核项目ID
+     * @param roles 当前用户角色ID集合
+     * @param flag 处理标记
+     * @param step 审批步骤
+     * @return 查询结果列表
      */
     public HashSet<Integer> getUserId(Integer pId, List<Integer> roles, Boolean flag, Integer step) {
         //拿到该项目的所有接收人
@@ -392,6 +487,13 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return set;
     }
 
+    /**
+     * 查找当前用户与目标角色集合共有的非普通角色
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 匹配的非普通角色ID；无匹配角色时返回零
+     */
     public Integer checkRole(List<Integer> roles, List<Integer> roleIds) {
         for (Integer role : roles) {
             Integer weight = roleMapper.getWeightByRole(role);
@@ -404,6 +506,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 通过角色拿到跟自己一个教研室的角色
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 查询结果列表
      */
     public List<Integer> selectRoles(List<Integer> roles, List<Integer> roleIds) {
         return roles.stream().filter(val -> {
@@ -415,6 +521,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 根据角色拿到用户id
+     *
+     * @param roleIds 目标角色ID集合
+     * @return 查询结果列表
      */
     public HashSet<Integer> selectUIdsByRoleIds(List<Integer> roleIds) {
         HashSet<Integer> list = new HashSet<>();
@@ -426,6 +535,11 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 判断什么审批
+     *
+     * @param userId 用户ID
+     * @param item 审批节点信息
+     * @param roles 当前用户角色ID集合
+     * @return 操作或条件校验结果
      */
     public Boolean checkResult(Integer userId, ApproveVo item, List<Integer> roles) {
         //用户审批
@@ -439,6 +553,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 设置项目状态
+     *
+     * @param item 考核项目信息
+     * @param vo 审批节点数据
+     * @param userId 用户ID
      */
     public void setProjectStatus(Project item, ApproveVo vo, HashSet<Integer> userId) {
         QueryWrapper<Result> queryWrapper = new QueryWrapper<>();
@@ -460,6 +578,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     /**
      * 获取当前当前审批人信息
      * 单个项目和用户
+     *
+     * @param user 当前用户
+     * @param pId 考核项目ID
+     * @return 审批节点信息
      */
     public ApproveVo getApproveVo(User user, Integer pId) {
         //获取当前审批人角色
@@ -480,6 +602,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 获取该项目所有审批人信息
+     *
+     * @param pId 考核项目ID
+     * @return 审批节点列表
      */
     public List<ApproveVo> getApproveVoList(Integer pId) {
         //拿到该项目的所有审批流程
@@ -487,6 +612,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     }
 
     //获取用户提交结果列表
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.RESULT_LIST)
     //@Cacheable(value = {HnkjxyConstants.RESULT_LIST},key = "#user.getUserId() +'-'+ #param.getPId() + '-' + #param.getPage() + '-' + #param.getLimit() + '-' + #param.getStatus()")
@@ -549,6 +677,13 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return page;
     }
 
+    /**
+     * 从用户列表中筛选具有目标角色的用户ID
+     *
+     * @param users 用户列表
+     * @param roles 当前用户角色ID集合
+     * @return 查询结果列表
+     */
     public List<Integer> getUserIdByRoles(List<User> users, List<Integer> roles) {
         //判断是否两个人是否包含相同角色信息
         return users.stream().map(item -> {
@@ -584,6 +719,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     }
 
     //提交审批结果
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = {HnkjxyConstants.APPROVE_LIST, HnkjxyConstants.RADAR_CHART, HnkjxyConstants.COLUMNAR_CHART,
@@ -647,6 +785,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
 
     //查询项目流程信息
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@Cacheable(value = {HnkjxyConstants.FLOW_DETAIL},key = "#pId",sync = true)
     //@RedisCache(key = HnkjxyConstants.FLOW_DETAIL)
@@ -678,6 +819,14 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return vo;
     }
 
+    /**
+     * 汇总指定用户及角色对应的流程节点展示信息
+     *
+     * @param uIds 用户ID集合
+     * @param roleIds 目标角色ID集合
+     * @param type 查询或节点类型
+     * @return 流程节点展示信息
+     */
     private FlowQueryTaskVo getFlowQueryTaskVo(List<Integer> uIds, List<Integer> roleIds, String type) {
         FlowQueryTaskVo taskVo = new FlowQueryTaskVo();
         if ("CC".equals(type)) {
@@ -703,6 +852,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 获取提交的结果信息
+     *
+     * @param pId 考核项目ID
+     * @param userId 用户ID
+     * @return 统一接口响应
      */
     @Override
     public ApiResult getProjectResultDetail(Integer pId, Integer userId) {
@@ -726,6 +879,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     }
 
     //获取当前项目审批流程状态
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.PROJECT_FLOW)
     //@Cacheable(value = {HnkjxyConstants.PROJECT_FLOW},key = "#pId +'-'+ #userId",sync = true)
@@ -773,6 +929,12 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return statusVo;
     }
 
+    /**
+     * 查询审批节点指定的用户姓名或角色名称
+     *
+     * @param item 审批节点信息
+     * @return 查询结果列表
+     */
     public List<String> getApproveBySortName(ApproveVo item) {
         List<Integer> uIds = JSONArray.parseArray(item.getUId(), Integer.class),
                 roleIds = JSONArray.parseArray(item.getRoleId(), Integer.class);
@@ -791,6 +953,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return list;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.APPROVE_YEARS)
     //@Cacheable(value = {HnkjxyConstants.APPROVE_YEARS},key = "#user.getUserId()")
@@ -815,6 +980,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.FLOW_YEARS)
     //@Cacheable(value = {HnkjxyConstants.FLOW_YEARS},key = "#userId",sync = true)
@@ -828,6 +996,9 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
     }
 
     //获取未提交人员列表
+    /**
+     * {@inheritDoc}
+     */
     @Override
     //@RedisCache(key = HnkjxyConstants.NOT_SUB_LIST)
     //@Cacheable(value = {HnkjxyConstants.NOT_SUB_LIST},key = "#user.getUserId()+'-'+#queryVo.getPId()+'-'+#queryVo.getPage()+'-'+#queryVo.getLimit()+'-'+#queryVo.getName()")
@@ -881,6 +1052,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 获取当前审批信息
+     *
+     * @param itemList 审批明细列表
+     * @param sort 审批步骤排序值
+     * @return 审批明细信息
      */
     private ResultItem getCurrentFlow(List<ResultItem> itemList, Integer sort) {
         for (ResultItem item : itemList) {
@@ -894,6 +1069,11 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 获取历史打回
+     *
+     * @param pId 考核项目ID
+     * @param uId 被考核用户ID
+     * @param step 审批步骤
+     * @return 查询结果列表
      */
     private List<FlowStatus> getHistoryApprove(Integer pId, Integer uId, Integer step) {
         List<ResultItem> opinion = resultItemMapper.findResultOpinion(pId, uId, step);
@@ -915,6 +1095,10 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 检查是否包含角色,除了普通用户之外
+     *
+     * @param roles 当前用户角色ID集合
+     * @param roleIds 目标角色ID集合
+     * @return 操作或条件校验结果
      */
     public Boolean checkRoles(List<Integer> roles, List<Integer> roleIds) { //roles 当前登录用户角色，roleIds用户id角色
         //除了普通用户角色之外, 属于同一个教研室
@@ -927,11 +1111,17 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
 
     /**
      * 拿到该项目流程最大步骤数
+     *
+     * @param pId 考核项目ID
+     * @return 查询得到的数值
      */
     public Integer getFLowMaxSort(Integer pId) {
         return flowTaskMapper.getFlowMaxSort("APPROVAL", pId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void updateProjectFlowStatus(Integer pId, Integer status) {
         flowMapper.updateFLowStatusByPId(pId, status);

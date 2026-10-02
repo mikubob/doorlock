@@ -10,14 +10,28 @@ import com.hnkjzyxy.ab.service.listener.StudentInfoDataListener;
 import com.hnkjzyxy.ab.service.StudentInfoService;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
 
-/** 负责对应业务模板的 Excel 导入，保留原解析和事务规则。 */
+/**
+ * 学生录取信息 Excel 导入服务
+ */
 @Service
 public class StudentInfoExcelImportService {
+    /**
+     * 学生录取信息业务服务
+     */
     @Autowired
     private StudentInfoService studentInfoService;
+    /**
+     * 雪花ID生成工具
+     */
     @Autowired
     private SnowFlowUtils snowFlowUtils;
 
+    /**
+     * 读取学生录取信息 Excel 文件并导入学生
+     *
+     * @param file 学生录取信息 Excel 文件
+     * @throws IOException 读取上传文件输入流失败时抛出
+     */
     public void readStudentInfoExcel(MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename();
         if (file.isEmpty()) {

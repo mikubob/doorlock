@@ -44,12 +44,21 @@ import javax.validation.Valid;
 @RequestMapping("/schedule")
 public class ScheduleController {
 
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 
+    /**
+     * 教学巡查结果业务服务
+     */
     @Autowired
     private CheckResultService checkResultService;
 
+    /**
+     * OA 接口客户端
+     */
     @Autowired
     private OaApiClient oaApiClient;
 
@@ -58,6 +67,7 @@ public class ScheduleController {
      * 查询教学巡查记录列表
      *
      * @param resultVo 巡查记录查询条件（可选）
+     * @param authentication 当前登录认证信息
      * @return 当前用户所属学院的巡查记录列表
      */
     @PostMapping("/list")
@@ -84,6 +94,7 @@ public class ScheduleController {
      * 新增或修改巡查记录
      *
      * @param resultVo 巡查记录信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping
@@ -102,6 +113,7 @@ public class ScheduleController {
      * 删除巡查记录
      *
      * @param id 巡查记录ID
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/{id}")
@@ -122,6 +134,7 @@ public class ScheduleController {
      * 按辅导员所带班级维度统计巡查数据，管理员可查看全部学院
      *
      * @param resultVo 统计查询条件
+     * @param authentication 当前登录认证信息
      * @return 巡查数据统计结果
      */
     @GetMapping("/dataStatistics")
@@ -160,6 +173,7 @@ public class ScheduleController {
      * 查询单个班级在指定时间段内的巡查数据
      *
      * @param resultVo 查询条件（班级、时间范围）
+     * @param authentication 当前登录认证信息
      * @return 班级巡查数据明细
      */
     @GetMapping("/dataStatistics/classes")
@@ -234,6 +248,7 @@ public class ScheduleController {
      * 教学巡查分析（按科任老师分组）
      *
      * @param resultVo 统计查询条件
+     * @param authentication 当前登录认证信息
      * @return 按科任老师分组的巡查分析数据
      */
     @GetMapping("/dataStatisticsByTeacher")
@@ -270,6 +285,7 @@ public class ScheduleController {
      * 按教师维度统计巡查数据
      *
      * @param resultVo 统计查询条件
+     * @param authentication 当前登录认证信息
      * @return 教师维度巡查统计数据
      */
     @GetMapping("/dataStatistics/teacher")
@@ -301,6 +317,7 @@ public class ScheduleController {
      * 调试接口：查看当前用户信息
      * 临时用于排查用户学院、缓存等数据，正式环境建议移除
      *
+     * @param authentication 当前登录认证信息
      * @return 调试结果提示（明细输出到控制台）
      */
     @GetMapping("/debug/userInfo")

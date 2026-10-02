@@ -7,20 +7,69 @@ import com.hnkjzyxy.ab.vo.UserVo;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * 用户Service接口
+ */
 public interface UserService extends IService<User> {
+    /**
+     * 查询用户权限标识字符串
+     *
+     * @param userId 用户ID
+     * @return 用户权限标识字符串
+     */
     String getUserAuthority(Integer userId);
 
+    /**
+     * 查询用户有权访问的菜单ID
+     *
+     * @param userId 用户ID
+     * @return 用户有权访问的菜单ID集合
+     */
     public List<Long> getNavMenu(Integer userId);
 
+    /**
+     * 按用户名查询用户实体
+     *
+     * @param userName 用户名（工号）
+     * @return 用户信息
+     */
     public User getUserByName(String userName);
 
+    /**
+     * 按用户名查询用户展示信息
+     *
+     * @param username 用户名
+     * @return 用户展示信息
+     */
     public UserVo getUserInfo(String username);
 
+    /**
+     * 查询用户展示信息列表
+     *
+     * @return 用户展示信息列表
+     */
     List<UserVo> getUserVoList();
 
+    /**
+     * 查询可参与审批的用户展示信息
+     *
+     * @return 用户展示信息列表
+     */
     List<UserVo> getApproveUsers();
 
+    /**
+     * 按ID查询用户展示信息
+     *
+     * @param userId 用户ID
+     * @return 用户展示信息
+     */
     UserVo getUserInfoById(Integer userId);
+    /**
+     * 按学院查询用户
+     *
+     * @param college 学院名称
+     * @return 用户列表
+     */
     List<User> getUserByCollege(String college);
 
     /**

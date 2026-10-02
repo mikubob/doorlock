@@ -10,10 +10,21 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.List;
 
-/** 将导出数据写入 HTTP 响应，保持现有文件名、表头和列映射。 */
+/**
+ * Excel 下载响应工具，将导出数据及对应列映射写入 HTTP 响应
+ */
 public final class ExcelResponseExporter {
+    /**
+     * 工具类构造方法，禁止直接实例化
+     */
     private ExcelResponseExporter() { }
 
+    /**
+     * 将项目考核结果写入 Excel 下载响应
+     *
+     * @param assessVos 项目考核结果展示信息列表
+     * @param response HTTP 响应对象
+     */
     public static void exportAssess(List<AssessVo> assessVos, HttpServletResponse response) {
         try {
             //HttpServletResponse消息头参数设置
@@ -86,6 +97,12 @@ public final class ExcelResponseExporter {
         }
     }
 
+    /**
+     * 将学生录取结果写入 Excel 下载响应
+     *
+     * @param assessVos 学生录取展示信息列表
+     * @param response HTTP 响应对象
+     */
     public static void exportStudentInfo(List<StudentInfoVo> assessVos, HttpServletResponse response) {
         try {
             // HttpServletResponse消息头参数设置

@@ -41,21 +41,45 @@ import java.util.stream.Collectors;
  */
 @Service
 public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, StudentInfo> implements StudentInfoService {
+    /**
+     * 编程式事务模板
+     */
     @Autowired
     private TransactionTemplate transactionTemplate;
+    /**
+     * 学生录取信息数据访问接口
+     */
     @Autowired
     private StudentInfoMapper studentInfoMapper;
+    /**
+     * 密码编码器
+     */
     @Autowired
     private PasswordEncoder passwordEncoder;
+    /**
+     * 用户角色关联业务服务
+     */
     @Autowired
     private UserRoleService userRoleService;
+    /**
+     * 专业录取名额数据访问接口
+     */
     @Autowired
     private MajorDetailsMapper majorDetailsMapper;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 学生信息 Excel 导入服务
+     */
     @Autowired
     private StudentInfoExcelImportService studentInfoExcelImportService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void uploadStudentInfo(MultipartFile file) {
@@ -73,24 +97,36 @@ public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, Stude
         });
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult updateStudentInfo(StudentInfo studentInfo) {
         studentInfoMapper.updateById(studentInfo);
         return ApiResult.ok("修改成功！");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult deleteStudentInfoById(Long id) {
         studentInfoMapper.deleteById(id);
         return ApiResult.ok("删除成功！");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult getStudentInfoByStudentId(String studentId) {
         StudentInfo studentInfo = studentInfoMapper.getStudentInfoByStudentId(studentId);
         return ApiResult.ok("data", studentInfo);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult getStudentInfoList(AdmissionDto dto) {
         // 创建 LambdaQueryWrapper 对象
@@ -167,6 +203,12 @@ public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, Stude
         return ApiResult.ok("data", studentInfoList);
     }
 
+    /**
+     * 批量更新学生录取状态
+     *
+     * @param dto 学生录取信息操作或查询参数
+     * @return 统一接口响应
+     */
     @Transactional(rollbackFor = Exception.class)
     public ApiResult batchAdmit(BatchAdmitDto dto) {
         // 参数校验
@@ -244,6 +286,9 @@ public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, Stude
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ApiResult synchronization() {
@@ -402,12 +447,18 @@ public class StudentInfoServiceImpl extends ServiceImpl<StudentInfoMapper, Stude
 //        return ApiResult.ok("自动录取成功！");
 //    }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult getClassName() {
         List<String> classNameList = studentInfoMapper.selectClassNameList();
         return ApiResult.ok("data", classNameList);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ApiResult updateEndTime(Date endTime) {
         List<StudentInfo> studentInfoList = studentInfoMapper.selectList(null);

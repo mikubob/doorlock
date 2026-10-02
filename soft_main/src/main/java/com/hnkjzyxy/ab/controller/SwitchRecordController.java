@@ -34,9 +34,15 @@ import javax.validation.constraints.NotNull;
 @Validated
 public class SwitchRecordController {
 
+    /**
+     * 开关锁记录业务服务
+     */
     @Autowired
     private SwitchRecordService switchRecordService;
 
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
 

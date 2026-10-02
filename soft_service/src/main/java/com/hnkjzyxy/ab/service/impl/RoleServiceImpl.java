@@ -16,13 +16,25 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 角色Service实现类
+ */
 @Service
 public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements RoleService {
+    /**
+     * 角色数据访问接口
+     */
     @Resource
     private RoleMapper roleMapper;
+    /**
+     * 用户角色关联业务服务
+     */
     @Resource
     private UserRoleService userRoleService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     @CacheEvict(value = {"authority"})
@@ -33,6 +45,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         roleMapper.roleMenu(ids);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Role> getRoleByUserID(Integer userId) {
         List<UserRole> list = userRoleService.list(new LambdaQueryWrapper<UserRole>().eq(UserRole::getUserId, userId));

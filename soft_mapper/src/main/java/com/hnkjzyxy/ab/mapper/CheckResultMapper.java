@@ -10,20 +10,54 @@ import org.apache.ibatis.annotations.Select;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 教学巡查结果数据访问接口
+ */
 public interface CheckResultMapper extends BaseMapper<CheckResult> {
 
 
+    /**
+     * 查询时间范围内的班级巡查统计
+     *
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 查询结果列表
+     */
     @Select("select a.college, a.classes,a.counsellor,count(*) as count , avg(a.arrival_rate) as avgArrivalRate  ,avg(a.food_bring_rate) as avgFoodBringRate " +
             "from sys_check_result a where a.date between #{startTime} and #{endTime}  GROUP BY a.college,a.classes ,a.counsellor order by avgArrivalRate desc")
     List<CheckResultDataVo> selectByTime(@Param("startTime") String startTime, @Param("endTime") String endTime);
 
 
+    /**
+     * 按班级、学院和时间范围查询巡查明细
+     *
+     * @param classes 班级名称
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @param college 学院名称
+     * @return 教学巡查结果列表
+     */
     List<CheckResult> selectListByClasses(@Param("classes") String classes, @Param("startTime") String startTime, @Param("endTime") String endTime, @Param("college") String college);
 
+    /**
+     * 查询时间范围内的教师巡查统计
+     *
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 查询结果列表
+     */
     @Select("select a.college,a.teacher,count(*) as count , avg(a.arrival_rate) as avgArrivalRate  ,avg(a.food_bring_rate) as avgFoodBringRate" +
             " from sys_check_result a  where a.date between #{startTime} and #{endTime} GROUP BY a.college,a.teacher order by avgArrivalRate desc")
     List<CheckResultByTeacherDataVo> selectByTimeAndTeacher(@Param("startTime") String startTime, @Param("endTime") String endTime);
 
+    /**
+     * 按教师和时间范围查询巡查明细
+     *
+     * @param teacher 教师名称
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 教学巡查结果列表
+     */
     List<CheckResult> selectListByTeacher(@Param("teacher") String teacher, @Param("startTime") String startTime, @Param("endTime") String endTime);
 
     /**
@@ -56,6 +90,10 @@ public interface CheckResultMapper extends BaseMapper<CheckResult> {
     /**
      * 查询某年某学院的每个班的每个月的详细缺勤统计
      * 返回更详细的信息
+     *
+     * @param year 统计年度
+     * @param college 学院名称
+     * @return 查询数据及相关统计信息列表
      */
     @Select("SELECT " +
             "    classes as className, " +
@@ -92,6 +130,11 @@ public interface CheckResultMapper extends BaseMapper<CheckResult> {
     /**
      * 按时间范围、学院分析所有老师授课班级缺勤率最高的10个班
      * 用于对比分析
+     *
+     * @param startDate 查询开始日期
+     * @param endDate 查询结束日期
+     * @param college 学院名称
+     * @return 查询数据及相关统计信息列表
      */
     @Select("SELECT " +
             "    classes as className, " +
@@ -158,6 +201,12 @@ public interface CheckResultMapper extends BaseMapper<CheckResult> {
             "AND college != '' " +
             "ORDER BY college")
     List<String> getAllColleges();
+    /**
+     * 按指定时间顺序查询巡查结果
+     *
+     * @param order 排序方向
+     * @return 教学巡查结果列表
+     */
     @Select("<script>" +
             "SELECT * FROM sys_check_result ORDER BY date " +
             "<choose>" +
@@ -166,6 +215,13 @@ public interface CheckResultMapper extends BaseMapper<CheckResult> {
             "</choose>" +
             "</script>")
     List<CheckResult> sortedByTime(@Param("order") String order);
+    /**
+     * 按上课节次和时间顺序查询巡查结果
+     *
+     * @param commuteTime 上课节次
+     * @param timeOrder 时间排序方向
+     * @return 教学巡查结果列表
+     */
     @Select("<script>" +
             "SELECT * FROM sys_check_result " +
             "ORDER BY " +

@@ -28,8 +28,14 @@ import java.util.List;
 @RequestMapping("/exam")
 public class ExamController {
 
+    /**
+     * 考试安排业务服务
+     */
     @Autowired
     private ExamService examService;
+    /**
+     * 教室业务服务
+     */
     @Autowired
     private ClassroomService classroomService;
 

@@ -66,21 +66,45 @@ public class AuthController {
      */
     @Value("${absolute.jwt.suffix}")
     private String suffix;
+    /**
+     * Redis 数据操作工具
+     */
     @Autowired
     private RedisUtils redisUtils;
+    /**
+     * 密码编码器
+     */
     @Autowired
     private PasswordEncoder bCryptPasswordEncoder;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 角色业务服务
+     */
     @Autowired
     private RoleService roleService;
+    /**
+     * 用户角色关联业务服务
+     */
     @Autowired
     private UserRoleService userRoleService;
+    /**
+     * 上传、下载及材料压缩工具
+     */
     @Autowired
     private UploadUtils uploadUtils;
 
+    /**
+     * 验证码图片宽度
+     */
     @Value("${image.width}")
     private Integer width;
+    /**
+     * 验证码图片高度
+     */
     @Value("${image.height}")
     private Integer height;
 
@@ -109,6 +133,7 @@ public class AuthController {
     /**
      * 获取当前登录用户信息
      *
+     * @param authentication 当前登录认证信息
      * @return 当前登录用户信息（含角色岗位）
      */
     @GetMapping("/userInfo")
@@ -134,6 +159,7 @@ public class AuthController {
      * 修改当前登录用户信息
      *
      * @param param 待修改的用户信息（邮箱、手机号）
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/edit/user")
@@ -302,6 +328,7 @@ public class AuthController {
      * 修改当前登录用户密码
      *
      * @param param 原密码、新密码及确认密码
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/change/password")
@@ -323,6 +350,7 @@ public class AuthController {
      *
      * @param file 头像图片文件
      * @param flag 上传标识（1=仅上传不更新用户头像，其他=上传并更新）
+     * @param authentication 当前登录认证信息
      * @return 头像访问地址
      */
     @PostMapping("/uploadImg")
@@ -341,6 +369,7 @@ public class AuthController {
     /**
      * 获取电子签名图片列表
      *
+     * @param authentication 当前登录认证信息
      * @return 当前用户的电子签名图片地址列表
      */
     @GetMapping("/getSignImg")

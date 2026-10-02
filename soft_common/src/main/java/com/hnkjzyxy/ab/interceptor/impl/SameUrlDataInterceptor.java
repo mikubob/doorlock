@@ -19,16 +19,34 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 public class SameUrlDataInterceptor extends RepeatSubmitInterceptor {
+    /**
+     * 重复提交记录的 Redis 键前缀
+     */
     public static final String REPEAT_SUBMIT_KEY = "repeat_submit:";
+    /**
+     * 重复提交记录中的请求参数字段名
+     */
     public final String REPEAT_PARAMS = "repeatParams";
+    /**
+     * 重复提交记录中的提交时间字段名
+     */
     public final String REPEAT_TIME = "repeatTime";
 
+    /**
+     * 请求中的认证令牌头名称
+     */
     @Value("${absolute.jwt.header}")
     private String header;
 
+    /**
+     * Redis 数据操作工具
+     */
     @Autowired
     private RedisUtils redisCache;
 
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     public boolean isRepeatSubmit(HttpServletRequest request, RepeatSubmit annotation) {
@@ -63,6 +81,10 @@ public class SameUrlDataInterceptor extends RepeatSubmitInterceptor {
 
     /**
      * 判断参数是否相同
+     *
+     * @param nowMap 当前提交的请求参数及时间信息
+     * @param preMap 上一次提交的请求参数及时间信息
+     * @return 操作或条件校验结果
      */
     private boolean compareParams(Map<String, Object> nowMap, Map<String, Object> preMap) {
         String nowParams = (String) nowMap.get(REPEAT_PARAMS);
@@ -72,6 +94,11 @@ public class SameUrlDataInterceptor extends RepeatSubmitInterceptor {
 
     /**
      * 判断两次间隔时间
+     *
+     * @param nowMap 当前提交的请求参数及时间信息
+     * @param preMap 上一次提交的请求参数及时间信息
+     * @param interval 允许连续提交的最小间隔，单位为毫秒
+     * @return 操作或条件校验结果
      */
     private boolean compareTime(Map<String, Object> nowMap, Map<String, Object> preMap, int interval) {
         long time1 = (Long) nowMap.get(REPEAT_TIME);

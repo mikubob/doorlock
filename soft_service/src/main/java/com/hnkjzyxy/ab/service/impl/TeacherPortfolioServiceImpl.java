@@ -32,21 +32,45 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
+/**
+ * 教师档案统计Service实现类
+ */
 @Service
 public class TeacherPortfolioServiceImpl implements TeacherPortfolioService {
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Autowired
     UserRoleMapper userRoleMapper;
+    /**
+     * 考核项目数据访问接口
+     */
     @Autowired
     ProjectMapper projectMapper;
+    /**
+     * TaskMapper数据访问接口
+     */
     @Autowired
     TaskMapper taskMapper;
+    /**
+     * 考核结果数据访问接口
+     */
     @Autowired
     ResultMapper resultMapper;
+    /**
+     * 角色数据访问接口
+     */
     @Autowired
     RoleMapper roleMapper;
+    /**
+     * 用户数据访问接口
+     */
     @Autowired
     UserMapper userMapper;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public RadarChartVo getradarChart(TeachHomeParam param, User user, String college) {
         //判断角色
@@ -102,6 +126,9 @@ public class TeacherPortfolioServiceImpl implements TeacherPortfolioService {
         return chartVo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public RadarChartVo getChartByTeacher(TeachHomeParam param, User user) {
         RadarChartVo chartVo = new RadarChartVo();
@@ -137,6 +164,9 @@ public class TeacherPortfolioServiceImpl implements TeacherPortfolioService {
         return chartVo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public  List<Map<String, Map<String, Integer>>>  getChartByTeacher(TeachAnalysistHomeParam param, User user) {
         List<Integer> projectIds = resultMapper.getProjectIds(Integer.valueOf(param.getTeacherId()));

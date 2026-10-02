@@ -21,6 +21,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class SwitchRecord implements Serializable {
 
+    /**
+     * 序列化版本标识
+     */
     private static final long serialVersionUID = 1L;
 
     /**

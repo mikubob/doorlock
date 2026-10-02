@@ -29,11 +29,23 @@ public class GlobalExceptionHandler {
                 .body(ApiResult.error(e.getStatus(), e.getMessage()));
     }
 
+    /**
+     * 将请求路径不存在转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(NoHandlerFoundException.class)
     public ApiResult handler(NoHandlerFoundException e) {
         return ApiResult.error(404, "您访问的页面崩溃了/(ㄒoㄒ)/~~");
     }
 
+    /**
+     * 将非法访问转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(IllegalAccessException.class)
     public ApiResult handler(IllegalAccessException e) {
         int code = 400;
@@ -42,28 +54,58 @@ public class GlobalExceptionHandler {
         return ApiResult.error(code, e.getMessage());
     }
 
+    /**
+     * 将请求方法不支持转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ApiResult handler(HttpRequestMethodNotSupportedException e) {
         return ApiResult.error(405, e.getMessage());
     }
 
+    /**
+     * 将请求体参数校验失败转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ApiResult handler(MethodArgumentNotValidException e) {
         return ApiResult.error(422, e.getFieldError().getDefaultMessage());
     }
 
+    /**
+     * 将上传文件超过大小限制转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ApiResult handler(MaxUploadSizeExceededException e) {
         e.printStackTrace();
         return ApiResult.error(400, "pdf文件大小不能超过50MB！");
     }
 
+    /**
+     * 将请求参数绑定失败转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(BindException.class)
     public ApiResult handler(BindException e) {
         e.printStackTrace();
         return ApiResult.error(400, "数据绑定异常!");
     }
 
+    /**
+     * 将业务运行异常转换为统一接口响应
+     *
+     * @param e 待处理异常
+     * @return 统一接口响应
+     */
     @ExceptionHandler(RuntimeException.class)
     public ApiResult handler(RuntimeException e) {
         e.printStackTrace();

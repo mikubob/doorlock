@@ -11,14 +11,34 @@ import org.apache.ibatis.annotations.Update;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 门禁定时任务数据访问接口
+ */
 @Mapper
 public interface ScheduleMapper {
+    /**
+     * 查询所有门禁定时任务
+     *
+     * @return 门禁定时任务列表
+     */
     @Select("select * from sys_schedule_task")
     public List<ScheduleTask> getAll();
 
+    /**
+     * 按ID查询门禁定时任务
+     *
+     * @param id 门禁定时任务ID
+     * @return 门禁定时任务信息
+     */
     @Select("select * from sys_schedule_task where task_id=#{id}")
     public ScheduleTask getById(int id);
 
+    /**
+     * 查询用户创建的门禁定时任务
+     *
+     * @param userId 用户ID
+     * @return 门禁定时任务列表
+     */
     @Select("select * from sys_schedule_task where user_id=#{userId}")
     public List<ScheduleTask> getByUserId(int userId);
 
@@ -62,9 +82,22 @@ public interface ScheduleMapper {
     @Update("update sys_schedule_task set task_status=#{taskStatus},loop_count=#{loopCount} where task_id=#{taskId}")
     public int updateStatus(@Param("taskId") int taskId, @Param("taskStatus") int taskStatus, @Param("loopCount") int loopCount);
 
+    /**
+     * 删除指定门禁定时任务
+     *
+     * @param id 门禁定时任务ID
+     * @return 受影响的记录数量
+     */
     @Delete("delete from sys_schedule_task where task_id=#{id}")
     public int delete(Integer id);
 
+    /**
+     * 更新门禁定时任务的剩余执行次数
+     *
+     * @param loopCount 剩余执行次数
+     * @param taskId 任务ID
+     * @return 受影响的记录数量
+     */
     @Update("update sys_schedule_task set loop_count=#{loopCount} where task_id=#{taskId}")
     public int updateLoopCount(@Param("loopCount") int loopCount, @Param("taskId") int taskId);
 }

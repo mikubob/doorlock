@@ -23,12 +23,23 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "schedule.sync.sync-on-startup", havingValue = "true")
 public class ScheduleSyncOnStartupRunner implements ApplicationRunner {
 
+    /**
+     * 课表业务服务
+     */
     private final CourseScheduleService courseScheduleService;
 
+    /**
+     * 初始化ScheduleSyncOnStartupRunner
+     *
+     * @param courseScheduleService 课表业务服务
+     */
     public ScheduleSyncOnStartupRunner(CourseScheduleService courseScheduleService) {
         this.courseScheduleService = courseScheduleService;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void run(ApplicationArguments args) {
         log.info("应用启动完成，执行一次课表同步（schedule.sync.sync-on-startup=true）");

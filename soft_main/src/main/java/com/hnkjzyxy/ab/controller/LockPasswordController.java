@@ -26,24 +26,38 @@ import javax.servlet.http.HttpServletResponse;
 @RequestMapping("/lock")
 public class LockPasswordController {
     
+    /**
+     * 令牌缓存键后缀
+     */
     @Value("${absolute.jwt.suffix}")
     private String suffix;
     
+    /**
+     * 门禁密码业务服务
+     */
     @Autowired
     private LockPasswordService lockPasswordService;
     
+    /**
+     * JWT 生成及解析工具
+     */
     @Autowired
     private JwtUtils jwtUtils;
     
+    /**
+     * Redis 数据操作工具
+     */
     @Autowired
     private RedisUtils redisUtils;
     
     /**
      * 开锁密码登录接口
      * 验证开锁密码并生成专用token
+     *
      * @param password 开锁密码
      * @param response HTTP响应
      * @return 登录结果,包含专用token
+     * @throws IOException 文件读取或输出失败时抛出
      */
     @PostMapping("/login")
     public void lockPasswordLogin(@RequestParam("password") String password, 
@@ -81,8 +95,10 @@ public class LockPasswordController {
     
     /**
      * 设置开锁密码(需要管理员权限)
+     *
      * @param password 新密码
      * @param description 密码描述
+     * @param oldPassword 原门禁密码
      * @return 操作结果
      */
     @PostMapping("/setPassword")

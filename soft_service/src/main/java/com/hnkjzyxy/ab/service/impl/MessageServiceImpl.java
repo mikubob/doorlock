@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 
 /**
+ * 用户消息Service实现类
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -17,9 +19,15 @@ import javax.annotation.Resource;
 @Service
 public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> implements MessageService {
 
+    /**
+     * 用户消息数据访问接口
+     */
     @Resource
     private MessageMapper messageMapper;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void readNotice(Integer userId) {
         messageMapper.readNotice(userId);

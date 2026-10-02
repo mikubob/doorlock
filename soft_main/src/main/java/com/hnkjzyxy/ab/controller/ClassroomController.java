@@ -19,6 +19,9 @@ import java.util.List;
 @RequestMapping("/classroom")
 public class ClassroomController {
 
+    /**
+     * 教室业务服务
+     */
     @Autowired
     private ClassroomService classroomService;
 

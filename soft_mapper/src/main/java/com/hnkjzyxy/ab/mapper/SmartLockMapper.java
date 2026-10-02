@@ -122,9 +122,20 @@ public interface SmartLockMapper {
     @Delete("DELETE FROM sys_lock_info WHERE lock_id = #{lockId}")
     int deleteById(Integer lockId);
 
+    /**
+     * 统计门禁设备数量
+     *
+     * @return 查询得到的数值
+     */
     @Select("SELECT count(*) FROM sys_lock_info")
     int countNum();
 
+    /**
+     * 新增门禁设备的完整信息
+     *
+     * @param lockInfo 智能门锁设备信息
+     * @return 受影响的记录数量
+     */
     @Insert("INSERT INTO sys_lock_info " +
         "(ip_address, sn_code, port_number, switch_status, JSH, remarks) " +
         "VALUES (#{ipAddress}, #{snCode}, #{portNumber}, #{switchStatus}, #{classroomNumber}, #{remarks})")

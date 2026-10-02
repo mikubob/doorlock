@@ -11,14 +11,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * 用户角色关联Service实现类
+ *
  * @author 16702
  */
 @Service
 public class UserRoleServiceImpl extends ServiceImpl<UserRoleMapper, UserRole> implements UserRoleService {
 
+    /**
+     * 用户角色关联数据访问接口
+     */
     @Resource
     private UserRoleMapper userRoleMapper;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> selectRoleByUserId(Integer userId) {
         //return userRoleMapper.selectRoleByUserId(userId);

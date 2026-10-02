@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/majorDetails")
 public class MajorDetailsController {
+    /**
+     * 专业录取名额业务服务
+     */
     @Autowired
     private MajorDetailsService majorDetailsService;
 

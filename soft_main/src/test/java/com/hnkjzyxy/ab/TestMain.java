@@ -19,6 +19,8 @@ import java.util.Map;
 import javax.annotation.Resource;
 
 /**
+ * 原有应用集成调试测试，依赖本地模板文件及数据库
+ *
  * @version 1.0
  * @email: 1670203784@qq.com
  * @author: Spell a
@@ -27,19 +29,34 @@ import javax.annotation.Resource;
 @SpringBootTest
 public class TestMain {
 
+    /**
+     * 导入时使用的角色名称与角色ID映射
+     */
     Map<String, Integer> roleNames = new HashMap<String, Integer>() {{
         put("云计算教研室", 10);
         put("软件技术教研室", 11);
         put("虚拟现实教研室", 15);
         put("区块链教研室", 16);
     }};
+    /**
+     * 用户 Excel 导入服务
+     */
     @Autowired
     private UserExcelImportService userExcelImportService;
+    /**
+     * TaskService业务服务
+     */
     @Resource
     private TaskService taskService;
+    /**
+     * 雪花ID生成工具
+     */
     @Resource
     private SnowFlowUtils snowFlowUtils;
 
+    /**
+     * 使用本地用户模板执行用户导入集成调试
+     */
     @Test
 //    @Transactional
     void readUsers() {
@@ -47,6 +64,9 @@ public class TestMain {
         userExcelImportService.readUserExcel(fileUrl);
     }
 
+    /**
+     * 使用本地任务模板执行 Excel 读取集成调试
+     */
     @Test
     void readExcel() {
         TaskDataListener listener = new TaskDataListener(taskService, 1, snowFlowUtils);
@@ -56,12 +76,18 @@ public class TestMain {
         excels.forEach(System.out::println);
     }
 
+    /**
+     * 输出缓存查询键的 MD5 调试值
+     */
     @Test
     void testMd5Hex() {
         String s = DigestUtils.md5Hex("2462452984:3765039755:com.hnkjzyxy.ab.mapper.MenuMapper.getNoticeListByPage:0:2147483647:select id,title,content,create_name createName,read_count readCount,status,create_time createTime from sys_notice where status = 1 order by createTime desc limit ?,?:0:10:MybatisSqlSessionFactoryBean");
         System.out.println(s);
     }
 
+    /**
+     * 按项目任务分类查询聚合结果并输出调试信息
+     */
     @Test
     void test1() {
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();

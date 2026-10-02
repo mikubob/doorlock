@@ -44,18 +44,31 @@ import javax.validation.Valid;
 @RestController
 public class FlowController {
 
+    /**
+     * 审批流程业务服务
+     */
     @Autowired
     private FlowService flowService;
+    /**
+     * 用户业务服务
+     */
     @Autowired
     private UserService userService;
+    /**
+     * 考核项目业务服务
+     */
     @Autowired
     private ProjectService projectService;
+    /**
+     * 用户消息业务服务
+     */
     @Autowired
     private MessageService messageService;
 
     /**
      * 获取流程年份列表
      *
+     * @param authentication 当前登录认证信息
      * @return 当前用户相关流程的年份列表
      */
     @GetMapping("/flow/years")
@@ -69,6 +82,7 @@ public class FlowController {
      * 分页查询流程列表
      *
      * @param param 流程查询条件
+     * @param authentication 当前登录认证信息
      * @return 流程列表及分页数据
      */
     @GetMapping("/flow/list")
@@ -84,6 +98,7 @@ public class FlowController {
      * 传入 id 时为修改，否则为新增
      *
      * @param flow 流程信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/create/flow")
@@ -116,6 +131,7 @@ public class FlowController {
     /**
      * 获取待审批项目年份列表
      *
+     * @param authentication 当前登录认证信息
      * @return 待审批项目的年份列表
      */
     @GetMapping("/project/approve/years")
@@ -129,6 +145,7 @@ public class FlowController {
      * 获取项目审批列表
      *
      * @param param 项目审批查询条件
+     * @param authentication 当前登录认证信息
      * @return 项目审批列表及分页数据
      */
     @GetMapping("/project/approve")
@@ -144,6 +161,7 @@ public class FlowController {
      * 获取项目提交结果详情
      *
      * @param id 项目ID
+     * @param authentication 当前登录认证信息
      * @return 项目提交结果详情
      */
     @GetMapping("/result/detail/{pId}")
@@ -162,7 +180,9 @@ public class FlowController {
      * 获取项目提交结果列表
      *
      * @param param 结果查询条件
+     * @param authentication 当前登录认证信息
      * @return 项目提交结果列表及分页数据
+     * @throws Exception 读取、校验或处理相关数据失败时抛出
      */
     @GetMapping("/project/result")
     public ApiResult getAppRoveDetail(@Valid ApproveParam param, Authentication authentication) throws Exception {
@@ -178,6 +198,7 @@ public class FlowController {
      * 获取当前项目未提交人员名单
      *
      * @param param 查询条件（项目ID）
+     * @param authentication 当前登录认证信息
      * @return 未提交人员名单
      */
     @GetMapping("/NotSubmitted/list")
@@ -194,6 +215,7 @@ public class FlowController {
      * 提交审批结果
      *
      * @param result 审批结果信息
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/submit/approve")
@@ -227,6 +249,7 @@ public class FlowController {
      * 查看项目流程状态
      *
      * @param pId 项目ID
+     * @param authentication 当前登录认证信息
      * @return 项目流程状态信息
      */
     @GetMapping("/project/flow/{pId}")
@@ -243,6 +266,7 @@ public class FlowController {
      * 提醒指定用户查看项目
      *
      * @param param 提醒参数（项目ID、接收用户ID）
+     * @param authentication 当前登录认证信息
      * @return 操作结果
      */
     @PostMapping("/project/notice")

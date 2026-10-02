@@ -11,6 +11,9 @@ import Door.Access.Connector.INConnector;
 import Door.Access.Connector.TCPClient.TCPClientDetail;
 import Door.Access.Door8800.Door8800Identity;
 
+/**
+ * 门禁命令分配辅助组件，提供 TCP 通讯参数
+ */
 public class CommandAllocator {
 
     /**
@@ -25,7 +28,7 @@ public class CommandAllocator {
     /**
      * 添加需要执行的命令
      *
-     * @param cmd
+     * @param cmd 待提交的 SDK 命令
      */
     public static void addCommand(INCommand cmd) {
         allocator.AddCommand(cmd);
@@ -34,8 +37,8 @@ public class CommandAllocator {
     /**
      * 获取连接通道信息
      *
-     * @param detail
-     * @return
+     * @param detail SDK 命令通讯参数
+     * @return SDK 连接对象
      */
     public static INConnector getConnector(ConnectorDetail detail) {
         return allocator.GetConnector(detail);
@@ -45,6 +48,9 @@ public class CommandAllocator {
     /**
      * 获取设备通讯详情
      *
+     * @param sn 门禁设备SN
+     * @param ip IP地址
+     * @param port 通讯端口
      * @return 通讯详情
      */
     public static CommandDetail getTcpCommandDetail(String sn, String ip, int port) {
@@ -65,6 +71,11 @@ public class CommandAllocator {
         return commandDetail;
     }
 
+    /**
+     * 获取当前设备的 TCP 命令通讯参数
+     *
+     * @return SDK 命令通讯参数
+     */
     public static CommandDetail getTcpCommandDetail() {
         Door8800Identity idt = new Door8800Identity(
                 "FC-8940H43030001",  /**设备SN 16位由英文数字和横杠*/
