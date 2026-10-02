@@ -1,19 +1,17 @@
 package com.hnkjzyxy.ab.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hnkjzyxy.ab.model.CourseSchedule;
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
 /**
- * 课程安排Mapper接口
+ * 课程安排数据访问接口
  */
 @Mapper
 public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
-
 
     /**
      * 动态条件查询课程列表
@@ -32,14 +30,16 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
      *
      * @return 受影响行数
      */
-    @Delete("DELETE FROM sys_course_schedule")
-    int deleteAll();
+    default int deleteAll() {
+        return delete(new LambdaQueryWrapper<CourseSchedule>());
+    }
 
     /**
      * 统计课表记录数
      *
      * @return 记录数
      */
-    @Select("SELECT COUNT(*) FROM sys_course_schedule")
-    int countAll();
+    default int countAll() {
+        return selectCount(new LambdaQueryWrapper<CourseSchedule>());
+    }
 }

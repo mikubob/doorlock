@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    教学巡查结果数据访问 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.CheckResultMapper">
 
 
+    <!--
+        按班级、学院和时间范围查询巡查明细
+        参数：classes（班级名称）；startTime（查询开始时间）；endTime（查询结束时间）；college（学院名称）。
+        返回：教学巡查结果列表。
+    -->
     <select id="selectListByClasses" resultType="com.hnkjzyxy.ab.model.CheckResult">
         SELECT * FROM sys_check_result
         <where>
@@ -21,6 +29,11 @@
         </where>
     </select>
 
+    <!--
+        按教师和时间范围查询巡查明细
+        参数：teacher（教师名称）；startTime（查询开始时间）；endTime（查询结束时间）。
+        返回：教学巡查结果列表。
+    -->
     <select id="selectListByTeacher" resultType="com.hnkjzyxy.ab.model.CheckResult">
         SELECT * FROM sys_check_result
         <where>
@@ -36,5 +49,215 @@
         </where>
     </select>
 
+
+    <!--
+        查询时间范围内的班级巡查统计
+        参数：startTime（查询开始时间）；endTime（查询结束时间）。
+        返回：按学院、班级及辅导员汇总的巡查统计列表。
+    -->
+    <select id="selectByTime" resultType="com.hnkjzyxy.ab.vo.CheckResultDataVo">
+        select
+            a.college,
+            a.classes,
+            a.counsellor,
+            count(*) as count,
+            avg(a.arrival_rate) as avgArrivalRate,
+            avg(a.food_bring_rate) as avgFoodBringRate
+        from sys_check_result a
+        where a.date between #{startTime}
+        and #{endTime}
+        GROUP BY a.college,a.classes ,a.counsellor
+        order by avgArrivalRate desc
+    </select>
+
+    <!--
+        查询时间范围内的教师巡查统计
+        参数：startTime（查询开始时间）；endTime（查询结束时间）。
+        返回：按学院及教师汇总的巡查统计列表。
+    -->
+    <select id="selectByTimeAndTeacher" resultType="com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo">
+        select
+            a.college,
+            a.teacher,
+            count(*) as count,
+            avg(a.arrival_rate) as avgArrivalRate,
+            avg(a.food_bring_rate) as avgFoodBringRate
+        from sys_check_result a
+        where a.date between #{startTime}
+        and #{endTime}
+        GROUP BY a.college,a.teacher
+        order by avgArrivalRate desc
+    </select>
+
+    <!--
+        按时间范围和学院查询
+        参数：startDate（开始日期）；endDate（结束日期）；college（学院）。
+        返回：指定学院在日期范围内的巡查明细列表。
+    -->
+    <select id="findByDateRangeAndCollege" resultType="com.hnkjzyxy.ab.model.CheckResult">
+        SELECT *
+        FROM sys_check_result
+        WHERE date BETWEEN #{startDate}
+        AND #{endDate}
+        AND college = #{college}
+    </select>
+
+    <!--
+        按学院查询（支持多个学院）
+        参数：colleges（学院列表）。
+        返回：指定学院集合的巡查明细列表。
+        说明：colleges 必须包含至少一个学院名称，由 foreach 展开绑定 IN 条件。
+    -->
+    <select id="findByCollege" resultType="com.hnkjzyxy.ab.model.CheckResult">
+        SELECT *
+        FROM sys_check_result
+        WHERE college IN
+        <foreach collection="colleges" item="college" open="(" separator="," close=")">
+            #{college}
+        </foreach>
+    </select>
+
+    <!--
+        按年度和学院汇总各班级每月的缺勤情况
+        参数：year（统计年度）；college（学院名称）。
+        返回：按班级名称、月份排序的缺勤统计列表。
+        说明：仅统计应到人数大于零的记录；缺勤率以百分数表示，保留两位小数。
+    -->
+    <select id="getMonthlyAbsenceDetailByCollege" resultType="java.util.Map">
+        SELECT
+            classes as className,
+            MONTH(date) as month,
+            SUM(should_arrival) as totalShouldArrival,
+            SUM(arrival) as totalArrival,
+            SUM(should_arrival - arrival) as totalAbsence,
+            ROUND((SUM(should_arrival) - SUM(arrival)) * 100.0 / SUM(should_arrival), 2) as absenceRate
+        FROM sys_check_result
+        WHERE YEAR(date) = #{year}
+        AND college = #{college}
+        AND should_arrival &gt; 0
+        GROUP BY classes, MONTH(date)
+        ORDER BY classes, month
+    </select>
+
+    <!--
+        按时间范围、学院分析所有老师授课班级缺勤率最高的10个班
+        参数：startDate（查询开始日期）；endDate（查询结束日期）；college（学院名称）。
+        返回：按缺勤率降序排列的班级及教师统计，最多十条。
+        说明：按班级及教师汇总，缺勤率保留两位小数；按缺勤率降序取前十条。
+    -->
+    <select id="getAbsenceClassesByCollegeAndDateRange" resultType="java.util.Map">
+        SELECT
+            classes as className,
+            teacher as teacherName,
+            SUM(should_arrival) as totalShouldArrival,
+            SUM(arrival) as totalArrival,
+            SUM(should_arrival - arrival) as totalAbsence,
+            ROUND((SUM(should_arrival) - SUM(arrival)) * 100.0 / SUM(should_arrival), 2) as absenceRate
+        FROM sys_check_result
+        WHERE date BETWEEN #{startDate}
+        AND #{endDate}
+        AND college = #{college}
+        AND should_arrival &gt; 0
+        GROUP BY classes, teacher
+        ORDER BY absenceRate DESC
+        LIMIT 10
+    </select>
+
+    <!--
+        按学院统计缺勤率、请假率和带食物率
+        参数：startDate（开始时间）；endDate（结束时间）；colleges（学院列表）。
+        返回：统计结果。
+        说明：学院列表为空时不限制学院；仅统计应到人数大于零的记录，各比率保留两位小数。
+    -->
+    <select id="getCollegeStatistics" resultType="java.util.Map">
+        SELECT
+            college,
+            SUM(should_arrival) as totalShouldArrival,
+            SUM(arrival) as totalArrival,
+            SUM(people_leave) as totalLeave,
+            SUM(food_bring_person) as totalFoodBring,
+            ROUND((SUM(should_arrival) - SUM(arrival)) * 100.0 / SUM(should_arrival), 2) as absenceRate,
+            ROUND(SUM(people_leave) * 100.0 / SUM(should_arrival), 2) as leaveRate,
+            ROUND(SUM(food_bring_person) * 100.0 / SUM(should_arrival), 2) as foodBringRate
+        FROM sys_check_result
+        WHERE date BETWEEN #{startDate}
+        AND #{endDate}
+        AND should_arrival &gt; 0
+        <if test="colleges != null and colleges.size() &gt; 0">
+            AND college IN
+            <foreach collection="colleges" item="college" open="(" separator="," close=")">
+                #{college}
+            </foreach>
+        </if>
+        GROUP BY college
+        ORDER BY college
+    </select>
+
+    <!--
+        查询所有不重复的学院列表
+        返回：所有学院的列表，按字母顺序排序。
+    -->
+    <select id="getAllColleges" resultType="String">
+        SELECT DISTINCT college
+        FROM sys_check_result
+        WHERE college IS NOT NULL
+        AND college != ''
+        ORDER BY college
+    </select>
+
+    <!--
+        按指定时间顺序查询巡查结果
+        参数：order（排序方向）。
+        返回：教学巡查结果列表。
+        说明：排序方向采用白名单，asc 为升序，其他值均为降序，不拼接输入的排序文本。
+    -->
+    <select id="sortedByTime" resultType="com.hnkjzyxy.ab.model.CheckResult">
+        SELECT *
+        FROM sys_check_result
+        ORDER BY date
+        <choose>
+            <when test="order == &quot;asc&quot;">
+                ASC
+            </when>
+            <otherwise>
+                DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!--
+        按巡查时间和到课率排序查询巡查结果
+        参数：commuteTime（到课率排序方向，asc 为升序，其他值为降序）；timeOrder（时间排序方向，asc 为升序，其他值为降序）。
+        返回：教学巡查结果列表。
+        说明：优先按日期、再按到课率排序；各方向仅接受 asc 或 desc，其他值采用降序。
+    -->
+    <select id="sortedByCommuteTime" resultType="com.hnkjzyxy.ab.model.CheckResult">
+        SELECT *
+        FROM sys_check_result
+        ORDER BY
+        <choose>
+            <when test="timeOrder == &quot;asc&quot;">
+                date ASC
+            </when>
+            <when test="timeOrder == &quot;desc&quot;">
+                date DESC
+            </when>
+            <otherwise>
+                date DESC
+            </otherwise>
+        </choose>
+        ,
+        <choose>
+            <when test="commuteTime == &quot;asc&quot;">
+                arrival_rate ASC
+            </when>
+            <when test="commuteTime == &quot;desc&quot;">
+                arrival_rate DESC
+            </when>
+            <otherwise>
+                arrival_rate DESC
+            </otherwise>
+        </choose>
+    </select>
 
 </mapper>

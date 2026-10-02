@@ -1,18 +1,13 @@
 package com.hnkjzyxy.ab.mapper;
 
 import com.hnkjzyxy.ab.model.LockInfo;
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
 /**
- * 智能锁Mapper接口
+ * 智能锁数据访问接口
  */
 @Mapper
 public interface SmartLockMapper {
@@ -22,14 +17,7 @@ public interface SmartLockMapper {
      * @param lockId 智能锁唯一标识符
      * @return 智能锁信息
      */
-    @Select("SELECT l.lock_id as lockId, l.ip_address as ipAddress, l.sn_code as snCode, " +
-            "l.port_number as portNumber, l.switch_status as switchStatus, l.JSH as classroomNumber, " +
-            "l.remarks, c.SKDD as classroomName, c.XQMC as campusName, " +
-            "c.JZWMC as buildingName, c.floor " +
-            "FROM sys_lock_info l LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci " +
-            "WHERE l.lock_id = #{lockId}")
-    LockInfo selectById(Integer lockId);
-
+    LockInfo selectById(@Param("lockId") Integer lockId);
 
     /**
      * 根据电子班牌ID查询智能锁信息（联表查询教室信息）
@@ -37,27 +25,14 @@ public interface SmartLockMapper {
      * @param boardSn 智能班牌的sn
      * @return 智能锁信息
      */
-    @Select("SELECT l.lock_id as lockId, l.ip_address as ipAddress, l.sn_code as snCode, " +
-            "l.port_number as portNumber, l.switch_status as switchStatus, l.JSH as classroomNumber, " +
-            "l.remarks, c.SKDD as classroomName, c.XQMC as campusName, " +
-            "c.JZWMC as buildingName, c.floor " +
-            "FROM sys_lock_info l LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci " +
-            "WHERE c.board_sn = #{boardSn}")
-    LockInfo selectByBoardSn(String boardSn);
+    LockInfo selectByBoardSn(@Param("boardSn") String boardSn);
 
     /**
      * 查询所有智能锁信息（联表查询教室信息）
      *
      * @return 智能锁列表
      */
-    @Select("SELECT l.lock_id as lockId, l.ip_address as ipAddress, l.sn_code as snCode, " +
-            "l.port_number as portNumber, l.switch_status as switchStatus, l.JSH as classroomNumber, " +
-            "l.remarks, c.SKDD as classroomName, c.XQMC as campusName, " +
-            "c.JZWMC as buildingName, c.floor, c.board_sn as boardSn " +
-            "FROM sys_lock_info l LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci")
     List<LockInfo> selectAll();
-
-
 
     /**
      * 根据教室编号查询智能锁
@@ -65,13 +40,7 @@ public interface SmartLockMapper {
      * @param classroomNumber 教室编号
      * @return 智能锁信息
      */
-    @Select("SELECT l.lock_id as lockId, l.ip_address as ipAddress, l.sn_code as snCode, " +
-            "l.port_number as portNumber, l.switch_status as switchStatus, l.JSH as classroomNumber, " +
-            "l.remarks, c.SKDD as classroomName, c.XQMC as campusName, " +
-            "c.JZWMC as buildingName, c.floor " +
-            "FROM sys_lock_info l LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci " +
-            "WHERE l.JSH = #{classroomNumber}")
-    LockInfo selectByClassroom(String classroomNumber);
+    LockInfo selectByClassroom(@Param("classroomNumber") String classroomNumber);
 
     /**
      * 新增智能锁信息
@@ -79,9 +48,6 @@ public interface SmartLockMapper {
      * @param lockInfo 智能锁对象
      * @return 影响行数
      */
-    @Insert("INSERT INTO sys_lock_info(ip_address, sn_code, port_number, switch_status, JSH, remarks) " +
-            "VALUES(#{ipAddress}, #{snCode}, #{portNumber}, 0, #{classroomNumber}, #{remarks})")
-    @Options(useGeneratedKeys = false)
     int insert(LockInfo lockInfo);
 
     /**
@@ -90,11 +56,6 @@ public interface SmartLockMapper {
      * @param lockInfo 智能锁对象
      * @return 影响行数
      */
-    @Update("UPDATE sys_lock_info SET " +
-            "JSH = #{classroomNumber}, " +
-            "switch_status = #{switchStatus}, " +
-            "remarks = #{remarks} " +
-            "WHERE lock_id = #{lockId}")
     int update(LockInfo lockInfo);
 
     /**
@@ -104,14 +65,10 @@ public interface SmartLockMapper {
      * @param switchStatus 开关状态
      * @return 影响行数
      */
-    @Update("UPDATE sys_lock_info " +
-            "SET switch_status = #{switchStatus}  " +
-            "WHERE lock_id = #{lockId}")
     int updateSwitchStatus(
             @Param("lockId") Integer lockId,
             @Param("switchStatus") Integer switchStatus
     );
-
 
     /**
      * 根据ID删除智能锁信息
@@ -119,15 +76,13 @@ public interface SmartLockMapper {
      * @param lockId 智能锁唯一标识符
      * @return 影响行数
      */
-    @Delete("DELETE FROM sys_lock_info WHERE lock_id = #{lockId}")
-    int deleteById(Integer lockId);
+    int deleteById(@Param("lockId") Integer lockId);
 
     /**
      * 统计门禁设备数量
      *
-     * @return 查询得到的数值
+     * @return 智能锁设备记录数
      */
-    @Select("SELECT count(*) FROM sys_lock_info")
     int countNum();
 
     /**
@@ -136,10 +91,6 @@ public interface SmartLockMapper {
      * @param lockInfo 智能门锁设备信息
      * @return 受影响的记录数量
      */
-    @Insert("INSERT INTO sys_lock_info " +
-        "(ip_address, sn_code, port_number, switch_status, JSH, remarks) " +
-        "VALUES (#{ipAddress}, #{snCode}, #{portNumber}, #{switchStatus}, #{classroomNumber}, #{remarks})")
     int addLockInfoAll(LockInfo lockInfo);
-
 
 }

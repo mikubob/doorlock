@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    门禁定时任务数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.ScheduleMapper">
+
+    <!--
+        查询所有门禁定时任务
+        返回：门禁定时任务列表。
+    -->
+    <select id="getAll" resultType="com.hnkjzyxy.ab.model.ScheduleTask">
+        select *
+        from sys_schedule_task
+    </select>
+
+    <!--
+        按ID查询门禁定时任务
+        参数：id（门禁定时任务ID）。
+        返回：门禁定时任务信息。
+    -->
+    <select id="getById" resultType="com.hnkjzyxy.ab.model.ScheduleTask">
+        select *
+        from sys_schedule_task
+        where task_id=#{id}
+    </select>
+
+    <!--
+        查询用户创建的门禁定时任务
+        参数：userId（用户ID）。
+        返回：门禁定时任务列表。
+    -->
+    <select id="getByUserId" resultType="com.hnkjzyxy.ab.model.ScheduleTask">
+        select *
+        from sys_schedule_task
+        where user_id=#{userId}
+    </select>
+
+    <!--
+        按更新时间区间查询定时任务
+        参数：startTime（开始时间）；endTime（结束时间）。
+        返回：定时任务列表。
+    -->
+    <select id="getByTime" resultType="com.hnkjzyxy.ab.model.ScheduleTask">
+        select *
+        from sys_schedule_task
+        where updated_time &gt;= #{startTime}
+        and updated_time &lt;= #{endTime}
+    </select>
+
+    <!--
+        新增定时任务
+        参数：scheduleTask（定时任务）。
+        返回：影响行数。
+    -->
+    <insert id="insert">
+        insert into sys_schedule_task(lock_id,user_id,timed_operation,task_details,task_status,is_loop,remarks,created_time,hour,minute,updated_time,count_day,loop_count)
+        values(#{lockId},#{userId},#{timedOperation},#{taskDetails},#{taskStatus},#{isLoop},#{remarks},#{createdTime},#{hour},#{minute},#{updatedTime},#{countDay},#{loopCount})
+    </insert>
+
+    <!--
+        更新定时任务
+        参数：scheduleTask（定时任务）。
+        返回：影响行数。
+    -->
+    <update id="update">
+        update sys_schedule_task
+        set
+            lock_id=#{lockId},
+            user_id=#{userId},
+            timed_operation=#{timedOperation},
+            task_details=#{taskDetails},
+            task_status=#{taskStatus},
+            is_loop=#{isLoop},
+            remarks=#{remarks},
+            created_time=#{createdTime},
+            hour=#{hour},
+            minute=#{minute},
+            updated_time=#{updatedTime},
+            count_day=#{countDay},
+            loop_count=#{loopCount}
+        where task_id=#{taskId}
+    </update>
+
+    <!--
+        更新任务状态与已执行次数
+        参数：taskId（任务ID）；taskStatus（任务状态）；loopCount（已循环次数）。
+        返回：影响行数。
+    -->
+    <update id="updateStatus">
+        update sys_schedule_task
+        set task_status=#{taskStatus},loop_count=#{loopCount}
+        where task_id=#{taskId}
+    </update>
+
+    <!--
+        删除指定门禁定时任务
+        参数：id（门禁定时任务ID）。
+        返回：受影响的记录数量。
+    -->
+    <delete id="delete">
+        delete
+        from sys_schedule_task
+        where task_id=#{id}
+    </delete>
+
+    <!--
+        更新门禁定时任务的剩余执行次数
+        参数：loopCount（剩余执行次数）；taskId（任务ID）。
+        返回：受影响的记录数量。
+    -->
+    <update id="updateLoopCount">
+        update sys_schedule_task
+        set loop_count=#{loopCount}
+        where task_id=#{taskId}
+    </update>
+
+</mapper>

@@ -6,11 +6,7 @@ import com.hnkjzyxy.ab.model.ProjectItemSource;
 import com.hnkjzyxy.ab.model.Result;
 import com.hnkjzyxy.ab.model.ResultExtend;
 import com.hnkjzyxy.ab.model.Task;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -33,8 +29,6 @@ public interface ProjectTaskImportMapper {
      * @param id 项目ID
      * @return 项目信息，不存在时返回 null
      */
-    @Select("SELECT * FROM sys_project WHERE id=#{id} FOR UPDATE")
-    @Options(flushCache = Options.FlushCachePolicy.TRUE)
     Project lockProject(@Param("id") Integer id);
 
     /**
@@ -43,7 +37,6 @@ public interface ProjectTaskImportMapper {
      * @param id 来源记录ID
      * @return 原始来源数据，不存在时返回 null
      */
-    @Select("SELECT * FROM sys_project_item WHERE id=#{id}")
     ProjectItemSource source(@Param("id") Integer id);
 
     /**
@@ -52,7 +45,6 @@ public interface ProjectTaskImportMapper {
      * @param id 项目ID
      * @return 项目任务列表
      */
-    @Select("SELECT * FROM sys_task WHERE p_id=#{id}")
     List<Task> tasks(@Param("id") Integer id);
 
     /**
@@ -61,7 +53,6 @@ public interface ProjectTaskImportMapper {
      * @param id 项目ID
      * @return 持久化状态，尚未迁移时返回 null
      */
-    @Select("SELECT * FROM sys_project_import_state WHERE project_id=#{id}")
     ProjectImportState state(@Param("id") Integer id);
 
     /**
@@ -70,8 +61,6 @@ public interface ProjectTaskImportMapper {
      * @param id 新建项目ID
      * @return 插入记录数
      */
-    @Insert("INSERT INTO sys_project_import_state(project_id,legacy_reviewed,review_reference) " +
-            "VALUES(#{id},1,'created-by-t04')")
     int initialize(@Param("id") Integer id);
 
     /**
@@ -80,7 +69,6 @@ public interface ProjectTaskImportMapper {
      * @param id 项目ID
      * @return 更新记录数
      */
-    @Update("UPDATE sys_project_import_state SET first_staged_at=COALESCE(first_staged_at,NOW()) WHERE project_id=#{id}")
     int markStaged(@Param("id") Integer id);
 
     /**
@@ -90,7 +78,6 @@ public interface ProjectTaskImportMapper {
      * @param name 认证用户名（工号）
      * @return 匹配的启用用户数量
      */
-    @Select("SELECT COUNT(*) FROM sys_user WHERE user_id=#{id} AND user_name=#{name} AND status=1")
     int activeUser(@Param("id") Integer id, @Param("name") String name);
 
     /**
@@ -99,8 +86,6 @@ public interface ProjectTaskImportMapper {
      * @param id 用户ID
      * @return 有效管理员角色关系数量
      */
-    @Select("SELECT COUNT(*) FROM sys_user_role ur JOIN sys_role r ON r.role_id=ur.role_id " +
-            "WHERE ur.user_id=#{id} AND r.role_code='admin' AND r.role_status=1")
     int activeAdmin(@Param("id") Integer id);
 
     // 不过滤零分、空材料或逻辑删除的审批历史；同时按任务与结果归属保护异常关联。
@@ -113,12 +98,6 @@ public interface ProjectTaskImportMapper {
      * @param id 项目ID
      * @return 存在任意业务引用时返回 true
      */
-    @Select("SELECT (EXISTS(SELECT 1 FROM sys_result r LEFT JOIN sys_task t ON t.id=r.task_id " +
-            "WHERE r.p_id=#{id} OR t.p_id=#{id}) OR " +
-            "EXISTS(SELECT 1 FROM sys_result_extend e LEFT JOIN sys_task t ON t.id=e.task_id " +
-            "LEFT JOIN sys_result r ON r.id=e.result_id LEFT JOIN sys_task rt ON rt.id=r.task_id " +
-            "WHERE t.p_id=#{id} OR r.p_id=#{id} OR rt.p_id=#{id}) OR " +
-            "EXISTS(SELECT 1 FROM sys_result_item WHERE p_id=#{id}))")
     boolean used(@Param("id") Integer id);
 
     /**
@@ -130,9 +109,6 @@ public interface ProjectTaskImportMapper {
      * @param task 待更新的完整导入字段
      * @return 更新记录数
      */
-    @Update("UPDATE sys_task SET category=#{category},task_name=#{taskName},standard=#{standard},score=#{score}," +
-            "is_file=#{isFile},is_extend=#{isExtend},remark=#{remark} " +
-            "WHERE id=#{id} AND p_id=#{pId} AND source_project_item_id=#{sourceProjectItemId}")
     int updateTask(Task task);
 
     /**
@@ -141,7 +117,6 @@ public interface ProjectTaskImportMapper {
      * @param id 结果ID
      * @return 结果记录，不存在时返回 null
      */
-    @Select("SELECT * FROM sys_result WHERE id=#{id}")
     Result result(@Param("id") Integer id);
 
     /**
@@ -150,7 +125,6 @@ public interface ProjectTaskImportMapper {
      * @param id 扩展项ID
      * @return 扩展项记录，不存在时返回 null
      */
-    @Select("SELECT * FROM sys_result_extend WHERE id=#{id}")
     ResultExtend extension(@Param("id") Integer id);
 
     /**
@@ -159,7 +133,6 @@ public interface ProjectTaskImportMapper {
      * @param id 任务ID
      * @return 任务记录，不存在时返回 null
      */
-    @Select("SELECT * FROM sys_task WHERE id=#{id}")
     Task task(@Param("id") String id);
 
     /**
@@ -170,6 +143,5 @@ public interface ProjectTaskImportMapper {
      * @param uId 用户ID
      * @return 匹配的结果记录数
      */
-    @Select("SELECT COUNT(*) FROM sys_result WHERE p_id=#{pId} AND task_id=#{taskId} AND u_id=#{uId}")
     int scoreResults(@Param("pId") Integer pId, @Param("taskId") String taskId, @Param("uId") Integer uId);
 }

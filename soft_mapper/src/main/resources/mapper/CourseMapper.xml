@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    课程数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.CourseMapper">
+
+    <!--
+        查询学院名称
+        返回：去重后的学院名称列表。
+    -->
+    <select id="getColege" resultType="String">
+        select DISTINCT college
+        from sys_course
+    </select>
+
+    <!--
+        按学院查询班级名称
+        参数：college（学院名称）。
+        返回：指定学院去重后的班级名称列表。
+    -->
+    <select id="getClassByCollege" resultType="String">
+        select DISTINCT classes
+        from sys_course
+        where college = #{college}
+    </select>
+
+</mapper>

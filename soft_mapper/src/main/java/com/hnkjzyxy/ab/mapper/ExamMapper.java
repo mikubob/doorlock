@@ -3,6 +3,7 @@ package com.hnkjzyxy.ab.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hnkjzyxy.ab.model.Exam;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public interface ExamMapper extends BaseMapper<Exam> {
      * 按电子班牌SN删除考试安排
      *
      * @param boardSn 电子班牌SN
-     * @return 操作或条件校验结果
+     * @return 至少删除一条考试安排时返回 true
      */
-    boolean removeByBoardSn(Long boardSn);
+    boolean removeByBoardSn(@Param("boardSn") Long boardSn);
 }

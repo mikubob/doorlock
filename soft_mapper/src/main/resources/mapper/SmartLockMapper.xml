@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    智能锁数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.SmartLockMapper">
+
+    <!--
+        根据ID查询智能锁信息（联表查询教室信息）
+        参数：lockId（智能锁唯一标识符）。
+        返回：智能锁信息。
+        说明：联表读取教室信息，教室编号两侧统一使用 utf8mb4_general_ci 排序规则比较。
+    -->
+    <select id="selectById" resultType="com.hnkjzyxy.ab.model.LockInfo">
+        SELECT
+            l.lock_id as lockId,
+            l.ip_address as ipAddress,
+            l.sn_code as snCode,
+            l.port_number as portNumber,
+            l.switch_status as switchStatus,
+            l.JSH as classroomNumber,
+            l.remarks,
+            c.SKDD as classroomName,
+            c.XQMC as campusName,
+            c.JZWMC as buildingName,
+            c.floor
+        FROM sys_lock_info l
+        LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci
+        WHERE l.lock_id = #{lockId}
+    </select>
+
+    <!--
+        根据电子班牌ID查询智能锁信息（联表查询教室信息）
+        参数：boardSn（智能班牌的sn）。
+        返回：智能锁信息。
+        说明：联表读取教室信息，教室编号两侧统一使用 utf8mb4_general_ci 排序规则比较。
+    -->
+    <select id="selectByBoardSn" resultType="com.hnkjzyxy.ab.model.LockInfo">
+        SELECT
+            l.lock_id as lockId,
+            l.ip_address as ipAddress,
+            l.sn_code as snCode,
+            l.port_number as portNumber,
+            l.switch_status as switchStatus,
+            l.JSH as classroomNumber,
+            l.remarks,
+            c.SKDD as classroomName,
+            c.XQMC as campusName,
+            c.JZWMC as buildingName,
+            c.floor
+        FROM sys_lock_info l
+        LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci
+        WHERE c.board_sn = #{boardSn}
+    </select>
+
+    <!--
+        查询所有智能锁信息（联表查询教室信息）
+        返回：智能锁列表。
+        说明：联表读取教室信息，教室编号两侧统一使用 utf8mb4_general_ci 排序规则比较。
+    -->
+    <select id="selectAll" resultType="com.hnkjzyxy.ab.model.LockInfo">
+        SELECT
+            l.lock_id as lockId,
+            l.ip_address as ipAddress,
+            l.sn_code as snCode,
+            l.port_number as portNumber,
+            l.switch_status as switchStatus,
+            l.JSH as classroomNumber,
+            l.remarks,
+            c.SKDD as classroomName,
+            c.XQMC as campusName,
+            c.JZWMC as buildingName,
+            c.floor,
+            c.board_sn as boardSn
+        FROM sys_lock_info l
+        LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci
+    </select>
+
+    <!--
+        根据教室编号查询智能锁
+        参数：classroomNumber（教室编号）。
+        返回：智能锁信息。
+        说明：联表读取教室信息，教室编号两侧统一使用 utf8mb4_general_ci 排序规则比较。
+    -->
+    <select id="selectByClassroom" resultType="com.hnkjzyxy.ab.model.LockInfo">
+        SELECT
+            l.lock_id as lockId,
+            l.ip_address as ipAddress,
+            l.sn_code as snCode,
+            l.port_number as portNumber,
+            l.switch_status as switchStatus,
+            l.JSH as classroomNumber,
+            l.remarks,
+            c.SKDD as classroomName,
+            c.XQMC as campusName,
+            c.JZWMC as buildingName,
+            c.floor
+        FROM sys_lock_info l
+        LEFT JOIN sys_classroom c ON l.JSH COLLATE utf8mb4_general_ci = c.JSH COLLATE utf8mb4_general_ci
+        WHERE l.JSH = #{classroomNumber}
+    </select>
+
+    <!--
+        新增智能锁信息
+        参数：lockInfo（智能锁对象）。
+        返回：影响行数。
+        说明：新增时开关状态固定为 0，不启用生成主键回填。
+    -->
+    <insert id="insert" useGeneratedKeys="false">
+        INSERT INTO sys_lock_info(ip_address, sn_code, port_number, switch_status, JSH, remarks)
+        VALUES(#{ipAddress}, #{snCode}, #{portNumber}, 0, #{classroomNumber}, #{remarks})
+    </insert>
+
+    <!--
+        更新智能锁信息
+        参数：lockInfo（智能锁对象）。
+        返回：影响行数。
+        说明：仅更新教室编号、开关状态及备注，显式传入的空值也会写入数据库。
+    -->
+    <update id="update">
+        UPDATE sys_lock_info
+        SET JSH = #{classroomNumber}, switch_status = #{switchStatus}, remarks = #{remarks}
+        WHERE lock_id = #{lockId}
+    </update>
+
+    <!--
+        更新智能锁开关状态（修复单引号转义问题）
+        参数：lockId（智能锁ID）；switchStatus（开关状态）。
+        返回：影响行数。
+    -->
+    <update id="updateSwitchStatus">
+        UPDATE sys_lock_info
+        SET switch_status = #{switchStatus}
+        WHERE lock_id = #{lockId}
+    </update>
+
+    <!--
+        根据ID删除智能锁信息
+        参数：lockId（智能锁唯一标识符）。
+        返回：影响行数。
+    -->
+    <delete id="deleteById">
+        DELETE
+        FROM sys_lock_info
+        WHERE lock_id = #{lockId}
+    </delete>
+
+    <!--
+        统计门禁设备数量
+        返回：智能锁设备记录数。
+    -->
+    <select id="countNum" resultType="int">
+        SELECT count(*)
+        FROM sys_lock_info
+    </select>
+
+    <!--
+        新增门禁设备的完整信息
+        参数：lockInfo（智能门锁设备信息）。
+        返回：受影响的记录数量。
+        说明：按输入实体写入开关状态及设备字段，不使用固定的初始开关状态。
+    -->
+    <insert id="addLockInfoAll">
+        INSERT INTO sys_lock_info (ip_address, sn_code, port_number, switch_status, JSH, remarks)
+        VALUES (#{ipAddress}, #{snCode}, #{portNumber}, #{switchStatus}, #{classroomNumber}, #{remarks})
+    </insert>
+
+</mapper>

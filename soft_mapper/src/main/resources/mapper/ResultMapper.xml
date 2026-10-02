@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    考核结果数据访问 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.ResultMapper">
 
 
+    <!--
+        查询指定用户集合在项目分类下的评分
+        参数：pId（考核项目ID）；uIds（用户ID集合）；category（任务分类）。
+        返回：指定用户集合在项目分类下的评分列表。
+        说明：按用户汇总已完成结果的分数；uIds 必须包含至少一个用户ID。
+    -->
     <select id="checkResultScore" resultType="integer">
         select sum(re.score) from sys_result re,sys_task ta where re.is_finish = 1
         and re.p_id = #{pId} and ta.p_id = #{pId}
@@ -18,12 +27,23 @@
     <!--        <if test="num != null and num != ''"> and DATE_FORMAT(update_time,'%Y') = #{num}</if>-->
     <!--    </select>-->
 
+    <!--
+        查询雷达图统计所需的已完成结果项目ID
+        参数：pId（考核项目ID）；year（统计年度）；uId（用户ID）。
+        返回：满足雷达图查询条件的项目ID列表。
+    -->
     <select id="getPIdByRadar" resultType="integer">
         select p_id from sys_result where u_id = #{uId} and is_finish = 1
-        <if test="p_id != null and p_id != ''">and p_id = #{pId}</if>
+        <if test="pId != null">and p_id = #{pId}</if>
         <if test="year!= null and year != ''">and date_format(create_time,'%Y') = #{year}</if>
     </select>
 
+    <!--
+        查询指定用户集合的项目评分
+        参数：pId（考核项目ID）；uIds（用户ID集合）。
+        返回：指定用户集合的项目评分列表。
+        说明：按用户汇总项目评分；uIds 必须包含至少一个用户ID。
+    -->
     <select id="getProjectResult" resultType="integer">
         select sum(score) from sys_result where p_id = #{pId} and u_id in
         <foreach collection="uIds" item="id" open="(" close=")" separator=",">
@@ -33,13 +53,18 @@
     </select>
 
 
-    <select id="getUsersSubTaskScore" resultType="com.hnkjzyxy.ab.vo.SubTaskVo" parameterType="java.lang.String">
+    <!--
+        按项目名称和任务名称及分类查询子任务评分
+        参数：title（项目名称）；taskName（任务名称）；taskCategory（任务分类名称）。
+        返回：匹配项目名称、任务名称和分类的子任务评分列表。
+    -->
+    <select id="getUsersSubTaskScore" resultType="com.hnkjzyxy.ab.vo.SubTaskVo">
         select a.id, b.title ,b.id as projectId, b.start_time ,b.end_time, d.user_name, d.nick_name
         ,c.task_name,c.category,c.id as taskId,a.score
         ,d.user_id, c.score as highScore
         from sys_result a
         inner join sys_project b on a.p_id=b.id
-        inner join sys_task c on a.task_id=c.selectTaskByProjectAndTeacher
+        inner join sys_task c on a.task_id=c.id
         inner join sys_user d on a.u_id=d.user_id
         <where>
             <if test="title!=null and title !=''">and b.title =#{title}</if>
@@ -49,7 +74,12 @@
     </select>
 
 
-    <select id="getUsersSubTaskScoreById" resultType="com.hnkjzyxy.ab.vo.SubTaskVo" parameterType="java.lang.String">
+    <!--
+        通过 ID 查询子任务，参数只需要 ID 和限制的分数
+        参数：dto（子任务查询参数）。
+        返回：子任务分数列表。
+    -->
+    <select id="getUsersSubTaskScoreById" resultType="com.hnkjzyxy.ab.vo.SubTaskVo">
         select a.id, a.evidence ,b.title ,b.id as projectId, b.start_time ,b.end_time, d.user_name, d.nick_name
         ,c.task_name,c.category,c.id as taskId,a.score
         ,d.user_id, c.score as highScore
@@ -65,13 +95,18 @@
             <if test="limitScore!=null ">and a.score &gt;= #{limitScore}</if>
         </where>
     </select>
+    <!--
+        查询项目分类下指定教研室的评分
+        参数：pId（考核项目ID）；category（任务分类）；department（教研室名称）。
+        返回：指定教研室在项目分类下的评分列表。
+    -->
     <select id="selectScoreByDepartment" resultType="java.lang.Integer">
 
         select sum(re.score)
         from sys_role r
                  left join sys_user_role ur on ur.role_id = r.role_id
                  left join sys_user u on u.user_id = ur.user_id
-                 left join sys_result re on re.u_id = re.u_id
+                 left join sys_result re on re.u_id = u.user_id
                  left join sys_task ta on re.task_id = ta.id
         where r.role_desc = #{department}
           and re.p_id = #{pId}
@@ -80,22 +115,31 @@
 
 
     </select>
+    <!--
+        查询项目分类下的教研室和学院评分
+        参数：pId（考核项目ID）；category（任务分类）。
+        返回：项目分类下按教研室及学院汇总的评分列表。
+    -->
     <select id="selectScoreByDepartmentAndCollege" resultType="java.lang.Integer">
 
         select sum(re.score)
         from sys_role r
                  left join sys_user_role ur on ur.role_id = r.role_id
                  left join sys_user u on u.user_id = ur.user_id
-                 left join sys_result re on re.u_id = re.u_id
+                 left join sys_result re on re.u_id = u.user_id
                  left join sys_task ta on re.task_id = ta.id
-          and re.p_id = #{pId}
+        where re.p_id = #{pId}
           and ta.category = #{category}
-          and re.u_id = #{teacherId}
         GROUP BY r.role_name
 
 
     </select>
 
+    <!--
+        查询项目中指定教师的评分
+        参数：pId（考核项目ID）；teacher（教师用户ID字符串）。
+        返回：指定教师在项目中的评分列表。
+    -->
     <select id="selectScoreByTeacher" resultType="java.lang.Integer">
         SELECT SUM(re.score)
         FROM sys_result re
@@ -111,6 +155,11 @@
 
     </select>
 
+    <!--
+        批量更新子任务评分信息
+        参数：list（考核结果操作或查询参数）。
+        说明：按用户、项目和任务定位每条结果；list 必须非空，批量语句由外层事务统一控制。
+    -->
     <update id="updateBySubTaskName" parameterType="java.util.List">
 
 
@@ -124,8 +173,220 @@
         </foreach>
 
     </update>
-<select id="selectTaskByProjectAndTeacher" resultType="java.lang.String">
-    select task_id from sys_result where p_id=#{pId} and u_id=#{teacherId}
-</select>
+    <!--
+        查询项目中指定教师的任务ID
+        参数：pId（考核项目ID）；teacherId（教师编号）。
+        返回：指定教师在项目中的任务ID列表。
+    -->
+    <select id="selectTaskByProjectAndTeacher" resultType="java.lang.String">
+        select task_id from sys_result where p_id=#{pId} and u_id=#{teacherId}
+    </select>
+
+    <!--
+        统计用户在项目中状态为零或一的结果数量
+        参数：pId（考核项目ID）；uId（被考核用户ID）。
+        返回：用户在项目中未完成或已完成的结果记录数。
+    -->
+    <select id="selectByPId" resultType="Integer">
+        select count(*)
+        from sys_result
+        where (p_id = #{pId}
+        and u_id = #{uId})
+        and (is_finish = 0
+        or is_finish = 1)
+    </select>
+
+    <!--
+        统计用户指定月份创建的结果数量
+        参数：userId（用户ID）；year（统计年度）；month（统计月份）。
+        返回：用户在指定月份创建的结果记录数。
+    -->
+    <select id="getUserResultMonthCount" resultType="Integer">
+        select count(*)
+        from sys_result
+        where date_format(create_time,'%Y-%m') = concat(#{year},'-',#{month})
+        and u_id=#{userId}
+    </select>
+
+    <!--
+        统计用户指定日期完成的结果数量
+        参数：s（日期字符串）；userId（用户ID）。
+        返回：用户在指定日期创建且已完成的结果记录数。
+    -->
+    <select id="getUserResultWeekCount" resultType="Integer">
+        select count(*)
+        from sys_result
+        where date_format(create_time,'%Y-%m-%d') = #{s}
+        and u_id = #{userId}
+        and is_finish = 1
+    </select>
+
+    <!--
+        查询所有考核结果的佐证材料字段
+        返回：全部考核结果的佐证材料字段列表。
+    -->
+    <select id="getResultEvidence" resultType="String">
+        select evidence
+        from sys_result
+    </select>
+
+    <!--
+        查询用户项目结果的完成状态
+        参数：uId（被考核用户ID）；pId（考核项目ID）。
+        返回：步骤为零的首条结果完成状态，无匹配记录时返回 null。
+    -->
+    <select id="selectResultByPIdAndUId" resultType="Integer">
+        select is_finish
+        from sys_result
+        where u_id = #{uId}
+        and p_id = #{pId}
+        and step = 0
+        limit 1
+    </select>
+
+    <!--
+        查询用户指定项目的一条结果记录
+        参数：uId（被考核用户ID）；pId（考核项目ID）。
+        返回：考核结果信息。
+    -->
+    <select id="selectResult" resultType="com.hnkjzyxy.ab.model.Result">
+        select *
+        from sys_result
+        where u_id = #{uId}
+        and p_id = #{pId}
+        limit 1
+    </select>
+
+    <!--
+        查询用户指定年度已完成的结果
+        参数：num（统计年度）；uId（被考核用户ID）。
+        返回：考核结果列表。
+    -->
+    <select id="selectListByYear" resultType="com.hnkjzyxy.ab.model.Result">
+        select *
+        from sys_result
+        where DATE_FORMAT(update_time,'%Y') = #{num}
+        and u_id = #{uId}
+        and is_finish = 1
+    </select>
+
+    <!--
+        查询项目开始时间涉及的年度
+        参数：uId（兼容参数，当前查询不按用户过滤）。
+        返回：所有项目开始时间去重后的年度列表。
+        说明：uId 为接口兼容参数，当前语句不按用户过滤。
+    -->
+    <select id="getFinishScaleYears" resultType="String">
+        select distinct year(start_time)
+        from sys_project
+    </select>
+
+    <!--
+        查询项目中达到指定步骤且状态为一或四的用户ID
+        参数：pId（考核项目ID）；step（审批步骤）。
+        返回：满足审批步骤及完成状态条件的用户ID列表。
+    -->
+    <select id="getUserByResult" resultType="Integer">
+        select distinct u_id
+        from sys_result
+        where p_id = #{pId}
+        and step &gt;= #{step}
+        and (is_finish = 4
+        or is_finish = 1)
+    </select>
+
+    <!--
+        汇总用户在指定项目中的结果分数
+        参数：uId（被考核用户ID）；pId（考核项目ID）。
+        返回：用户在项目中的评分总和，无匹配记录时返回 null。
+    -->
+    <select id="findTotalScore" resultType="Integer">
+        select sum(score)
+        from sys_result
+        where u_id = #{uId}
+        and p_id = #{pId}
+    </select>
+
+    <!--
+        查询用户在项目中的结果完成状态
+        参数：uId（被考核用户ID）；pId（考核项目ID）。
+        返回：首条匹配结果的完成状态，无匹配记录时返回 null。
+    -->
+    <select id="findResultStatus" resultType="Integer">
+        select is_finish
+        from sys_result
+        where u_id = #{uId}
+        and p_id = #{pId}
+        limit 1
+    </select>
+
+    <!--
+        查询用户提交结果涉及的项目ID
+        参数：uId（用户ID）。
+        返回：用户提交结果涉及的项目ID列表，已去重。
+    -->
+    <select id="getProjectIds" resultType="Integer">
+        select distinct p_id
+        from sys_result
+        where u_id = #{uId}
+    </select>
+
+    <!--
+        查询用户指定项目的佐证材料字段
+        参数：pId（考核项目ID）；uId（用户ID）。
+        返回：用户在指定项目中的佐证材料字段列表。
+    -->
+    <select id="selectEvidenceList" resultType="String">
+        select evidence
+        from sys_result
+        where u_id = #{uId}
+        and p_id = #{pId}
+    </select>
+
+    <!--
+        查询指定角色下满足项目审批步骤及结果状态的用户ID
+        参数：role（角色ID）；pId（考核项目ID）；step（审批步骤）。
+        返回：满足角色、项目、审批步骤及完成状态条件的用户ID集合。
+    -->
+    <select id="getUserIdByRole" resultType="Integer">
+        select distinct re.u_id
+        from sys_result re,sys_user_role ur
+        where re.p_id = #{pId}
+        and re.step &gt;= #{step}
+        and (re.is_finish = 4
+        or re.is_finish = 1)
+        and ur.role_id = #{role}
+        and re.u_id = ur.user_id
+    </select>
+
+    <!--
+        查询满足项目审批步骤及结果状态的用户ID
+        参数：pId（考核项目ID）；step（审批步骤）。
+        返回：满足项目、审批步骤及完成状态条件的用户ID集合。
+    -->
+    <select id="selectUserIdByStep" resultType="Integer">
+        select distinct u_id
+        from sys_result
+        where p_id = #{pId}
+        and step &gt;= #{step}
+        and (is_finish = 4
+        or is_finish = 1)
+    </select>
+
+    <!--
+        查询用户是否具有满足项目审批步骤及状态的结果
+        参数：pId（考核项目ID）；step（审批步骤）；uId（用户ID）。
+        返回：符合条件的用户ID，无匹配结果时返回 null。
+    -->
+    <select id="checkResultByUId" resultType="Integer">
+        select u_id
+        from sys_result
+        where p_id = #{pId}
+        and u_id = #{uId}
+        and step &gt;= #{step}
+        and (is_finish = 4
+        or is_finish = 1)
+        limit 1
+    </select>
 
 </mapper>

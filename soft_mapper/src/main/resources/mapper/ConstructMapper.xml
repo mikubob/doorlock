@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    建设项目数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.ConstructMapper">
+
+    <!--
+        新增建设项目与参与人的关联记录
+        参数：conId（建设项目ID）；uIds（以逗号分隔的参与人ID字符串）。
+        说明：参与人ID按逗号分隔字符串整体写入，conId 指定关联的建设项目。
+    -->
+    <insert id="addConstructByUId">
+        insert into sys_construct_user(con_id, u_id)
+        VALUES(#{conId},#{uIds})
+    </insert>
+
+    <!--
+        查询用户参与的建设项目ID
+        参数：userId（用户ID）。
+        返回：用户参与的建设项目ID列表。
+        说明：使用 FIND_IN_SET 匹配逗号分隔的参与人ID，避免将部分ID误判为参与人。
+    -->
+    <select id="getConIds" resultType="Integer">
+        select con_id
+        from sys_construct_user
+        where find_in_set(#{userId},u_id)
+    </select>
+
+    <!--
+        查询用户创建的建设项目年度
+        参数：userId（用户ID）。
+        返回：用户创建的顶层建设项目年度集合。
+    -->
+    <select id="getConstructYears" resultType="String">
+        select year(create_time) as year
+        from sys_construct
+        where u_id = #{userId}
+        and p_id = 0
+        order by year desc
+    </select>
+
+    <!--
+        查询用户参与的建设项目年度
+        参数：ew（数据库查询条件）。
+        返回：满足查询条件的建设项目年度集合。
+        说明：ew 为 MyBatis-Plus QueryWrapper，保留框架生成的条件片段及其参数绑定。
+    -->
+    <select id="getConstructYearsByUser" resultType="String">
+        select year(create_time) as year
+        from sys_construct ${ew.customSqlSegment}
+    </select>
+
+    <!--
+        统计建设项目参与人关联记录数量
+        参数：id（建设项目ID）。
+        返回：建设项目参与人关联记录数量。
+    -->
+    <select id="getConstructById" resultType="Integer">
+        select count(*)
+        from sys_construct_user
+        where con_id = #{id}
+    </select>
+
+    <!--
+        更新建设项目的参与人ID集合
+        参数：conId（建设项目ID）；uIds（新的参与人ID字符串）。
+        说明：整体替换参与人ID字符串，按 conId 定位关联记录。
+    -->
+    <update id="updateConstructByUId">
+        update sys_construct_user
+        set u_id = #{uIds}
+        where con_id = #{conId}
+    </update>
+
+    <!--
+        查询建设项目的参与人ID字符串
+        参数：conId（建设项目ID）。
+        返回：以逗号分隔的参与人ID字符串，不存在时返回 null。
+    -->
+    <select id="getConstructUIdsById" resultType="String">
+        select u_id
+        from sys_construct_user
+        where con_id = #{conId}
+    </select>
+
+</mapper>

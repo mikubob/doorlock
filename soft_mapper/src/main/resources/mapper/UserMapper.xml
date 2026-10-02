@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    用户数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.UserMapper">
+
+    <!--
+        查询用户有权访问的菜单ID
+        参数：userId（用户ID）。
+        返回：用户有权访问的菜单ID集合。
+    -->
+    <select id="getNavMenu" resultType="Long">
+        SELECT t2.menu_id
+        from sys_user_role t1
+        INNER JOIN sys_role_menu t2 on t1.role_id = t2.role_id
+        WHERE t1.user_id = #{userId}
+        GROUP BY t2.menu_id
+    </select>
+
+    <!--
+        按用户名查询用户展示信息
+        参数：username（用户名）。
+        返回：用户展示信息。
+    -->
+    <select id="getUserInfo" resultType="com.hnkjzyxy.ab.vo.UserVo">
+        select user_id userId,avatar,nick_name nickName,user_name userName,email,phone,sex,major
+        from sys_user
+        where user_name = #{username}
+        and status = 1
+    </select>
+
+    <!--
+        查询用户展示信息列表
+        返回：用户展示信息列表。
+    -->
+    <select id="getUserVoList" resultType="com.hnkjzyxy.ab.vo.UserVo">
+        select distinct A.user_id userId,A.nick_name nickName,A.user_name userName
+        FROM `sys_user` A
+        join sys_user_role B on A.user_id = B.user_id
+        join sys_role C on B.role_id = C.role_id
+        where C.weight != 10
+        and C.role_status = 1
+        and A.status = 1
+    </select>
+
+    <!--
+        查询可参与审批的用户展示信息
+        返回：用户展示信息列表。
+    -->
+    <select id="getApproveUsers" resultType="com.hnkjzyxy.ab.vo.UserVo">
+        select distinct A.user_id userId,A.nick_name nickName,A.user_name userName
+        FROM `sys_user` A
+        join sys_user_role B on A.user_id = B.user_id
+        join sys_role C on B.role_id = C.role_id
+        where C.weight &gt;= 5
+        and C.weight != 10
+        and C.role_status = 1
+        and A.status = 1
+    </select>
+
+    <!--
+        按ID查询用户展示信息
+        参数：userId（用户ID）。
+        返回：用户展示信息。
+    -->
+    <select id="getUserInfoById" resultType="com.hnkjzyxy.ab.vo.UserVo">
+        select user_id userId,avatar,nick_name nickName,user_name userName,email,phone,sex,major
+        from sys_user
+        where user_id = #{userId}
+        and status = 1
+    </select>
+
+</mapper>

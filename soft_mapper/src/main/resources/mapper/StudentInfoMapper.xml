@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    (StudentInfo)表数据库 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.StudentInfoMapper">
+
+    <!--
+        查询学生信息中的班级名称
+        返回：学生信息中的班级名称列表，已去重。
+        说明：查询所有学生记录中的班级名称，不额外追加逻辑删除过滤条件。
+    -->
+    <select id="selectClassNameList" resultType="String">
+        select distinct class_name
+        from sys_student_info
+    </select>
+
+</mapper>

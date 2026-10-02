@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    审批流程数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.FlowMapper">
+
+    <!--
+        按项目和节点类型查询流程节点
+        参数：cc（流程节点类型）；pId（考核项目ID）。
+        返回：流程节点列表。
+    -->
+    <select id="getFlowList" resultType="com.hnkjzyxy.ab.model.FlowTask">
+        SELECT B.u_id as uId,B.role_id as roleId
+        FROM `sys_flow` A
+        INNER JOIN sys_flow_task B on A.id = B.parent_id
+        WHERE A.p_id = #{pId}
+        and A.status = 1
+        and B.type = #{cc}
+        and B.status = 1
+    </select>
+
+    <!--
+        按角色ID查询用户ID
+        参数：id（角色ID）。
+        返回：指定角色关联的用户ID列表。
+    -->
+    <select id="findUserIdByRoleId" resultType="Integer">
+        select user_id
+        from sys_user_role
+        where role_id = #{id}
+    </select>
+
+    <!--
+        查询用户相关审批流程的年度
+        参数：userId（用户ID，为 null 时查询所有用户的流程年度）。
+        返回：去重后的流程年度列表，按年度降序排列。
+        说明：userId 为空时省略用户过滤条件；查询结果按年度降序排列。
+    -->
+    <select id="getFlowYears" resultType="String">
+        select distinct year(create_time) as createTime
+        from sys_flow
+        <where>
+            <if test="userId!=null">
+                user_id = #{userId}
+            </if>
+        </where>
+        order by createTime desc
+    </select>
+
+    <!--
+        更新指定项目的流程状态
+        参数：pId（考核项目ID）；status（状态值）。
+        说明：按项目更新全部流程状态，不追加有效状态条件，以支持状态恢复。
+    -->
+    <update id="updateFLowStatusByPId">
+        update sys_flow
+        set status = #{status}
+        where p_id = #{pId}
+    </update>
+
+    <!--
+        查询项目对应的流程ID
+        参数：id（考核项目ID）。
+        返回：项目对应的流程ID，不存在时返回 null。
+    -->
+    <select id="getFLowByProjectId" resultType="Integer">
+        select id
+        from sys_flow
+        where  p_id = #{id}
+    </select>
+
+</mapper>

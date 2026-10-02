@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    审批明细数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.ResultItemMapper">
+
+    <!--
+        查询结果在指定审批步骤的审批明细
+        参数：id（考核结果ID，对应审批明细的父记录ID）；sort（审批步骤排序值）。
+        返回：审批明细信息。
+    -->
+    <select id="findResultItem" resultType="com.hnkjzyxy.ab.model.ResultItem">
+        select *
+        from sys_result_item
+        where parent_id = #{id}
+        and step = #{sort}
+        order by create_time desc
+    </select>
+
+    <!--
+        查询结果的审批明细列表
+        参数：id（考核结果ID，对应审批明细的父记录ID）。
+        返回：审批明细列表。
+    -->
+    <select id="findResultItemList" resultType="com.hnkjzyxy.ab.model.ResultItem">
+        select *
+        from sys_result_item
+        where parent_id = #{id}
+        order by create_time desc
+    </select>
+
+    <!--
+        查询结果最高审批步骤对应的评分信息
+        参数：id（考核结果ID，对应审批明细的父记录ID）。
+        返回：审批明细信息。
+    -->
+    <select id="getMaxStepApproveScore" resultType="com.hnkjzyxy.ab.model.ResultItem">
+        select A.score
+        from sys_result_item A
+        where id = (select max(step)
+        from sys_result_item
+        where parent_id = #{id}
+        and is_flag = 0)
+        and parent_id = #{id}
+        and is_flag = 0
+    </select>
+
+    <!--
+        新增审批步骤的评分及意见记录
+        参数：parentId（父记录ID）；sort（审批步骤排序值）；score（评分值）；userId（用户ID）；opinion（审批意见）；isFlag（是否退回标记）。
+        说明：仅写入审批步骤、评分及意见等指定字段，其余字段沿用数据库默认值。
+    -->
+    <insert id="submitApprove">
+        insert sys_result_item(parent_id,step,score,user_id,opinion,is_flag)
+        values(#{parentId},#{sort},#{score},#{userId},#{opinion},#{isFlag})
+    </insert>
+
+    <!--
+        统计指定项目、被考核人和审批人的已审批步骤记录
+        参数：pId（考核项目ID）；uId（被考核用户ID）；userId（用户ID）；step（审批步骤）。
+        返回：符合项目、被考核人、审批人及步骤条件的已审批记录数。
+    -->
+    <select id="selectStep" resultType="Integer">
+        select count(*)
+        from sys_result_item
+        where u_id = #{uId}
+        and p_id = #{pId}
+        and step = #{step}
+        and user_id = #{userId}
+        and status = 1
+    </select>
+
+    <!--
+        查询指定项目、用户和步骤下的待处理退回意见
+        参数：pId（考核项目ID）；uId（被考核用户ID）；step（审批步骤）。
+        返回：审批明细列表。
+    -->
+    <select id="findResultOpinion" resultType="com.hnkjzyxy.ab.model.ResultItem">
+        select *
+        from sys_result_item
+        where u_id = #{uId}
+        and p_id = #{pId}
+        and step = #{step}
+        and is_flag = 1
+        and status = 0
+    </select>
+
+</mapper>

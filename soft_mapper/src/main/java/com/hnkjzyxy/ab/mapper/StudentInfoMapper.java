@@ -1,9 +1,10 @@
 package com.hnkjzyxy.ab.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hnkjzyxy.ab.model.StudentInfo;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -19,16 +20,16 @@ public interface StudentInfoMapper extends BaseMapper<StudentInfo> {
      * 按学号查询学生录取记录
      *
      * @param studentId 学生学号
-     * @return 学生录取信息信息
+     * @return 有效学生录取信息，不存在时返回 null
      */
-    @Select("select * from sys_student_info where student_id = #{studentId} and del_flag = 1")
-    StudentInfo getStudentInfoByStudentId(String studentId);
+    default StudentInfo getStudentInfoByStudentId(@Param("studentId") String studentId) {
+        return selectOne(new LambdaQueryWrapper<StudentInfo>().eq(StudentInfo::getStudentId, studentId));
+    }
 
     /**
      * 查询学生信息中的班级名称
      *
-     * @return 查询结果列表
+     * @return 学生信息中的班级名称列表，已去重
      */
-    @Select("select distinct class_name from sys_student_info")
     List<String> selectClassNameList();
 }

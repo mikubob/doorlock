@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    (MajorDetails)表数据库 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.MajorDetailsMapper">
+
+    <!--
+        按增量更新有效专业的已录取人数
+        参数：id（专业录取名额ID）；updated（已录取人数的增量，负数表示减少）。
+        返回：受影响的记录数量。
+        说明：使用数据库原子加法累加人数，仅更新 del_flag 为 1 的有效专业。
+    -->
+    <update id="updateAccepted">
+        UPDATE sys_major_details
+        SET accepted = accepted + #{updated}
+        WHERE id = #{id}
+        AND del_flag = 1
+    </update>
+
+</mapper>

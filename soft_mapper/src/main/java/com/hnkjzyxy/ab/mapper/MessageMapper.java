@@ -1,9 +1,9 @@
 package com.hnkjzyxy.ab.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hnkjzyxy.ab.model.Message;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Update;
 
 /**
  * 用户消息数据访问接口
@@ -13,7 +13,6 @@ import org.apache.ibatis.annotations.Update;
  * @author: Spell a
  * @date: 2023/4/18 20:11
  */
-//@CacheNamespace(implementation = MybatisRedisCache.class)
 public interface MessageMapper extends BaseMapper<Message> {
 
     /**
@@ -21,6 +20,8 @@ public interface MessageMapper extends BaseMapper<Message> {
      *
      * @param userId 用户ID
      */
-    @Update("update sys_message set status = 1 where user_id = #{userId}")
-    void readNotice(@Param("userId") Integer userId);
+    default void readNotice(@Param("userId") Integer userId) {
+        update(null, new LambdaUpdateWrapper<Message>()
+                .eq(Message::getUserId, userId).set(Message::getStatus, 1));
+    }
 }

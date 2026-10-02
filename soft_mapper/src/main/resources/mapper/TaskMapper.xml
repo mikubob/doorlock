@@ -1,13 +1,27 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    考核任务数据访问 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.TaskMapper">
 
+    <!--
+        按项目汇总任务分类指标
+        参数：pId（考核项目ID）。
+        返回：按任务分类汇总的项目指标列表。
+    -->
     <select id="selectGroupMetrics" resultType="com.hnkjzyxy.ab.dto.TaskDto">
         select category, sum(score) as score
         from sys_task
         where p_id = #{pId}
         GROUP BY category
     </select>
+    <!--
+        按项目和任务集合汇总教师任务指标
+        参数：pId（考核项目ID）；taskId（任务ID）。
+        返回：指定任务集合按分类汇总的教师指标列表。
+        说明：按任务分类汇总分数；taskId 必须包含至少一个任务ID。
+    -->
     <select id="selectTeachGroupMetrics" resultType="com.hnkjzyxy.ab.dto.TaskDto">
         select category, sum(score) as score
         from sys_task
@@ -17,4 +31,16 @@
         </foreach>
         GROUP BY category
     </select>
+    <!--
+        查询项目指定分类下的任务名称
+        参数：pId（考核项目ID）；category（任务分类）。
+        返回：指定项目及分类下去重后的任务名称列表。
+    -->
+    <select id="getTaskByCategoryName" resultType="String">
+        SELECT distinct t.task_name
+        FROM sys_task t
+        WHERE t.category = #{category}
+        and t.p_id = #{pId}
+    </select>
+
 </mapper>

@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    课程安排数据访问 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.CourseScheduleMapper">
 
-    <!-- 结果映射 -->
+    <!--
+        课表字段映射，将教务系统的 KCMC、KKXND、JSH、JSXM 等列映射为课表实体属性。
+    -->
     <resultMap id="CourseScheduleResultMap" type="com.hnkjzyxy.ab.model.CourseSchedule">
         <id property="id" column="id"/>
         <result property="courseName" column="KCMC"/>
@@ -28,7 +33,11 @@
         <result property="updateTime" column="update_time"/>
     </resultMap>
 
-    <!-- 动态条件查询课程列表 -->
+    <!--
+        动态条件查询课程列表
+        参数：courseSchedule（课表信息）。
+        返回：课表列表。
+    -->
     <select id="selectListByCondition" resultMap="CourseScheduleResultMap">
         SELECT scs.*, sc.floor FROM sys_course_schedule scs
         LEFT JOIN sys_classroom sc ON scs.JSH COLLATE utf8mb4_general_ci = sc.JSH COLLATE utf8mb4_general_ci

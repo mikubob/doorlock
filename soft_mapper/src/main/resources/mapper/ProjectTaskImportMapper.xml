@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    项目任务导入专用数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.ProjectTaskImportMapper">
+
+    <!--
+        锁定项目记录并读取当前状态
+        参数：id（项目ID）。
+        返回：项目信息，不存在时返回 null。
+        说明：必须在业务事务内调用；行锁持有到事务结束，flushCache 清空本地缓存以避免读取锁前快照。
+    -->
+    <select id="lockProject" resultType="com.hnkjzyxy.ab.model.Project" flushCache="true">
+        SELECT *
+        FROM sys_project
+        WHERE id=#{id} FOR UPDATE
+    </select>
+
+    <!--
+        读取项目分类或子项的原始字段
+        参数：id（来源记录ID）。
+        返回：原始来源数据，不存在时返回 null。
+        说明：读取来源原始字段，供导入链路验证归属和来源类型。
+    -->
+    <select id="source" resultType="com.hnkjzyxy.ab.model.ProjectItemSource">
+        SELECT *
+        FROM sys_project_item
+        WHERE id=#{id}
+    </select>
+
+    <!--
+        查询项目当前任务集合
+        参数：id（项目ID）。
+        返回：项目任务列表。
+    -->
+    <select id="tasks" resultType="com.hnkjzyxy.ab.model.Task">
+        SELECT *
+        FROM sys_task
+        WHERE p_id=#{id}
+    </select>
+
+    <!--
+        查询项目导入审核及暂存冻结状态
+        参数：id（项目ID）。
+        返回：持久化状态，尚未迁移时返回 null。
+    -->
+    <select id="state" resultType="com.hnkjzyxy.ab.model.ProjectImportState">
+        SELECT *
+        FROM sys_project_import_state
+        WHERE project_id=#{id}
+    </select>
+
+    <!--
+        初始化新建项目的导入审核状态
+        参数：id（新建项目ID）。
+        返回：插入记录数。
+    -->
+    <insert id="initialize">
+        INSERT INTO sys_project_import_state(project_id,legacy_reviewed,review_reference)
+        VALUES(#{id},1,'created-by-t04')
+    </insert>
+
+    <!--
+        记录首次暂存时间，已有标记保持原值
+        参数：id（项目ID）。
+        返回：更新记录数。
+        说明：通过 COALESCE 仅记录首次暂存时间，已有时间不被后续暂存覆盖。
+    -->
+    <update id="markStaged">
+        UPDATE sys_project_import_state
+        SET first_staged_at=COALESCE(first_staged_at,NOW())
+        WHERE project_id=#{id}
+    </update>
+
+    <!--
+        核验认证主体对应的有效用户
+        参数：id（认证用户ID）；name（认证用户名（工号））。
+        返回：匹配的启用用户数量。
+    -->
+    <select id="activeUser" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_user
+        WHERE user_id=#{id}
+        AND user_name=#{name}
+        AND status=1
+    </select>
+
+    <!--
+        查询用户是否拥有有效 admin 角色
+        参数：id（用户ID）。
+        返回：有效管理员角色关系数量。
+    -->
+    <select id="activeAdmin" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_user_role ur
+        JOIN sys_role r ON r.role_id=ur.role_id
+        WHERE ur.user_id=#{id}
+        AND r.role_code='admin'
+        AND r.role_status=1
+    </select>
+
+    <!--
+        检查项目是否存在结果、扩展材料或审批历史
+        参数：id（项目ID）。
+        返回：存在任意业务引用时返回 true。
+        说明：包含零分、未完成及逻辑删除的审批历史；扩展项同时按任务和结果归属检查。
+    -->
+    <select id="used" resultType="boolean">
+        SELECT (EXISTS(SELECT 1
+        FROM sys_result r
+        LEFT JOIN sys_task t ON t.id=r.task_id
+        WHERE r.p_id=#{id}
+        OR t.p_id=#{id})
+        OR EXISTS(SELECT 1
+        FROM sys_result_extend e
+        LEFT JOIN sys_task t ON t.id=e.task_id
+        LEFT JOIN sys_result r ON r.id=e.result_id
+        LEFT JOIN sys_task rt ON rt.id=r.task_id
+        WHERE t.p_id=#{id}
+        OR r.p_id=#{id}
+        OR rt.p_id=#{id})
+        OR EXISTS(SELECT 1
+        FROM sys_result_item
+        WHERE p_id=#{id}))
+    </select>
+
+    <!--
+        按项目及来源更新任务评分字段
+        参数：task（待更新的完整导入字段）。
+        返回：更新记录数。
+        说明：按任务主键、项目及来源共同定位；保留主键，并显式写入空备注以支持字段清空。
+    -->
+    <update id="updateTask">
+        UPDATE sys_task
+        SET
+            category=#{category},
+            task_name=#{taskName},
+            standard=#{standard},
+            score=#{score},
+            is_file=#{isFile},
+            is_extend=#{isExtend},
+            remark=#{remark}
+        WHERE id=#{id}
+        AND p_id=#{pId}
+        AND source_project_item_id=#{sourceProjectItemId}
+    </update>
+
+    <!--
+        查询待校验的结果记录
+        参数：id（结果ID）。
+        返回：结果记录，不存在时返回 null。
+    -->
+    <select id="result" resultType="com.hnkjzyxy.ab.model.Result">
+        SELECT *
+        FROM sys_result
+        WHERE id=#{id}
+    </select>
+
+    <!--
+        查询待校验的扩展项记录
+        参数：id（扩展项ID）。
+        返回：扩展项记录，不存在时返回 null。
+    -->
+    <select id="extension" resultType="com.hnkjzyxy.ab.model.ResultExtend">
+        SELECT *
+        FROM sys_result_extend
+        WHERE id=#{id}
+    </select>
+
+    <!--
+        查询任务及其真实项目归属
+        参数：id（任务ID）。
+        返回：任务记录，不存在时返回 null。
+    -->
+    <select id="task" resultType="com.hnkjzyxy.ab.model.Task">
+        SELECT *
+        FROM sys_task
+        WHERE id=#{id}
+    </select>
+
+    <!--
+        查询指定用户在项目任务下的结果数量
+        参数：pId（项目ID）；taskId（任务ID）；uId（用户ID）。
+        返回：匹配的结果记录数。
+    -->
+    <select id="scoreResults" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_result
+        WHERE p_id=#{pId}
+        AND task_id=#{taskId}
+        AND u_id=#{uId}
+    </select>
+
+</mapper>

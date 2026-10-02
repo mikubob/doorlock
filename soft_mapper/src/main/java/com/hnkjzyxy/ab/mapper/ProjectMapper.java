@@ -7,13 +7,10 @@ import com.hnkjzyxy.ab.model.Project;
 import com.hnkjzyxy.ab.vo.ProjectItemVo;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 import java.util.Date;
 import java.util.List;
 
-//@CacheNamespace(implementation = MybatisRedisCache.class)
 /**
  * 考核项目数据访问接口
  */
@@ -25,8 +22,6 @@ public interface ProjectMapper extends BaseMapper<Project> {
      * @param id 考核项目ID
      * @return 考核项目信息
      */
-    @Select("select A.id,A.title,A.describe,A.send_name sendName,A.start_time startTime,A.end_time endTime,A.create_time createTime,A.status,A.is_collect isCollect " +
-            "from sys_project A where id = #{id}")
     Project getProjectById(@Param("id") String id);
 
     /**
@@ -34,26 +29,22 @@ public interface ProjectMapper extends BaseMapper<Project> {
      *
      * @param id 考核项目ID
      */
-    @Update("update sys_project set status = 1,create_time = now() where id = #{id}")
     void publishProject(@Param("id") String id);
 
     /**
      * 查询考核项目年度
      *
      * @param createName 项目创建人用户名
-     * @return 查询结果列表
+     * @return 匹配创建人的项目年度列表
      */
-    @Select("<script>select year(start_time) as startTime from sys_project" +
-            " where status != 3 <if test='createName != null'>and create_name = #{createName}</if> order by startTime desc</script>")
     List<String> getProjectYears(@Param("createName") String createName);
 
     /**
      * 查询用户相关考核项目年度
      *
      * @param wrapper 数据库查询条件
-     * @return 查询结果列表
+     * @return 满足查询条件的项目年度列表
      */
-    @Select("select year(start_time) as startTime from sys_project ${ew.customSqlSegment}")
     List<String> getUserProjectYears(@Param("ew") QueryWrapper<Project> wrapper);
 
     /**
@@ -61,16 +52,13 @@ public interface ProjectMapper extends BaseMapper<Project> {
      *
      * @param id 考核项目ID
      */
-    @Update("update sys_project set status = 0,create_time = null where id = #{id}")
-    void updateProjectById(Integer id);
+    void updateProjectById(@Param("id") Integer id);
 
     /**
      * 查询项目考核结果列表
      *
      * @return 项目考核展示结果列表
      */
-    @Select("select po.id as projectId,fo.id as flowId,po.`title` as projectName,po.`create_time` as createTime,po.`end_time` as endTime from sys_project as po,sys_flow as fo " +
-            "where po.status != 3 and po.id = fo.p_id")
     List<ProjectVo> getProjectAssessList();
 
     /**
@@ -87,9 +75,8 @@ public interface ProjectMapper extends BaseMapper<Project> {
      * 查询考核项目名称
      *
      * @param projectId 考核项目ID
-     * @return 查询得到的文本信息
+     * @return 项目名称，不存在或项目已删除时返回 null
      */
-    @Select("select title from sys_project where status != 3 and id = #{pId}")
     String getProjectName(@Param("pId") Integer projectId);
 
     /**
@@ -108,7 +95,6 @@ public interface ProjectMapper extends BaseMapper<Project> {
      * @param projectId 考核项目ID
      * @return 考核项目信息
      */
-    @Select("select start_time as startTime,end_time as endTime from sys_project where id = #{pId}")
     Project getProjectTime(@Param("pId") Integer projectId);
 
     /**
@@ -117,7 +103,6 @@ public interface ProjectMapper extends BaseMapper<Project> {
      * @param title 项目名称
      * @return 同名考核项目数量
      */
-    @Select("select count(*) from sys_project where title = #{title}")
     Integer selectProjectName(@Param("title") String title);
 
     /**
@@ -137,7 +122,6 @@ public interface ProjectMapper extends BaseMapper<Project> {
      */
     List<FlowTask> getColumnarProjects(@Param("year") String year, @Param("pId") Integer projectId);
 
-    //@Select("select id,title from sys_project where date_format(start_time,'%Y') = #{year} and status = 1")
     /**
      * 按年度查询考核项目
      *
@@ -146,6 +130,7 @@ public interface ProjectMapper extends BaseMapper<Project> {
      * @return 考核项目列表
      */
     List<Project> getProjectByYear(@Param("year") String year, @Param("pIds") List<Integer> pIds);
+
     /**
      * 按年度和学院查询考核项目
      *
@@ -154,32 +139,29 @@ public interface ProjectMapper extends BaseMapper<Project> {
      * @param college 学院名称
      * @return 考核项目列表
      */
-    List<Project> getProjectAndCollegeByYear(@Param("year") String year, @Param("pIds") List<Integer> pIds,String college);
+    List<Project> getProjectAndCollegeByYear(@Param("year") String year, @Param("pIds") List<Integer> pIds,@Param("college") String college);
 
-    //@Select("select distinct year(start_time) from sys_project where status = 1")
     /**
      * 查询相关考核项目的年度
      *
      * @param pIds 考核项目ID集合
-     * @return 查询结果列表
+     * @return 指定项目集合去重后的年度列表
      */
     List<String> getYearByProject(@Param("pIds") List<Integer> pIds);
-
 
     /**
      * 查询项目的任务分类名称
      *
      * @param projectId 考核项目ID
-     * @return 查询结果列表
+     * @return 指定项目去重后的任务分类名称列表
      */
-    @Select("select distinct category  from sys_task where p_id=#{projectId}")
     List<String> getCategoryByProjectName(@Param("projectId") Integer projectId);
 
     /**
      * 查询项目分类及子项展示信息
      *
      * @param projectId 考核项目ID
-     * @return 查询结果列表
+     * @return 项目分类及子项的展示信息列表
      */
     List<ProjectItemVo> getProjectItemById(@Param("projectId") Integer projectId);
 }

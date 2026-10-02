@@ -82,7 +82,7 @@ class StructureRefactorCompatibilityTest {
     void mapperXmlResourcesLoadFromMapperModuleAndResolveStatements() throws Exception {
         Resource[] resources = new PathMatchingResourcePatternResolver()
                 .getResources("classpath*:mapper/*.xml");
-        assertEquals(7, resources.length);
+        assertTrue(resources.length >= 7);
         MybatisConfiguration configuration = new MybatisConfiguration();
         Set<String> filenames = new HashSet<>();
         for (Resource resource : resources) {

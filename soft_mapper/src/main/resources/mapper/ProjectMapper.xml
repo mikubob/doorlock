@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    考核项目数据访问 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.ProjectMapper">
 
+    <!--
+        查询项目在指定时间范围内的流程节点
+        参数：startTime（查询开始时间）；endTime（查询结束时间）；pId（考核项目ID）。
+        返回：流程节点列表。
+        说明：仅返回有效流程的 CC 节点；项目时间范围必须覆盖传入的起止时间。
+    -->
     <select id="getProjectAssessFlow" resultType="com.hnkjzyxy.ab.model.FlowTask">
         select ta.u_id as uId,ta.role_id as roleId,po.id as projectId from sys_project as po,sys_flow as
         fo,sys_flow_task as ta
@@ -12,12 +21,23 @@
         and po.id = fo.p_id and fo.id = ta.parent_id and ta.type = 'CC'
     </select>
 
+    <!--
+        按项目ID和时间范围查询考核项目
+        参数：pId（考核项目ID）；startTime（查询开始时间）；endTime（查询结束时间）。
+        返回：考核项目信息。
+        说明：仅查询项目起止时间，并要求项目时间范围覆盖传入的起止时间。
+    -->
     <select id="getProjectByTime" resultType="com.hnkjzyxy.ab.model.Project">
         select start_time as startTime,end_time as endTime from sys_project where id = #{pId}
         <if test="startTime != null">and start_time &lt;= #{startTime}</if>
         <if test="endTime != null">and end_time >= #{endTime}</if>
     </select>
 
+    <!--
+        查询项目雷达图涉及的流程节点
+        参数：pId（考核项目ID）。
+        返回：流程节点信息。
+    -->
     <select id="getRadarProjects" resultType="com.hnkjzyxy.ab.model.FlowTask">
         select ta.u_id as uId, ta.role_id as roleId, po.id as projectId
         from sys_project as po,
@@ -31,6 +51,11 @@
           and ta.type = 'CC'
     </select>
 
+    <!--
+        查询年度柱状图涉及的项目流程节点
+        参数：year（统计年度）；pId（考核项目ID）。
+        返回：流程节点列表。
+    -->
     <select id="getColumnarProjects" resultType="com.hnkjzyxy.ab.model.FlowTask">
         select ta.u_id as uId,ta.role_id as roleId,po.id as projectId,po.title as projectName from sys_project as
         po,sys_flow as fo,sys_flow_task as ta
@@ -40,6 +65,11 @@
         <if test="year != null">and date_format(po.start_time,'%Y') = #{year}</if>
     </select>
 
+    <!--
+        按年度和学院查询考核项目
+        参数：year（统计年度）；pIds（考核项目ID集合）；college（学院名称）。
+        返回：考核项目列表。
+    -->
     <select id="getProjectAndCollegeByYear" resultType="com.hnkjzyxy.ab.model.Project">
         select id,title from sys_project where date_format(start_time,'%Y') = #{year} and status = 1
         <if test="pIds !=null and !pIds.isEmpty()">
@@ -52,6 +82,11 @@
             and college = #{college}
         </if>
     </select>
+    <!--
+        按年度查询考核项目
+        参数：year（统计年度）；pIds（考核项目ID集合）。
+        返回：考核项目列表。
+    -->
     <select id="getProjectByYear" resultType="com.hnkjzyxy.ab.model.Project">
         select id,title from sys_project where date_format(start_time,'%Y') = #{year} and status = 1
         <if test="pIds !=null and !pIds.isEmpty()">
@@ -63,6 +98,11 @@
 
     </select>
 
+    <!--
+        查询相关考核项目的年度
+        参数：pIds（考核项目ID集合）。
+        返回：指定项目集合去重后的年度列表。
+    -->
     <select id="getYearByProject" resultType="string">
         select distinct year(start_time) as years from sys_project where status = 1
         <if test="pIds !=null and !pIds.isEmpty()">
@@ -73,6 +113,11 @@
         </if>
         order by years desc
     </select>
+    <!--
+        查询项目分类及子项展示信息
+        参数：projectId（考核项目ID）。
+        返回：项目分类及子项的展示信息列表。
+    -->
     <select id="getProjectItemById" resultType="com.hnkjzyxy.ab.vo.ProjectItemVo">
         select one.pname as 'category',one.project_id,
                one.id as 'parentId',two.id,
@@ -88,6 +133,136 @@
         where one.project_id = #{projectId}
           and one.parent_id = 0
         ORDER BY one.order_by, two.order_by
+    </select>
+
+    <!--
+        查询考核项目详情
+        参数：id（考核项目ID）。
+        返回：考核项目信息。
+    -->
+    <select id="getProjectById" resultType="com.hnkjzyxy.ab.model.Project">
+        select
+            A.id,
+            A.title,
+            A.describe,
+            A.send_name sendName,
+            A.start_time startTime,
+            A.end_time endTime,
+            A.create_time createTime,
+            A.status,
+            A.is_collect isCollect
+        from sys_project A
+        where id = #{id}
+    </select>
+
+    <!--
+        将考核项目状态更新为已发布并记录发布时间
+        参数：id（考核项目ID）。
+        说明：将状态设置为已发布，并使用数据库当前时间记录发布时间。
+    -->
+    <update id="publishProject">
+        update sys_project
+        set status = 1,create_time = now()
+        where id = #{id}
+    </update>
+
+    <!--
+        查询考核项目年度
+        参数：createName（项目创建人用户名）。
+        返回：匹配创建人的项目年度列表。
+        说明：createName 为空时查询所有未删除项目的年度，按年度降序排列。
+    -->
+    <select id="getProjectYears" resultType="String">
+        select year(start_time) as startTime
+        from sys_project
+        where status != 3
+        <if test="createName != null">
+            and create_name = #{createName}
+        </if>
+        order by startTime desc
+    </select>
+
+    <!--
+        查询用户相关考核项目年度
+        参数：ew（数据库查询条件）。
+        返回：满足查询条件的项目年度列表。
+        说明：ew 为 MyBatis-Plus QueryWrapper，保留框架生成的条件片段及其参数绑定。
+    -->
+    <select id="getUserProjectYears" resultType="String">
+        select year(start_time) as startTime
+        from sys_project ${ew.customSqlSegment}
+    </select>
+
+    <!--
+        将考核项目恢复为未发布状态并清空发布时间
+        参数：id（考核项目ID）。
+        说明：恢复未发布状态，同时显式将发布时间清空为 NULL。
+    -->
+    <update id="updateProjectById">
+        update sys_project
+        set status = 0,create_time = null
+        where id = #{id}
+    </update>
+
+    <!--
+        查询项目考核结果列表
+        返回：项目考核展示结果列表。
+    -->
+    <select id="getProjectAssessList" resultType="com.hnkjzyxy.ab.vo.ProjectVo">
+        select
+            po.id as projectId,
+            fo.id as flowId,
+            po.`title` as projectName,
+            po.`create_time` as createTime,
+            po.`end_time` as endTime
+        from sys_project as po,sys_flow as fo
+        where po.status != 3
+        and po.id = fo.p_id
+    </select>
+
+    <!--
+        查询考核项目名称
+        参数：pId（考核项目ID）。
+        返回：项目名称，不存在或项目已删除时返回 null。
+    -->
+    <select id="getProjectName" resultType="String">
+        select title
+        from sys_project
+        where status != 3
+        and id = #{pId}
+    </select>
+
+    <!--
+        查询项目开始及结束时间
+        参数：pId（考核项目ID）。
+        返回：考核项目信息。
+    -->
+    <select id="getProjectTime" resultType="com.hnkjzyxy.ab.model.Project">
+        select start_time as startTime,end_time as endTime
+        from sys_project
+        where id = #{pId}
+    </select>
+
+    <!--
+        统计使用指定名称的考核项目数量
+        参数：title（项目名称）。
+        返回：同名考核项目数量。
+    -->
+    <select id="selectProjectName" resultType="Integer">
+        select count(*)
+        from sys_project
+        where title = #{title}
+    </select>
+
+    <!--
+        查询项目的任务分类名称
+        参数：projectId（考核项目ID）。
+        返回：指定项目去重后的任务分类名称列表。
+    -->
+    <select id="getCategoryByProjectName" resultType="String">
+        select distinct category
+        from sys_task
+        where p_id=#{projectId}
     </select>
 
 </mapper>

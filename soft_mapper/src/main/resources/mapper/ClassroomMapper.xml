@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    教室信息表数据库 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.ClassroomMapper">
 
-    <!-- 结果映射 -->
+    <!--
+        教室字段映射，将 JSH、SKDD、XQMC 和 JZWMC 分别映射为教室编号、名称、校区和教学楼。
+    -->
     <resultMap id="ClassroomResultMap" type="com.hnkjzyxy.ab.model.Classroom">
         <id property="id" column="id"/>
         <result property="boardSn" column="board_sn"/>
@@ -14,7 +19,11 @@
         <result property="boardSn" column="board_sn"/>
     </resultMap>
 
-    <!-- 动态条件查询教室列表 -->
+    <!--
+        动态查询教室列表
+        参数：classroom（教室查询条件）。
+        返回：教室列表。
+    -->
     <select id="getClassroomList" resultMap="ClassroomResultMap">
         SELECT sc.*, sli.switch_status as switchStatus FROM sys_classroom sc
             LEFT JOIN sys_lock_info sli on  sli.JSH COLLATE utf8mb4_general_ci = sc.JSH COLLATE utf8mb4_general_ci

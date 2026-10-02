@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    智能锁开关操作记录 Mapper
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.SwitchRecordMapper">
+
+    <!--
+        开关记录字段映射，switch_id 对应主键 switchId，operation_time 对应操作时间。
+    -->
+    <resultMap id="switchRecordMap" type="com.hnkjzyxy.ab.model.SwitchRecord">
+        <id property="switchId" column="switch_id"/>
+        <result property="lockId" column="lock_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="operationMethod" column="operation_method"/>
+        <result property="operationTime" column="operation_time"/>
+    </resultMap>
+
+    <!--
+        插入开关记录
+        参数：record（开关记录实体）。
+        返回：影响的行数。
+        说明：使用数据库自增主键，插入成功后将 switch_id 回填到实体的 switchId 属性。
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="switchId" keyColumn="switch_id">
+        INSERT INTO sys_operation_log(lock_id, user_id, operation_method, operation_time)
+        VALUES(#{lockId}, #{userId}, #{operationMethod}, #{operationTime})
+    </insert>
+
+    <!--
+        根据ID删除开关记录
+        参数：switchId（开关记录ID）。
+        返回：影响的行数。
+    -->
+    <delete id="deleteById">
+        DELETE
+        FROM sys_operation_log
+        WHERE switch_id = #{switchId}
+    </delete>
+
+    <!--
+        更新开关记录
+        参数：record（开关记录实体）。
+        返回：影响的行数。
+    -->
+    <update id="update">
+        UPDATE sys_operation_log
+        SET
+            lock_id = #{lockId},
+            user_id = #{userId},
+            operation_method = #{operationMethod},
+            operation_time = #{operationTime}
+        WHERE switch_id = #{switchId}
+    </update>
+
+    <!--
+        根据ID查询开关记录
+        参数：switchId（开关记录ID）。
+        返回：开关记录实体。
+    -->
+    <select id="selectById" resultMap="switchRecordMap">
+        SELECT *
+        FROM sys_operation_log
+        WHERE switch_id = #{switchId}
+    </select>
+
+    <!--
+        查询所有开关记录
+        返回：开关记录列表。
+    -->
+    <select id="selectAll" resultMap="switchRecordMap">
+        SELECT *
+        FROM sys_operation_log
+    </select>
+
+    <!--
+        根据锁ID查询开关记录
+        参数：lockId（锁ID）。
+        返回：开关记录列表。
+    -->
+    <select id="selectByLockId" resultMap="switchRecordMap">
+        SELECT *
+        FROM sys_operation_log
+        WHERE lock_id = #{lockId}
+    </select>
+
+    <!--
+        根据用户ID查询开关记录
+        参数：userId（用户ID）。
+        返回：开关记录列表。
+        说明：数据库 user_id 为文本字段，将输入用户ID显式转为字符后比较。
+    -->
+    <select id="selectByUserId" resultMap="switchRecordMap">
+        SELECT *
+        FROM sys_operation_log
+        WHERE user_id = CAST(#{userId} AS CHAR)
+    </select>
+
+    <!--
+        根据时间范围查询开关记录
+        参数：startTime（开始时间）；endTime（结束时间）。
+        返回：开关记录列表。
+    -->
+    <select id="selectByTimeRange" resultMap="switchRecordMap">
+        SELECT *
+        FROM sys_operation_log
+        WHERE operation_time BETWEEN #{startTime}
+        AND #{endTime}
+    </select>
+
+    <!--
+        统计某个锁的操作次数
+        参数：lockId（锁ID）。
+        返回：操作次数。
+    -->
+    <select id="countByLockId" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_operation_log
+        WHERE lock_id = #{lockId}
+    </select>
+
+    <!--
+        统计某个用户的操作次数
+        参数：userId（用户ID）。
+        返回：操作次数。
+        说明：数据库 user_id 为文本字段，显式按字符串比较以避免整型比较的隐式转换。
+    -->
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_operation_log
+        WHERE user_id = CAST(#{userId} AS CHAR)
+    </select>
+
+</mapper>

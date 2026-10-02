@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    考试信息表数据库 XML 映射
+-->
 <mapper namespace="com.hnkjzyxy.ab.mapper.ExamMapper">
 
-    <!-- 结果映射 -->
+    <!--
+        考试字段映射，明确考试编码、电子班牌SN、媒体地址、起止时间及状态的属性对应关系。
+    -->
     <resultMap id="ExamResultMap" type="com.hnkjzyxy.ab.model.Exam">
         <id property="id" column="id"/>
         <result property="examCode" column="exam_code"/>
@@ -17,7 +22,11 @@
         <result property="status" column="status"/>
     </resultMap>
 
-    <!-- 动态条件查询考试列表 -->
+    <!--
+        动态查询考试列表
+        参数：exam（考试查询条件）。
+        返回：考试列表。
+    -->
     <select id="getExamList" resultMap="ExamResultMap">
         SELECT * FROM sys_exam se
         left join sys_classroom sc ON se.board_sn = sc.board_sn
@@ -41,7 +50,11 @@
         ORDER BY start_time asc
     </select>
 
-    <!-- 根据SN码删除考试 -->
+    <!--
+        按电子班牌SN删除考试安排
+        参数：boardSn（电子班牌SN）。
+        返回：至少删除一条考试安排时返回 true。
+    -->
     <delete id="removeByBoardSn">
         DELETE FROM sys_exam WHERE board_sn = #{boardSn}
     </delete>

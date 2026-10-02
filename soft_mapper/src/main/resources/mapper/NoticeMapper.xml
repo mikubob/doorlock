@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--
+    通知公告数据访问 XML 映射
+-->
+<mapper namespace="com.hnkjzyxy.ab.mapper.NoticeMapper">
+
+    <!--
+        分页查询通知公告
+        参数：page（查询起始偏移量，从零开始）；limit（每页条数）。
+        返回：通知公告列表。
+        说明：page 为从零开始的记录偏移量；只查询有效公告，按创建时间降序排列。
+    -->
+    <select id="getNoticeListByPage" resultType="com.hnkjzyxy.ab.model.Notice">
+        select
+            id,
+            title,
+            content,
+            create_name createName,
+            read_count readCount,
+            status,
+            create_time createTime
+        from sys_notice
+        where status = 1
+        order by createTime desc
+        limit #{page},#{limit}
+    </select>
+
+    <!--
+        增加通知公告浏览次数
+        参数：id（通知公告ID）。
+        说明：在数据库中原子递增浏览次数，避免先读取再写回造成并发更新丢失。
+    -->
+    <update id="addPageView">
+        update sys_notice
+        set read_count = read_count+1
+        where id = #{id}
+    </update>
+
+    <!--
+        写入用户消息通知
+        参数：nickName（用户姓名）；msg（提示信息）。
+        说明：提示信息同时作为标题和正文，其余未指定字段沿用数据库默认值。
+    -->
+    <insert id="noticeInfo">
+        insert sys_notice(title,content,create_name)
+        values(#{msg},#{msg},#{nickName})
+    </insert>
+
+</mapper>
