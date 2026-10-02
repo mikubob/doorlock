@@ -1,5 +1,6 @@
-package com.hnkjzyxy.ab.exception;
+package com.hnkjzyxy.ab.handler;
 
+import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.result.ApiResult;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -10,8 +11,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+/**
+ * 全局异常处理器，将控制器相关异常转换为统一的接口响应。
+ */
 @RestControllerAdvice
-public class GlobalException {
+public class GlobalExceptionHandler {
 
     /**
      * 处理项目任务导入及生命周期校验异常
