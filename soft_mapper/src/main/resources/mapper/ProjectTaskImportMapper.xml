@@ -78,7 +78,7 @@
         参数：id（认证用户ID）；name（认证用户名（工号））。
         返回：匹配的启用用户数量。
     -->
-    <select id="activeUser" resultType="int">
+    <select id="activeUser" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM sys_user
         WHERE user_id=#{id}
@@ -91,7 +91,7 @@
         参数：id（用户ID）。
         返回：有效管理员角色关系数量。
     -->
-    <select id="activeAdmin" resultType="int">
+    <select id="activeAdmin" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM sys_user_role ur
         JOIN sys_role r ON r.role_id=ur.role_id
@@ -106,7 +106,7 @@
         返回：存在任意业务引用时返回 true。
         说明：包含零分、未完成及逻辑删除的审批历史；扩展项同时按任务和结果归属检查。
     -->
-    <select id="used" resultType="boolean">
+    <select id="used" resultType="java.lang.Boolean">
         SELECT (EXISTS(SELECT 1
         FROM sys_result r
         LEFT JOIN sys_task t ON t.id=r.task_id
@@ -184,7 +184,7 @@
         参数：pId（项目ID）；taskId（任务ID）；uId（用户ID）。
         返回：匹配的结果记录数。
     -->
-    <select id="scoreResults" resultType="int">
+    <select id="scoreResults" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM sys_result
         WHERE p_id=#{pId}

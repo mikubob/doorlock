@@ -113,7 +113,7 @@
         参数：lockId（锁ID）。
         返回：操作次数。
     -->
-    <select id="countByLockId" resultType="int">
+    <select id="countByLockId" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM sys_operation_log
         WHERE lock_id = #{lockId}
@@ -125,7 +125,7 @@
         返回：操作次数。
         说明：数据库 user_id 为文本字段，显式按字符串比较以避免整型比较的隐式转换。
     -->
-    <select id="countByUserId" resultType="int">
+    <select id="countByUserId" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM sys_operation_log
         WHERE user_id = CAST(#{userId} AS CHAR)

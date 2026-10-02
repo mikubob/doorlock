@@ -10,7 +10,7 @@
         参数：userId（用户ID）。
         返回：角色ID列表。
     -->
-    <select id="getRoles" resultType="Integer">
+    <select id="getRoles" resultType="java.lang.Integer">
         select ur.role_id
         from sys_role ro,sys_user_role ur
         where ro.role_id = ur.role_id
@@ -39,7 +39,7 @@
         参数：userId（用户ID）。
         返回：用户权重最高的有效角色名称列表，最多一项。
     -->
-    <select id="selectRoleByUserId" resultType="String">
+    <select id="selectRoleByUserId" resultType="java.lang.String">
         select role_name
         from sys_role
         where role_status = 1
@@ -55,7 +55,7 @@
         参数：roleId（角色ID）。
         返回：角色关联的用户ID列表，已去重。
     -->
-    <select id="selectUserIdByRoleId" resultType="Integer">
+    <select id="selectUserIdByRoleId" resultType="java.lang.Integer">
         select distinct us.user_id
         from sys_user us,sys_user_role ur
         where ur.role_id = #{roleId}

@@ -25,7 +25,7 @@
         参数：id（角色ID）。
         返回：指定角色关联的用户ID列表。
     -->
-    <select id="findUserIdByRoleId" resultType="Integer">
+    <select id="findUserIdByRoleId" resultType="java.lang.Integer">
         select user_id
         from sys_user_role
         where role_id = #{id}
@@ -37,7 +37,7 @@
         返回：去重后的流程年度列表，按年度降序排列。
         说明：userId 为空时省略用户过滤条件；查询结果按年度降序排列。
     -->
-    <select id="getFlowYears" resultType="String">
+    <select id="getFlowYears" resultType="java.lang.String">
         select distinct year(create_time) as createTime
         from sys_flow
         <where>
@@ -64,7 +64,7 @@
         参数：id（考核项目ID）。
         返回：项目对应的流程ID，不存在时返回 null。
     -->
-    <select id="getFLowByProjectId" resultType="Integer">
+    <select id="getFLowByProjectId" resultType="java.lang.Integer">
         select id
         from sys_flow
         where  p_id = #{id}

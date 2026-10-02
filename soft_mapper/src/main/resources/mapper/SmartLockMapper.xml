@@ -149,7 +149,7 @@
         统计门禁设备数量
         返回：智能锁设备记录数。
     -->
-    <select id="countNum" resultType="int">
+    <select id="countNum" resultType="java.lang.Integer">
         SELECT count(*)
         FROM sys_lock_info
     </select>

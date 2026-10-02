@@ -103,7 +103,7 @@
         参数：pIds（考核项目ID集合）。
         返回：指定项目集合去重后的年度列表。
     -->
-    <select id="getYearByProject" resultType="string">
+    <select id="getYearByProject" resultType="java.lang.String">
         select distinct year(start_time) as years from sys_project where status = 1
         <if test="pIds !=null and !pIds.isEmpty()">
             and id in
@@ -172,7 +172,7 @@
         返回：匹配创建人的项目年度列表。
         说明：createName 为空时查询所有未删除项目的年度，按年度降序排列。
     -->
-    <select id="getProjectYears" resultType="String">
+    <select id="getProjectYears" resultType="java.lang.String">
         select year(start_time) as startTime
         from sys_project
         where status != 3
@@ -188,7 +188,7 @@
         返回：满足查询条件的项目年度列表。
         说明：ew 为 MyBatis-Plus QueryWrapper，保留框架生成的条件片段及其参数绑定。
     -->
-    <select id="getUserProjectYears" resultType="String">
+    <select id="getUserProjectYears" resultType="java.lang.String">
         select year(start_time) as startTime
         from sys_project ${ew.customSqlSegment}
     </select>
@@ -225,7 +225,7 @@
         参数：pId（考核项目ID）。
         返回：项目名称，不存在或项目已删除时返回 null。
     -->
-    <select id="getProjectName" resultType="String">
+    <select id="getProjectName" resultType="java.lang.String">
         select title
         from sys_project
         where status != 3
@@ -248,7 +248,7 @@
         参数：title（项目名称）。
         返回：同名考核项目数量。
     -->
-    <select id="selectProjectName" resultType="Integer">
+    <select id="selectProjectName" resultType="java.lang.Integer">
         select count(*)
         from sys_project
         where title = #{title}
@@ -259,7 +259,7 @@
         参数：projectId（考核项目ID）。
         返回：指定项目去重后的任务分类名称列表。
     -->
-    <select id="getCategoryByProjectName" resultType="String">
+    <select id="getCategoryByProjectName" resultType="java.lang.String">
         select distinct category
         from sys_task
         where p_id=#{projectId}

@@ -10,7 +10,7 @@
         参数：userId（用户ID）。
         返回：用户有权访问的菜单ID集合。
     -->
-    <select id="getNavMenu" resultType="Long">
+    <select id="getNavMenu" resultType="java.lang.Long">
         SELECT t2.menu_id
         from sys_user_role t1
         INNER JOIN sys_role_menu t2 on t1.role_id = t2.role_id

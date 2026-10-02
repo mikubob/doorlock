@@ -13,6 +13,7 @@ import com.hnkjzyxy.ab.mapper.ResultMapper;
 import com.hnkjzyxy.ab.mapper.SwitchRecordMapper;
 import com.hnkjzyxy.ab.mapper.UserMapper;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
+import com.hnkjzyxy.ab.model.Construct;
 import com.hnkjzyxy.ab.model.SwitchRecord;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
@@ -209,6 +210,39 @@ class MapperXmlCompatibilityTest {
         BoundSql menu = statement(UserMapper.class, "getNavMenu").getBoundSql(parameters);
         assertEquals(1, menu.getParameterMappings().size());
         assertTrue(menu.getSql().contains("?"));
+    }
+
+    /**
+     * 验证集合查询按元素类型映射，并由真实 Mapper 代理转换为去重的 HashSet
+     */
+    @Test
+    void mapsScalarRowsIntoDeclaredHashSets() {
+        SqlSession session = mock(SqlSession.class);
+        when(session.getConfiguration()).thenReturn(configuration);
+        when(session.selectList(anyString(), any())).thenAnswer(invocation -> {
+            String name = invocation.getArgument(0);
+            return name.startsWith(ConstructMapper.class.getName())
+                    ? Arrays.asList("2026", "2025", "2026") : Arrays.asList(7, 9, 7);
+        });
+        ConstructMapper constructs = configuration.getMapper(ConstructMapper.class, session);
+        HashSet<String> years = new HashSet<>(Arrays.asList("2026", "2025"));
+        assertEquals(years, constructs.getConstructYears(7));
+        assertEquals(years, constructs.getConstructYearsByUser(new QueryWrapper<Construct>().eq("u_id", 7)));
+        assertEquals(String.class, statement(ConstructMapper.class, "getConstructYears").getResultMaps().get(0).getType());
+        assertEquals(String.class, statement(ConstructMapper.class, "getConstructYearsByUser").getResultMaps().get(0).getType());
+
+        ResultMapper results = configuration.getMapper(ResultMapper.class, session);
+        HashSet<Integer> userIds = new HashSet<>(Arrays.asList(7, 9));
+        assertEquals(userIds, results.getUserIdByRole(1, 7, 2));
+        assertEquals(userIds, results.selectUserIdByStep(7, 2));
+        assertEquals(Integer.class, statement(ResultMapper.class, "getUserIdByRole").getResultMaps().get(0).getType());
+        assertEquals(Integer.class, statement(ResultMapper.class, "selectUserIdByStep").getResultMaps().get(0).getType());
+
+        when(session.selectList(anyString(), any())).thenReturn(Collections.emptyList());
+        assertTrue(constructs.getConstructYears(7).isEmpty());
+        assertTrue(constructs.getConstructYearsByUser(new QueryWrapper<>()).isEmpty());
+        assertTrue(results.getUserIdByRole(1, 7, 2).isEmpty());
+        assertTrue(results.selectUserIdByStep(7, 2).isEmpty());
     }
 
     /**

@@ -36,7 +36,7 @@
         参数：pId（考核项目ID）；category（任务分类）。
         返回：指定项目及分类下去重后的任务名称列表。
     -->
-    <select id="getTaskByCategoryName" resultType="String">
+    <select id="getTaskByCategoryName" resultType="java.lang.String">
         SELECT distinct t.task_name
         FROM sys_task t
         WHERE t.category = #{category}

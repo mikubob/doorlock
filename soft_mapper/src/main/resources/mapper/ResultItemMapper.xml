@@ -61,7 +61,7 @@
         参数：pId（考核项目ID）；uId（被考核用户ID）；userId（用户ID）；step（审批步骤）。
         返回：符合项目、被考核人、审批人及步骤条件的已审批记录数。
     -->
-    <select id="selectStep" resultType="Integer">
+    <select id="selectStep" resultType="java.lang.Integer">
         select count(*)
         from sys_result_item
         where u_id = #{uId}

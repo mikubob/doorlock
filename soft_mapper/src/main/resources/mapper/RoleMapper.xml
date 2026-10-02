@@ -41,7 +41,7 @@
         参数：role（角色ID）。
         返回：角色权重。
     -->
-    <select id="getWeightByRole" resultType="Integer">
+    <select id="getWeightByRole" resultType="java.lang.Integer">
         select weight
         from sys_role
         where role_id = #{role}

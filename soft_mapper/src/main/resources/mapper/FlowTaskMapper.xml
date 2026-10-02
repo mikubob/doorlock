@@ -87,7 +87,7 @@
         参数：type（查询或节点类型）；pId（考核项目ID）。
         返回：有效节点的最大排序值，无匹配节点时返回 null。
     -->
-    <select id="getFlowMaxSort" resultType="Integer">
+    <select id="getFlowMaxSort" resultType="java.lang.Integer">
         select max(B.sort)
         from sys_flow A
         join sys_flow_task B on A.id = B.parent_id

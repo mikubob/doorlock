@@ -197,7 +197,7 @@
         查询所有不重复的学院列表
         返回：所有学院的列表，按字母顺序排序。
     -->
-    <select id="getAllColleges" resultType="String">
+    <select id="getAllColleges" resultType="java.lang.String">
         SELECT DISTINCT college
         FROM sys_check_result
         WHERE college IS NOT NULL

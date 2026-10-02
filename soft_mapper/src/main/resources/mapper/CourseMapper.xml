@@ -9,7 +9,7 @@
         查询学院名称
         返回：去重后的学院名称列表。
     -->
-    <select id="getColege" resultType="String">
+    <select id="getColege" resultType="java.lang.String">
         select DISTINCT college
         from sys_course
     </select>
@@ -19,7 +19,7 @@
         参数：college（学院名称）。
         返回：指定学院去重后的班级名称列表。
     -->
-    <select id="getClassByCollege" resultType="String">
+    <select id="getClassByCollege" resultType="java.lang.String">
         select DISTINCT classes
         from sys_course
         where college = #{college}

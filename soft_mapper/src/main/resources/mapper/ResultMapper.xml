@@ -12,7 +12,7 @@
         返回：指定用户集合在项目分类下的评分列表。
         说明：按用户汇总已完成结果的分数；uIds 必须包含至少一个用户ID。
     -->
-    <select id="checkResultScore" resultType="integer">
+    <select id="checkResultScore" resultType="java.lang.Integer">
         select sum(re.score) from sys_result re,sys_task ta where re.is_finish = 1
         and re.p_id = #{pId} and ta.p_id = #{pId}
         and ta.category = #{category} and re.task_id = ta.id and re.u_id in
@@ -22,7 +22,7 @@
         GROUP BY re.u_id
     </select>
 
-    <!--    <select id="selectListByYear" parameterType="integer" resultType="integer">-->
+    <!--    <select id="selectListByYear" parameterType="java.lang.Integer" resultType="java.lang.Integer">-->
     <!--        select sum(score) from sys_result where u_id = #{uId} and is_finish = 1-->
     <!--        <if test="num != null and num != ''"> and DATE_FORMAT(update_time,'%Y') = #{num}</if>-->
     <!--    </select>-->
@@ -32,7 +32,7 @@
         参数：pId（考核项目ID）；year（统计年度）；uId（用户ID）。
         返回：满足雷达图查询条件的项目ID列表。
     -->
-    <select id="getPIdByRadar" resultType="integer">
+    <select id="getPIdByRadar" resultType="java.lang.Integer">
         select p_id from sys_result where u_id = #{uId} and is_finish = 1
         <if test="pId != null">and p_id = #{pId}</if>
         <if test="year!= null and year != ''">and date_format(create_time,'%Y') = #{year}</if>
@@ -44,7 +44,7 @@
         返回：指定用户集合的项目评分列表。
         说明：按用户汇总项目评分；uIds 必须包含至少一个用户ID。
     -->
-    <select id="getProjectResult" resultType="integer">
+    <select id="getProjectResult" resultType="java.lang.Integer">
         select sum(score) from sys_result where p_id = #{pId} and u_id in
         <foreach collection="uIds" item="id" open="(" close=")" separator=",">
             #{id}
@@ -187,7 +187,7 @@
         参数：pId（考核项目ID）；uId（被考核用户ID）。
         返回：用户在项目中未完成或已完成的结果记录数。
     -->
-    <select id="selectByPId" resultType="Integer">
+    <select id="selectByPId" resultType="java.lang.Integer">
         select count(*)
         from sys_result
         where (p_id = #{pId}
@@ -201,7 +201,7 @@
         参数：userId（用户ID）；year（统计年度）；month（统计月份）。
         返回：用户在指定月份创建的结果记录数。
     -->
-    <select id="getUserResultMonthCount" resultType="Integer">
+    <select id="getUserResultMonthCount" resultType="java.lang.Integer">
         select count(*)
         from sys_result
         where date_format(create_time,'%Y-%m') = concat(#{year},'-',#{month})
@@ -213,7 +213,7 @@
         参数：s（日期字符串）；userId（用户ID）。
         返回：用户在指定日期创建且已完成的结果记录数。
     -->
-    <select id="getUserResultWeekCount" resultType="Integer">
+    <select id="getUserResultWeekCount" resultType="java.lang.Integer">
         select count(*)
         from sys_result
         where date_format(create_time,'%Y-%m-%d') = #{s}
@@ -225,7 +225,7 @@
         查询所有考核结果的佐证材料字段
         返回：全部考核结果的佐证材料字段列表。
     -->
-    <select id="getResultEvidence" resultType="String">
+    <select id="getResultEvidence" resultType="java.lang.String">
         select evidence
         from sys_result
     </select>
@@ -235,7 +235,7 @@
         参数：uId（被考核用户ID）；pId（考核项目ID）。
         返回：步骤为零的首条结果完成状态，无匹配记录时返回 null。
     -->
-    <select id="selectResultByPIdAndUId" resultType="Integer">
+    <select id="selectResultByPIdAndUId" resultType="java.lang.Integer">
         select is_finish
         from sys_result
         where u_id = #{uId}
@@ -276,7 +276,7 @@
         返回：所有项目开始时间去重后的年度列表。
         说明：uId 为接口兼容参数，当前语句不按用户过滤。
     -->
-    <select id="getFinishScaleYears" resultType="String">
+    <select id="getFinishScaleYears" resultType="java.lang.String">
         select distinct year(start_time)
         from sys_project
     </select>
@@ -286,7 +286,7 @@
         参数：pId（考核项目ID）；step（审批步骤）。
         返回：满足审批步骤及完成状态条件的用户ID列表。
     -->
-    <select id="getUserByResult" resultType="Integer">
+    <select id="getUserByResult" resultType="java.lang.Integer">
         select distinct u_id
         from sys_result
         where p_id = #{pId}
@@ -300,7 +300,7 @@
         参数：uId（被考核用户ID）；pId（考核项目ID）。
         返回：用户在项目中的评分总和，无匹配记录时返回 null。
     -->
-    <select id="findTotalScore" resultType="Integer">
+    <select id="findTotalScore" resultType="java.lang.Integer">
         select sum(score)
         from sys_result
         where u_id = #{uId}
@@ -312,7 +312,7 @@
         参数：uId（被考核用户ID）；pId（考核项目ID）。
         返回：首条匹配结果的完成状态，无匹配记录时返回 null。
     -->
-    <select id="findResultStatus" resultType="Integer">
+    <select id="findResultStatus" resultType="java.lang.Integer">
         select is_finish
         from sys_result
         where u_id = #{uId}
@@ -325,7 +325,7 @@
         参数：uId（用户ID）。
         返回：用户提交结果涉及的项目ID列表，已去重。
     -->
-    <select id="getProjectIds" resultType="Integer">
+    <select id="getProjectIds" resultType="java.lang.Integer">
         select distinct p_id
         from sys_result
         where u_id = #{uId}
@@ -336,7 +336,7 @@
         参数：pId（考核项目ID）；uId（用户ID）。
         返回：用户在指定项目中的佐证材料字段列表。
     -->
-    <select id="selectEvidenceList" resultType="String">
+    <select id="selectEvidenceList" resultType="java.lang.String">
         select evidence
         from sys_result
         where u_id = #{uId}
@@ -348,7 +348,7 @@
         参数：role（角色ID）；pId（考核项目ID）；step（审批步骤）。
         返回：满足角色、项目、审批步骤及完成状态条件的用户ID集合。
     -->
-    <select id="getUserIdByRole" resultType="Integer">
+    <select id="getUserIdByRole" resultType="java.lang.Integer">
         select distinct re.u_id
         from sys_result re,sys_user_role ur
         where re.p_id = #{pId}
@@ -364,7 +364,7 @@
         参数：pId（考核项目ID）；step（审批步骤）。
         返回：满足项目、审批步骤及完成状态条件的用户ID集合。
     -->
-    <select id="selectUserIdByStep" resultType="Integer">
+    <select id="selectUserIdByStep" resultType="java.lang.Integer">
         select distinct u_id
         from sys_result
         where p_id = #{pId}
@@ -378,7 +378,7 @@
         参数：pId（考核项目ID）；step（审批步骤）；uId（用户ID）。
         返回：符合条件的用户ID，无匹配结果时返回 null。
     -->
-    <select id="checkResultByUId" resultType="Integer">
+    <select id="checkResultByUId" resultType="java.lang.Integer">
         select u_id
         from sys_result
         where p_id = #{pId}

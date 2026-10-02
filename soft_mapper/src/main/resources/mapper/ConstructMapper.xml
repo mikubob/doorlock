@@ -21,7 +21,7 @@
         返回：用户参与的建设项目ID列表。
         说明：使用 FIND_IN_SET 匹配逗号分隔的参与人ID，避免将部分ID误判为参与人。
     -->
-    <select id="getConIds" resultType="Integer">
+    <select id="getConIds" resultType="java.lang.Integer">
         select con_id
         from sys_construct_user
         where find_in_set(#{userId},u_id)
@@ -32,7 +32,7 @@
         参数：userId（用户ID）。
         返回：用户创建的顶层建设项目年度集合。
     -->
-    <select id="getConstructYears" resultType="String">
+    <select id="getConstructYears" resultType="java.lang.String">
         select year(create_time) as year
         from sys_construct
         where u_id = #{userId}
@@ -46,7 +46,7 @@
         返回：满足查询条件的建设项目年度集合。
         说明：ew 为 MyBatis-Plus QueryWrapper，保留框架生成的条件片段及其参数绑定。
     -->
-    <select id="getConstructYearsByUser" resultType="String">
+    <select id="getConstructYearsByUser" resultType="java.lang.String">
         select year(create_time) as year
         from sys_construct ${ew.customSqlSegment}
     </select>
@@ -56,7 +56,7 @@
         参数：id（建设项目ID）。
         返回：建设项目参与人关联记录数量。
     -->
-    <select id="getConstructById" resultType="Integer">
+    <select id="getConstructById" resultType="java.lang.Integer">
         select count(*)
         from sys_construct_user
         where con_id = #{id}
@@ -78,7 +78,7 @@
         参数：conId（建设项目ID）。
         返回：以逗号分隔的参与人ID字符串，不存在时返回 null。
     -->
-    <select id="getConstructUIdsById" resultType="String">
+    <select id="getConstructUIdsById" resultType="java.lang.String">
         select u_id
         from sys_construct_user
         where con_id = #{conId}
