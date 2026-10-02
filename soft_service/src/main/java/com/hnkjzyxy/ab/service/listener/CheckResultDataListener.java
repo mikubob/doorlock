@@ -4,10 +4,13 @@ import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
 import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.hnkjzyxy.ab.config.CheckResultImportProperties;
+import com.hnkjzyxy.ab.dto.excel.CheckResultModel;
+import com.hnkjzyxy.ab.exception.ImportRejectedException;
+import com.hnkjzyxy.ab.exception.RowParseException;
 import com.hnkjzyxy.ab.model.CheckResult;
-import com.hnkjzyxy.ab.model.CheckResultImportResult;
 import com.hnkjzyxy.ab.service.CheckResultService;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;
+import com.hnkjzyxy.ab.vo.CheckResultImportResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.support.TransactionTemplate;
 

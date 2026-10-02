@@ -2,7 +2,7 @@ package com.hnkjzyxy.ab.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.hnkjzyxy.ab.model.CourseSchedule;
-import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
+import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 
 import java.util.List;
 

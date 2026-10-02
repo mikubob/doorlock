@@ -1,14 +1,22 @@
 package com.hnkjzyxy.ab.vo;
 
 import com.hnkjzyxy.ab.model.Result;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
+import javax.validation.constraints.NotNull;
 
 /**
  * 项目结果提交参数
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ResultVo implements Serializable {
 
     /**
@@ -61,101 +69,4 @@ public class ResultVo implements Serializable {
      * 结果明细列表
      */
     private List<Result> results;
-
-    public ResultVo() {
-    }
-
-    public ResultVo(Integer uId, Integer projectId, String evidence, Integer step, String score, String opinion, Integer isFlag, String userName, String nickName, List<Result> results) {
-        this.uId = uId;
-        this.projectId = projectId;
-        this.evidence = evidence;
-        this.step = step;
-        this.score = score;
-        this.opinion = opinion;
-        this.isFlag = isFlag;
-        this.userName = userName;
-        this.nickName = nickName;
-        this.results = results;
-    }
-
-    public Integer getUId() {
-        return uId;
-    }
-
-    public void setUId(Integer uId) {
-        this.uId = uId;
-    }
-
-    public Integer getProjectId() {
-        return projectId;
-    }
-
-    public void setProjectId(Integer projectId) {
-        this.projectId = projectId;
-    }
-
-    public String getEvidence() {
-        return evidence;
-    }
-
-    public void setEvidence(String evidence) {
-        this.evidence = evidence;
-    }
-
-    public Integer getStep() {
-        return step;
-    }
-
-    public void setStep(Integer step) {
-        this.step = step;
-    }
-
-    public String getScore() {
-        return score;
-    }
-
-    public void setScore(String score) {
-        this.score = score;
-    }
-
-    public String getOpinion() {
-        return opinion;
-    }
-
-    public void setOpinion(String opinion) {
-        this.opinion = opinion;
-    }
-
-    public Integer getIsFlag() {
-        return isFlag;
-    }
-
-    public void setIsFlag(Integer isFlag) {
-        this.isFlag = isFlag;
-    }
-
-    public String getUserName() {
-        return userName;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public String getNickName() {
-        return nickName;
-    }
-
-    public void setNickName(String nickName) {
-        this.nickName = nickName;
-    }
-
-    public List<Result> getResults() {
-        return results;
-    }
-
-    public void setResults(List<Result> results) {
-        this.results = results;
-    }
-
 }

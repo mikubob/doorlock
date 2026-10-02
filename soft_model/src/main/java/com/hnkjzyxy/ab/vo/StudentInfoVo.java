@@ -1,13 +1,15 @@
 package com.hnkjzyxy.ab.vo;
 
-
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;
 import com.alibaba.excel.annotation.write.style.ContentFontStyle;
 import com.alibaba.excel.annotation.write.style.ContentRowHeight;
 import com.alibaba.excel.annotation.write.style.HeadRowHeight;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * 学生信息导出数据
@@ -19,6 +21,8 @@ import lombok.NoArgsConstructor;
 @ContentRowHeight(15)  //内容行高
 @ColumnWidth(18)  //列宽
 @ContentFontStyle(fontHeightInPoints = (short) 12)
+@Getter
+@Setter
 public class StudentInfoVo {
 
     /**
@@ -109,6 +113,7 @@ public class StudentInfoVo {
      * 录取结果（0=未录取，1=已录取）
      */
     @ExcelProperty(value = "录取结果", index = 14)
+    @Setter(AccessLevel.NONE)
     private String status;
 
     /**
@@ -123,90 +128,11 @@ public class StudentInfoVo {
     @ExcelProperty(value = "结束时间", index = 16)
     private String endTime;
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Long getStudentId() {
-        return studentId;
-    }
-
-    public void setStudentId(Long studentId) {
-        this.studentId = studentId;
-    }
-
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(String className) {
-        this.className = className;
-    }
-
-    public Integer getWebScore() {
-        return webScore;
-    }
-
-    public void setWebScore(Integer webScore) {
-        this.webScore = webScore;
-    }
-
-    public Integer getJavaScore() {
-        return javaScore;
-    }
-
-    public void setJavaScore(Integer javaScore) {
-        this.javaScore = javaScore;
-    }
-
-    public Integer getProgramScore() {
-        return programScore;
-    }
-
-    public void setProgramScore(Integer programScore) {
-        this.programScore = programScore;
-    }
-
-    public Integer getDatabaseScore() {
-        return databaseScore;
-    }
-
-    public void setDatabaseScore(Integer databaseScore) {
-        this.databaseScore = databaseScore;
-    }
-
-    public String getApplicationOne() {
-        return applicationOne;
-    }
-
-    public void setApplicationOne(String applicationOne) {
-        this.applicationOne = applicationOne;
-    }
-
-    public String getApplicationTwo() {
-        return applicationTwo;
-    }
-
-    public void setApplicationTwo(String applicationTwo) {
-        this.applicationTwo = applicationTwo;
-    }
-
-    public String getResult() {
-        return result;
-    }
-
-    public void setResult(String result) {
-        this.result = result;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
+    /**
+     * 将录取状态编号转换为导出展示文字
+     *
+     * @param status 录取状态（0=未录取，1=已录取）
+     */
     public void setStatus(Integer status) {
         if (status == 0) {
             this.status = "未录取";
@@ -216,55 +142,12 @@ public class StudentInfoVo {
         }
     }
 
+    /**
+     * 直接设置录取结果展示文字
+     *
+     * @param status 录取结果文字
+     */
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public Integer getWebTotal() {
-        return webTotal;
-    }
-
-    public void setWebTotal(Integer webTotal) {
-        this.webTotal = webTotal;
-    }
-
-    public Integer getJavaTotal() {
-        return javaTotal;
-    }
-
-    public void setJavaTotal(Integer javaTotal) {
-        this.javaTotal = javaTotal;
-    }
-
-    public Integer getProgramTotal() {
-        return programTotal;
-    }
-
-    public void setProgramTotal(Integer programTotal) {
-        this.programTotal = programTotal;
-    }
-
-    public Integer getDatabaseTotal() {
-        return databaseTotal;
-    }
-
-    public void setDatabaseTotal(Integer databaseTotal) {
-        this.databaseTotal = databaseTotal;
-    }
-
-    public String getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(String updateTime) {
-        this.updateTime = updateTime;
-    }
-
-    public String getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(String endTime) {
-        this.endTime = endTime;
     }
 }

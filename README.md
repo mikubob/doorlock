@@ -9,7 +9,7 @@ Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN�
 
 #### 软件架构
 
-软件架构说明
+采用 Maven 多模块结构。目录分层、Lombok 与 Javadoc 约定及 TODO 文档入口见 [项目开发文档](doc/README.md)。
 
 #### 安装教程
 

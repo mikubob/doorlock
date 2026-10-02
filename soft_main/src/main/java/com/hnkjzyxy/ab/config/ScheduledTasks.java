@@ -1,7 +1,7 @@
 package com.hnkjzyxy.ab.config;
 
-import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
+import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -48,5 +48,4 @@ public class ScheduledTasks {
             log.warn("定时任务本次未执行：{}", result.getMessage());
         }
     }
-
 }

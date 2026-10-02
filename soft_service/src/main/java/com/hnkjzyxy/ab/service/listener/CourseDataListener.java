@@ -4,6 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
 import com.alibaba.excel.util.ListUtils;
+import com.hnkjzyxy.ab.dto.excel.CourseModel;
 import com.hnkjzyxy.ab.model.Course;
 import com.hnkjzyxy.ab.service.CourseService;
 import com.hnkjzyxy.ab.utils.SnowFlowUtils;

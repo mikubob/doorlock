@@ -1,4 +1,6 @@
-package com.hnkjzyxy.ab.service.listener;
+package com.hnkjzyxy.ab.exception;
+
+import lombok.Getter;
 
 /**
  * 行级解析异常
@@ -10,6 +12,7 @@ package com.hnkjzyxy.ab.service.listener;
  * @version 1.0
  * @date 2026-10-01
  */
+@Getter
 public class RowParseException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
@@ -68,32 +71,5 @@ public class RowParseException extends RuntimeException {
         }
         sb.append(reason);
         return sb.toString();
-    }
-
-    /**
-     * 获取 Excel 行号（1-based，含表头行）
-     *
-     * @return 行号
-     */
-    public int getRowIndex() {
-        return rowIndex;
-    }
-
-    /**
-     * 获取失败字段名
-     *
-     * @return 字段名，可能为 null
-     */
-    public String getFieldName() {
-        return fieldName;
-    }
-
-    /**
-     * 获取失败原因
-     *
-     * @return 失败原因
-     */
-    public String getReason() {
-        return reason;
     }
 }

@@ -2,7 +2,7 @@ package com.hnkjzyxy.ab.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.hnkjzyxy.ab.model.CheckResult;
-import com.hnkjzyxy.ab.model.CheckResultImportResult;
+import com.hnkjzyxy.ab.vo.CheckResultImportResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;

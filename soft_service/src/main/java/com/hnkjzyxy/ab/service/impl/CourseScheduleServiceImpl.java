@@ -7,18 +7,18 @@ import com.hnkjzyxy.ab.client.OaApiClient;
 import com.hnkjzyxy.ab.config.ScheduleSyncProperties;
 import com.hnkjzyxy.ab.mapper.CourseScheduleMapper;
 import com.hnkjzyxy.ab.model.CourseSchedule;
-import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
 import com.hnkjzyxy.ab.utils.RedisLockUtils;
 import com.hnkjzyxy.ab.utils.TransactionalMysqlLock;
+import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 
 /**
  * 课程安排Service实现类
@@ -400,5 +399,4 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
-
 }

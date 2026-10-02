@@ -1,4 +1,4 @@
-package com.hnkjzyxy.ab.model;
+package com.hnkjzyxy.ab.vo;
 
 import lombok.Data;
 

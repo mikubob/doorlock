@@ -1,9 +1,9 @@
 package com.hnkjzyxy.ab.controller;
 
 import com.hnkjzyxy.ab.model.CourseSchedule;
-import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
+import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -164,5 +164,4 @@ public class CourseScheduleController {
             return ApiResult.error("删除失败");
         }
     }
-
 }

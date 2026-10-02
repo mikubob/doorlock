@@ -2,6 +2,10 @@ package com.hnkjzyxy.ab.model;
 
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -11,6 +15,10 @@ import java.time.LocalDateTime;
  * 对应数据库表 sys_operation_log（记录智能锁开关操作历史日志）
  */
 @TableName("sys_operation_log")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class SwitchRecord implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -42,30 +50,6 @@ public class SwitchRecord implements Serializable {
     private LocalDateTime operationTime;
 
     /**
-     * 无参构造方法
-     */
-    public SwitchRecord() {
-    }
-
-    /**
-     * 全参构造方法
-     *
-     * @param switchId        开关记录唯一标识符
-     * @param lockId          关联的智能锁ID
-     * @param userId          操作用户ID
-     * @param operationMethod 操作方式（0=关，1=开）
-     * @param operationTime   操作时间
-     */
-    public SwitchRecord(Integer switchId, Integer lockId, Integer userId,
-                        Integer operationMethod, LocalDateTime operationTime) {
-        this.switchId = switchId;
-        this.lockId = lockId;
-        this.userId = userId;
-        this.operationMethod = operationMethod;
-        this.operationTime = operationTime;
-    }
-
-    /**
      * 新增用构造方法：不指定 switchId，由数据库自增生成
      *
      * @param lockId          关联的智能锁ID
@@ -82,48 +66,10 @@ public class SwitchRecord implements Serializable {
     }
 
     /**
-     * Getter 和 Setter 方法
+     * 返回开关记录的日志描述
+     *
+     * @return 包含操作标识及时间的描述
      */
-    public Integer getSwitchId() {
-        return switchId;
-    }
-
-    public void setSwitchId(Integer switchId) {
-        this.switchId = switchId;
-    }
-
-    public Integer getLockId() {
-        return lockId;
-    }
-
-    public void setLockId(Integer lockId) {
-        this.lockId = lockId;
-    }
-
-    public Integer getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Integer userId) {
-        this.userId = userId;
-    }
-
-    public Integer getOperationMethod() {
-        return operationMethod;
-    }
-
-    public void setOperationMethod(Integer operationMethod) {
-        this.operationMethod = operationMethod;
-    }
-
-    public LocalDateTime getOperationTime() {
-        return operationTime;
-    }
-
-    public void setOperationTime(LocalDateTime operationTime) {
-        this.operationTime = operationTime;
-    }
-
     @Override
     public String toString() {
         return "SwitchRecord{" +
@@ -135,6 +81,12 @@ public class SwitchRecord implements Serializable {
                 '}';
     }
 
+    /**
+     * 按非空记录主键比较相等性
+     *
+     * @param o 待比较对象
+     * @return 同一实例或非空主键相同时返回 true
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -147,6 +99,11 @@ public class SwitchRecord implements Serializable {
         return switchId != null && switchId.equals(that.switchId);
     }
 
+    /**
+     * 计算与主键相等规则一致的哈希值
+     *
+     * @return 主键哈希值，主键为空时返回0
+     */
     @Override
     public int hashCode() {
         return switchId == null ? 0 : switchId.hashCode();

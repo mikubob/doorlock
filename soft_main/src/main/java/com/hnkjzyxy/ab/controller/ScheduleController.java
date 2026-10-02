@@ -3,16 +3,16 @@ package com.hnkjzyxy.ab.controller;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hnkjzyxy.ab.client.OaApiClient;
+import com.hnkjzyxy.ab.exception.ImportRejectedException;
 import com.hnkjzyxy.ab.model.CheckResult;
-import com.hnkjzyxy.ab.model.CheckResultImportResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CheckResultService;
 import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.service.listener.ImportRejectedException;
 import com.hnkjzyxy.ab.service.utils.ExcelUtils;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
+import com.hnkjzyxy.ab.vo.CheckResultImportResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -368,7 +368,6 @@ public class ScheduleController {
         List<CheckResult> checkResult=checkResultService.sortedByCommuteTime(arrivalRate,date);
         return ApiResult.ok("data",checkResult);
     }
-
 
 
 

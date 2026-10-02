@@ -1,4 +1,6 @@
-package com.hnkjzyxy.ab.service.listener;
+package com.hnkjzyxy.ab.exception;
+
+import lombok.Getter;
 
 /**
  * 整次导入被拒绝异常
@@ -11,6 +13,7 @@ package com.hnkjzyxy.ab.service.listener;
  * @version 1.0
  * @date 2026-10-01
  */
+@Getter
 public class ImportRejectedException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
@@ -39,14 +42,5 @@ public class ImportRejectedException extends RuntimeException {
     public ImportRejectedException(String reason, Throwable cause) {
         super(reason, cause);
         this.reason = reason;
-    }
-
-    /**
-     * 获取拒绝原因
-     *
-     * @return 拒绝原因
-     */
-    public String getReason() {
-        return reason;
     }
 }

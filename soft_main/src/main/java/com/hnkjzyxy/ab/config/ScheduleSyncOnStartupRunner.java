@@ -1,7 +1,7 @@
 package com.hnkjzyxy.ab.config;
 
-import com.hnkjzyxy.ab.model.CourseScheduleSyncResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
+import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
