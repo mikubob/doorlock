@@ -10,6 +10,8 @@ import com.hnkjzyxy.ab.annotation.RedisCache;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
 import com.hnkjzyxy.ab.dto.SubTaskDto;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
+import com.hnkjzyxy.ab.dto.ResultAccessScope;
+import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
 import com.hnkjzyxy.ab.mapper.ProjectTaskImportMapper;
@@ -28,6 +30,7 @@ import com.hnkjzyxy.ab.params.HomeParam;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.ProjectTaskGuard;
 import com.hnkjzyxy.ab.service.ResultService;
+import com.hnkjzyxy.ab.service.security.ResultPermissionPolicy;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.vo.DataVo;
 import com.hnkjzyxy.ab.vo.LineDataVo;
@@ -58,6 +61,12 @@ import javax.annotation.Resource;
  */
 @Service
 public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> implements ResultService {
+
+    /**
+     * 三个子任务成绩入口共用的查看、评分权限及学院范围策略
+     */
+    @Resource
+    private ResultPermissionPolicy resultPermissionPolicy;
 
     /**
      * 评分更新共用的项目锁及生命周期保护服务
@@ -286,22 +295,24 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     }
 
     /**
-     * {@inheritDoc}
+     * 按名称条件查询当前操作人可查看的子任务成绩
+     * <p>
+     * 旧查询与新查询使用相同查看策略：管理员可查看全部学院，院长仅查看当前所属学院。
+     * 先核验当前数据库账号及全部有效角色，再执行带学院范围的查询，保留旧接口成功结构。
+     * </p>
+     *
+     * @param dto 项目名称、任务名称及任务分类等旧查询条件
+     * @param user 认证链路取得的操作人，不是查询目标用户
+     * @return 包含 {@code total} 和 {@code list} 的结果，越界或无匹配数据时为空列表
+     * @throws AuthPermissionException 身份无效时返回401；无查看权限或院长学院配置异常时返回403
      */
     @Override
     public Map<String, Object> getList(SubTaskDto dto, User user) {
-        //1、判断用户是否为院长的角色
-        Integer userId = user.getUserId();
-
-        //TODO 只有院长才能查看和修改
-        Role role = userRoleMapper.getRoleWeight(userId);//查到用户的角色
-        if (!HnkjzyEncode.DEAN.getName().equals(role.getRoleName())) {
-            throw new RuntimeException("该列表只有院长可以查看");
-        }
-
-        //2、如果是院长的角色，就返回查询的列表
+        // 校验子任务成绩查看权限，范围来自当前数据库账号。
+        ResultAccessScope scope = resultPermissionPolicy.requireView(user);
         HashMap<String, Object> map = new HashMap<>();
-        List<SubTaskVo> score = resultMapper.getUsersSubTaskScore(dto.getTitle(), dto.getTaskName(), dto.getTaskCategory());
+        // 范围在SQL中参与过滤，total只统计本次可见数据，不先查全校后在内存中过滤。
+        List<SubTaskVo> score = resultMapper.getUsersSubTaskScore(dto.getTitle(), dto.getTaskName(), dto.getTaskCategory(), scope);
 
         map.put("total", score.size());
         map.put("list", score);
@@ -309,25 +320,24 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     }
 
     /**
-     * {@inheritDoc}
+     * 按项目、用户及任务条件查询当前操作人可查看的子任务成绩
+     * <p>
+     * 使用与旧查询相同的角色及学院策略，DTO 中的用户ID只用于筛选查询目标。
+     * 指定其他学院的用户时正常返回空结果，不通过响应泄露目标是否存在。
+     * </p>
+     *
+     * @param dto 项目ID、目标用户ID、任务条件及最低分数等查询条件
+     * @param user 认证链路取得的操作人，不是DTO中的目标用户
+     * @return 包含 {@code total} 和 {@code list} 的结果，越界或无匹配数据时为空列表
+     * @throws AuthPermissionException 身份无效时返回401；无查看权限或院长学院配置异常时返回403
      */
     @Override
     public Map<String, Object> getLists(SubTaskIdDto dto, User user) {
-        //1、判断用户是否为院长的角色
-        Integer userId = user.getUserId();
-
-        //TODO 只有院长才能查看和修改
-        Role role = userRoleMapper.getRoleWeight(userId);//查到用户的角色
-        if (!role.getRoleName().equals(HnkjzyEncode.ADMIN.getName())) {
-            if (!HnkjzyEncode.DEAN.getName().equals(role.getRoleName())) {
-                throw new RuntimeException("该列表只有院长可以查看");
-            }
-        }
-
-
-        //2、如果是院长的角色，就返回查询的列表
+        // 新旧查询使用同一查看策略。
+        ResultAccessScope scope = resultPermissionPolicy.requireView(user);
         HashMap<String, Object> map = new HashMap<>();
-        List<SubTaskVo> score = resultMapper.getUsersSubTaskScoreById(dto);
+        // DTO只传递筛选条件，scope独立传递已核验的服务端授权范围。
+        List<SubTaskVo> score = resultMapper.getUsersSubTaskScoreById(dto, scope);
 
         map.put("total", score.size());
         map.put("list", score);
@@ -544,32 +554,40 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
     }
 
     /**
-     * 做批量修改
+     * 在院长当前学院范围内批量修改子任务成绩
+     * <p>
+     * 授权通过后先校验完整请求，再按真实项目ID升序取得项目锁、按目标用户ID升序取得用户锁。
+     * 全部目标的学院及结果归属均有效后才执行批量写入；任一越界或失效项使整批拒绝。
+     * 使用 READ_COMMITTED 事务并对异常回滚，保留既有任务归属及项目生命周期保护。
+     * </p>
      *
-     * @param dto  子任务分数列表
-     * @param user 当前用户
+     * @param dto 非空评分列表，包含目标用户ID、项目ID、字符串任务ID及待更新分数
+     * @param user 认证链路取得的操作人，必须具有有效院长角色及规范学院资料
+     * @throws AuthPermissionException 身份无效时返回401；无评分权限、操作人学院异常，
+     *                                或任一目标学院缺失、不匹配时返回403
+     * @throws ProjectTaskException 列表为空或整数ID非法时返回400；任务归属或结果失效时返回409；
+     *                              项目锁校验失败时保留对应项目异常
+     * @throws RuntimeException 任一评分项为空或缺少必要ID时抛出，保留原有参数错误契约
      */
     @Override
     @Transactional(rollbackFor = Exception.class,
             isolation = Isolation.READ_COMMITTED)
     public void updateSubTaskScore(List<SubTaskIdDto> dto, User user) {
-        //1、判断用户是否为院长的角色
-        Integer userId = user.getUserId();
-        Role role = userRoleMapper.getRoleWeight(userId);//查到用户的角色
-        if (!HnkjzyEncode.DEAN.getName().equals(role.getRoleName())) {
-            throw new RuntimeException("该列表只有院长可以修改");
-        }
-
-        //2、进行批量修改（用原生的sql写1）
-        //用来修改，业务不会修改其他的内容了，只会修改这个分数
-        dto.stream().forEach(s -> {
-            if (s.getUserId() == null || s.getTaskId() == null || s.getProjectId() == null) {
+        // 授权拒绝发生在业务查询、项目锁及更新之前。
+        ResultAccessScope scope = resultPermissionPolicy.requireEdit(user);
+        if (dto == null || dto.isEmpty()) throw new ProjectTaskException(400, "评分列表不能为空");
+        // 先校验整批ID，避免处理到后面的非法元素时才发现问题；用户去重便于固定加锁次序。
+        SortedSet<Integer> targetIds = new TreeSet<>();
+        for (SubTaskIdDto row : dto) {
+            if (row == null || row.getUserId() == null || row.getTaskId() == null || row.getProjectId() == null) {
                 throw new RuntimeException("没有传入需要的参数");
             }
-        });
-        // 按真实任务归属取得项目锁，多项目固定升序；原有评分权限规则保持不变。
+            ProjectTaskRules.integer(row.getProjectId(), "项目ID");
+            // 任务ID沿用字符串（含既有雪花ID），只将实际为int的项目和用户ID解析为整数。
+            targetIds.add(ProjectTaskRules.integer(row.getUserId(), "用户ID"));
+        }
+        // 使用数据库任务的真实项目归属，不能仅信任客户端项目ID；TreeSet固定多项目锁顺序。
         SortedSet<Integer> projects = new TreeSet<>();
-        if (dto.isEmpty()) throw new ProjectTaskException(400, "评分列表不能为空");
         for (SubTaskIdDto row : dto) {
             Task task = projectTaskImportMapper.task(row.getTaskId());
             if (task == null || !task.getPId().toString().equals(row.getProjectId())) {
@@ -578,6 +596,16 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
             projects.add(task.getPId());
         }
         for (Integer projectId : projects) projectTaskGuard.lock(projectId);
+        // 固定项目锁→用户锁顺序，学院调整必须等待评分事务完成。
+        for (Integer targetId : targetIds) {
+            User target = resultMapper.lockScoreTargetUser(targetId);
+            if (target == null) throw new ProjectTaskException(409, "评分结果已失效，请重新加载");
+            // 不按目标启用状态过滤历史成绩；学院必须精确相等，缺失学院同样整批拒绝。
+            if (!scope.getCollege().equals(target.getCollege())) {
+                throw new AuthPermissionException(403, "无权限修改其他学院成绩");
+            }
+        }
+        // 持有项目及用户锁后复查任务归属和结果存在性，保留T-04的失效结果保护。
         for (SubTaskIdDto row : dto) {
             int projectId = ProjectTaskRules.integer(row.getProjectId(), "项目ID");
             Task task = projectTaskImportMapper.task(row.getTaskId());
@@ -586,7 +614,8 @@ public class ResultServiceImpl extends ServiceImpl<ResultMapper, Result> impleme
                 throw new ProjectTaskException(409, "评分结果已失效，请重新加载");
             }
         }
-        resultMapper.updateBySubTaskName(dto);
+        // 完整校验后才写入，SQL再次限定学院；合法同分数提交不按影响行数误判为失败。
+        resultMapper.updateBySubTaskName(dto, scope);
 
     }
 

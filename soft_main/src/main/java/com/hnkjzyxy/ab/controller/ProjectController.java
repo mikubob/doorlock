@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hnkjzyxy.ab.dto.SubTaskDto;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
+import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.mapper.ProjectItemMapper;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
 import com.hnkjzyxy.ab.mapper.ResultMapper;
@@ -47,6 +48,7 @@ import com.hnkjzyxy.ab.params.ProjectResultSubmitParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -546,19 +548,21 @@ public class ProjectController {
 
     /**
      * 查询用户子任务得分（已废弃）
-     * 推荐使用 /project/subTaskScores
+     * <p>
+     * 保留旧路径及名称筛选兼容，推荐使用 {@code /project/subTaskScores}。
+     * 两条查询共用 Service 查看策略：管理员查看全部学院，院长查看当前所属学院。
+     * </p>
      *
      * @param dto 子任务查询条件
-     * @param authentication 当前登录认证信息
-     * @return 子任务得分数据
+     * @param authentication 当前已认证主体，用于解析操作人，不能由DTO目标用户代替
+     * @return 统一成功响应，{@code data} 中包含可见成绩的 {@code total} 和 {@code list}
+     * @throws AuthPermissionException 主体或当前账号无效时返回401；无查看权限或学院配置异常时返回403
+     * @see #getEveryScores(SubTaskIdDto, Authentication)
      */
     @GetMapping("/project/subTaskScore")
     public ApiResult getEveryScore(SubTaskDto dto, Authentication authentication) {
-        //需要的内容 前端的子任务的名称和项目的名称
-        User user = userService.getUserByName(authentication.getName());
-        if (Objects.isNull(user)) {
-            throw new RuntimeException("用户不能为空！");
-        }
+        // 只从认证主体解析操作人；Service再查询当前数据库账号、角色及学院。
+        User user = resultOperator(authentication);
 
         Map<String, Object> map = resultService.getList(dto, user);
 
@@ -583,18 +587,20 @@ public class ProjectController {
 
     /**
      * 根据ID查询用户子任务得分
+     * <p>
+     * DTO 中的用户ID仅作为目标筛选条件；实际查看范围由 Service 的当前账号及角色策略生成。
+     * 院长查询其他学院目标时返回正常空列表，成功响应结构与旧查询一致。
+     * </p>
      *
      * @param dto 子任务查询条件
-     * @param authentication 当前登录认证信息
-     * @return 子任务得分数据
+     * @param authentication 当前已认证主体，用于解析实际操作人
+     * @return 统一成功响应，{@code data} 中包含可见成绩的 {@code total} 和 {@code list}
+     * @throws AuthPermissionException 主体或当前账号无效时返回401；无查看权限或学院配置异常时返回403
      */
     @GetMapping("/project/subTaskScores")
     public ApiResult getEveryScores(SubTaskIdDto dto, Authentication authentication) {
-        //每个下拉框都是独立写一个接口，然后通过大的接口写入
-        User user = userService.getUserByName(authentication.getName());
-        if (Objects.isNull(user)) {
-            throw new RuntimeException("用户不能为空！");
-        }
+        // 请求只提供筛选条件，不接受由客户端决定的角色或学院授权范围。
+        User user = resultOperator(authentication);
 
         Map<String, Object> map = resultService.getLists(dto, user);
 
@@ -630,24 +636,49 @@ public class ProjectController {
 
     /**
      * 批量修改用户子任务得分
+     * <p>
+     * 仅允许具有有效院长角色的操作人修改当前学院成绩，管理员角色本身不授予评分权限。
+     * Service 在同一事务内核验整批目标并更新，任何越界目标均拒绝整批评分。
+     * </p>
      *
      * @param dto 待更新的子任务得分列表
-     * @param authentication 当前登录认证信息
-     * @return 操作结果
+     * @param authentication 当前已认证主体，用于解析实际评分操作人
+     * @return 保留现有“修改成功”提示的统一响应
+     * @throws AuthPermissionException 主体或当前账号无效时返回401；无评分权限或越界时返回403
+     * @throws ProjectTaskException 参数、任务归属、结果有效性或项目状态不符合评分要求时抛出
      */
     @PutMapping("/project/subTaskScore")
     public ApiResult updateEveryScore(@Valid @RequestBody List<SubTaskIdDto> dto, Authentication authentication) {
-        //获得项目的名称和项目的分类还有子任务的名称和分数
-
-        //需要的内容 还是用查询的返回结果来接收，是一个list
-        //只能做修改
-        User user = userService.getUserByName(authentication.getName());
-        if (Objects.isNull(user)) {
-            throw new RuntimeException("用户不能为空！");
-        }
+        // DTO中的用户ID是评分目标；先解析认证操作人，再交由Service校验权限和事务范围。
+        User user = resultOperator(authentication);
 
         resultService.updateSubTaskScore(dto, user);
         return ApiResult.ok("修改成功");
+    }
+
+    /**
+     * 从认证主体解析三个成绩入口的操作人
+     * <p>
+     * 拒绝缺失、未认证或匿名主体，再按主体工号取得用户资料。
+     * 此处取得的用户可能来自缓存，其状态、角色及学院必须由 Service 重新查库核验；
+     * 本方法不代替实际授权，也不改变其他接口或认证过滤器的响应契约。
+     * </p>
+     *
+     * @param authentication 当前请求的认证信息
+     * @return 与认证主体用户名对应的用户资料，供 Service 进一步核验
+     * @throws AuthPermissionException 主体无效或无法取得对应用户时返回401
+     */
+    private User resultOperator(Authentication authentication) {
+        // 匿名认证令牌也可能标记为已认证，需要单独拒绝，避免将匿名主体当作业务账号。
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                || authentication.getName() == null || authentication.getName().trim().isEmpty()) {
+            throw new AuthPermissionException(401, "当前登录身份无效，请重新登录");
+        }
+        // 认证用户名只用于取得身份线索，缓存资料不直接决定本次学院或角色权限。
+        User user = userService.getUserByName(authentication.getName());
+        if (user == null) throw new AuthPermissionException(401, "认证用户无效或已禁用，请重新登录");
+        return user;
     }
 
     /**

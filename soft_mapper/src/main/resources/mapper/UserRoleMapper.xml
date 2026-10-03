@@ -6,6 +6,24 @@
 <mapper namespace="com.hnkjzyxy.ab.mapper.UserRoleMapper">
 
     <!--
+        查询用户关联的全部有效角色码
+        参数：userId（已核验的当前操作人ID）。
+        返回：有效角色码列表，无匹配角色时为空；按编码字节去重，不按名称或权重排序授权。
+        说明：INNER JOIN 排除缺失角色；显式限制 role_status=1，不能依赖自定义SQL自动逻辑删除。
+              TRIM 只用于排除全空白编码，返回的编码不修剪，首尾空格或大小写异常仍由上层拒绝。
+              useCache=false 禁止二级缓存，flushCache=true 清除当前会话旧查询结果。
+    -->
+    <select id="selectActiveRoleCodes" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT DISTINCT BINARY r.role_code
+        FROM sys_role r
+        INNER JOIN sys_user_role ur ON ur.role_id = r.role_id
+        WHERE ur.user_id = #{userId}
+        AND r.role_status = 1
+        AND r.role_code IS NOT NULL
+        AND TRIM(r.role_code) &lt;&gt; ''
+    </select>
+
+    <!--
         查询用户角色ID集合
         参数：userId（用户ID）。
         返回：角色ID列表。

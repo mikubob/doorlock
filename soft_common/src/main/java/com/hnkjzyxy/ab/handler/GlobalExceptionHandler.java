@@ -1,5 +1,6 @@
 package com.hnkjzyxy.ab.handler;
 
+import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.result.ApiResult;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,23 @@ import org.springframework.web.servlet.NoHandlerFoundException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 处理成绩入口身份无效及权限不足异常
+     * <p>
+     * 同时设置实际 HTTP 状态与响应体业务码，不将预期权限拒绝包装成通用参数错误。
+     * 本处理器只覆盖进入 MVC 异常处理链的专用异常，不改变认证过滤器的响应行为。
+     * </p>
+     *
+     * @param e 携带401或403状态码及可读提示的身份权限异常
+     * @return HTTP 状态与业务错误码一致的统一错误响应
+     */
+    @ExceptionHandler(AuthPermissionException.class)
+    public ResponseEntity<ApiResult> handler(AuthPermissionException e) {
+        // 由异常类型精确分流，保留数据库及其他运行时异常原有的处理契约。
+        return ResponseEntity.status(e.getStatus())
+                .body(ApiResult.error(e.getStatus(), e.getMessage()));
+    }
 
     /**
      * 处理项目任务导入及生命周期校验异常

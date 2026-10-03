@@ -3,6 +3,8 @@ package com.hnkjzyxy.ab.mapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
+import com.hnkjzyxy.ab.dto.ResultAccessScope;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.model.Result;
 import com.hnkjzyxy.ab.vo.SubTaskVo;
 import org.apache.ibatis.annotations.Param;
@@ -225,28 +227,58 @@ public interface ResultMapper extends BaseMapper<Result> {
 
     /**
      * 按项目名称和任务名称及分类查询子任务评分
+     * <p>
+     * 保留旧查询的字段及筛选条件；任务与结果必须属于同一项目。
+     * 学院边界在 SQL 内执行，未提供范围时返回空列表，不能省略过滤后查询全部学院。
+     * </p>
      *
      * @param title 项目名称
      * @param taskName 任务名称
      * @param taskCategory 任务分类名称
-     * @return 匹配项目名称、任务名称和分类的子任务评分列表
+     * @param scope 权限策略生成的全学院查看范围或精确单学院范围，不能来自客户端
+     * @return 范围内匹配筛选条件的评分列表，无匹配数据或缺少范围时返回空列表
      */
-    List<SubTaskVo> getUsersSubTaskScore(@Param("title") String title, @Param("taskName") String taskName, @Param("taskCategory") String taskCategory);
+    List<SubTaskVo> getUsersSubTaskScore(@Param("title") String title, @Param("taskName") String taskName,
+                                      @Param("taskCategory") String taskCategory, @Param("scope") ResultAccessScope scope);
 
     /**
-     * 通过 ID 查询子任务，参数只需要 ID 和限制的分数
+     * 按项目ID、用户ID及任务条件查询子任务评分
+     * <p>
+     * DTO 中的用户ID仅代表查询目标，不决定操作人身份或学院范围。
+     * 学院按精确名称匹配，越界目标返回空列表，不通过查询结果泄露其成绩。
+     * </p>
      *
-     * @param dto 子任务查询参数
-     * @return 子任务分数列表
+     * @param dto 项目、目标用户、任务名称、任务分类及最低分数等查询条件
+     * @param scope 权限策略生成的全学院查看范围或精确单学院范围，不能来自客户端
+     * @return 范围内匹配筛选条件的评分列表，无匹配数据或缺少范围时返回空列表
      */
-    List<SubTaskVo> getUsersSubTaskScoreById(SubTaskIdDto dto);
+    List<SubTaskVo> getUsersSubTaskScoreById(@Param("dto") SubTaskIdDto dto, @Param("scope") ResultAccessScope scope);
 
     /**
      * 批量更新子任务评分信息
+     * <p>
+     * 仅在 Service 已完成整批参数、任务归属、结果存在性及目标学院校验后调用。
+     * 外层评分事务按项目ID、目标用户ID分别升序加锁；SQL 再通过用户表限定目标学院。
+     * 缺少范围或传入全学院范围时不更新任何成绩，多条语句的原子性由外层事务保证。
+     * </p>
      *
-     * @param dto 考核结果操作或查询参数
+     * @param dto 非空的评分列表，每项按用户、项目和字符串任务ID定位结果
+     * @param scope 已通过院长修改策略的单学院范围，不允许使用全学院查看范围
      */
-    void updateBySubTaskName(@Param("list") List<SubTaskIdDto> dto);
+    void updateBySubTaskName(@Param("rows") List<SubTaskIdDto> dto, @Param("scope") ResultAccessScope scope);
+
+    /**
+     * 锁定评分目标用户并读取当前学院
+     * <p>
+     * 必须在评分事务内、取得全部项目锁后，对去重的目标ID升序逐条调用。
+     * 行锁持有到事务结束，使并发学院调整等待本次评分完成；查询刷新缓存以读取当前行。
+     * 不过滤目标账号启用状态，允许核验历史停用用户的成绩归属。
+     * </p>
+     *
+     * @param targetId 已解析并去重的目标用户ID，不是操作人ID
+     * @return 仅包含用户ID及学院的用户对象；目标用户不存在时返回 null
+     */
+    User lockScoreTargetUser(@Param("targetId") Integer targetId);
 
     /**
      * 查询项目分类下指定教研室的评分

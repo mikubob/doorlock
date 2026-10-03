@@ -55,8 +55,9 @@
 
     <!--
         按项目名称和任务名称及分类查询子任务评分
-        参数：title（项目名称）；taskName（任务名称）；taskCategory（任务分类名称）。
+        参数：title（项目名称）；taskName（任务名称）；taskCategory（任务分类名称）；scope（服务端范围）。
         返回：匹配项目名称、任务名称和分类的子任务评分列表。
+        说明：通过真实任务主键关联并核对任务项目，范围由服务端权限策略生成；旧接口字段保持兼容。
     -->
     <select id="getUsersSubTaskScore" resultType="com.hnkjzyxy.ab.vo.SubTaskVo">
         select a.id, b.title ,b.id as projectId, b.start_time ,b.end_time, d.user_name, d.nick_name
@@ -64,20 +65,22 @@
         ,d.user_id, c.score as highScore
         from sys_result a
         inner join sys_project b on a.p_id=b.id
-        inner join sys_task c on a.task_id=c.id
+        inner join sys_task c on a.task_id=c.id AND c.p_id=b.id
         inner join sys_user d on a.u_id=d.user_id
         <where>
             <if test="title!=null and title !=''">and b.title =#{title}</if>
             <if test="taskName!=null and taskName !=''">and c.task_name =#{taskName}</if>
             <if test="taskCategory!=null and taskCategory !=''">and c.category =#{taskCategory}</if>
+            <include refid="resultAccessScope"/>
         </where>
     </select>
 
 
     <!--
         通过 ID 查询子任务，参数只需要 ID 和限制的分数
-        参数：dto（子任务查询参数）。
+        参数：dto（子任务查询参数）；scope（服务端范围）。
         返回：子任务分数列表。
+        说明：dto.userId 是查询目标，不是操作人；筛选与学院范围同时在SQL中生效。
     -->
     <select id="getUsersSubTaskScoreById" resultType="com.hnkjzyxy.ab.vo.SubTaskVo">
         select a.id, a.evidence ,b.title ,b.id as projectId, b.start_time ,b.end_time, d.user_name, d.nick_name
@@ -85,16 +88,33 @@
         ,d.user_id, c.score as highScore
         from sys_result a
         inner join sys_project b on a.p_id=b.id
-        inner join sys_task c on a.task_id=c.id
+        inner join sys_task c on a.task_id=c.id AND c.p_id=b.id
         inner join sys_user d on a.u_id=d.user_id
         <where>
-            <if test="projectId!=null and projectId!='' ">and b.id =#{projectId}</if>
-            <if test="taskName!=null and taskName!='' ">and c.task_name =#{taskName}</if>
-            <if test="userId!=null and userId!=''">and a.u_id = #{userId}</if>
-            <if test="taskCategory!=null and taskCategory !=''">and c.category =#{taskCategory}</if>
-            <if test="limitScore!=null ">and a.score &gt;= #{limitScore}</if>
+            <if test="dto.projectId!=null and dto.projectId!='' ">and b.id =#{dto.projectId}</if>
+            <if test="dto.taskName!=null and dto.taskName!='' ">and c.task_name =#{dto.taskName}</if>
+            <if test="dto.userId!=null and dto.userId!=''">and a.u_id = #{dto.userId}</if>
+            <if test="dto.taskCategory!=null and dto.taskCategory !=''">and c.category =#{dto.taskCategory}</if>
+            <if test="dto.limitScore!=null ">and a.score &gt;= #{dto.limitScore}</if>
+            <include refid="resultAccessScope"/>
         </where>
     </select>
+    <!--
+        子任务成绩查询共用的访问范围条件
+        参数：scope（全学院查看范围或精确单学院范围），由服务端权限策略构造。
+        说明：管理员全学院查看不要求目标学院完整；院长只匹配当前所属学院。
+              BINARY 比较避免默认排序规则忽略大小写或尾部空格，与Java学院相等判断保持一致。
+              缺少范围默认 AND 1=0，不因调用方漏传条件而返回全部学院数据。
+    -->
+    <sql id="resultAccessScope">
+        <choose>
+            <when test="scope != null and scope.allColleges">AND 1 = 1</when>
+            <when test="scope != null and scope.college != null and scope.college != ''">
+                AND BINARY d.college = BINARY #{scope.college}
+            </when>
+            <otherwise>AND 1 = 0</otherwise>
+        </choose>
+    </sql>
     <!--
         查询项目分类下指定教研室的评分
         参数：pId（考核项目ID）；category（任务分类）；department（教研室名称）。
@@ -157,22 +177,37 @@
 
     <!--
         批量更新子任务评分信息
-        参数：list（考核结果操作或查询参数）。
-        说明：按用户、项目和任务定位每条结果；list 必须非空，批量语句由外层事务统一控制。
+        参数：rows（评分列表）；scope（服务端学院范围）。
+        说明：Service 已整批核验并持有项目及目标用户锁，UPDATE 再关联用户当前学院限定范围。
+              仅允许单学院范围；缺少范围或误传全学院查看范围时不更新任何结果。
+              foreach 生成多条更新，由既有允许多语句的数据源及外层评分事务保证执行和回滚。
+              不以影响行数等于列表长度作为成功条件，允许同分数重复提交。
     -->
-    <update id="updateBySubTaskName" parameterType="java.util.List">
-
-
-        <foreach collection="list" separator=";" item="item">
+    <update id="updateBySubTaskName">
+        <foreach collection="rows" separator=";" item="row">
             update sys_result a
-            <set>
-                score=#{item.score}
-                where
-                a.u_id=#{item.userId} and a.p_id=#{item.projectId} and a.task_id=#{item.taskId}
-            </set>
+            inner join sys_user d on d.user_id = a.u_id
+            set a.score = #{row.score}
+            where a.u_id = #{row.userId} and a.p_id = #{row.projectId} and a.task_id = #{row.taskId}
+            <choose>
+                <when test="scope != null and !scope.allColleges and scope.college != null and scope.college != ''">
+                    AND BINARY d.college = BINARY #{scope.college}
+                </when>
+                <otherwise>AND 1 = 0</otherwise>
+            </choose>
         </foreach>
-
     </update>
+
+    <!--
+        锁定评分目标用户并读取当前学院
+        参数：targetId（已解析的目标用户ID）。
+        返回：用户ID及学院，不存在时返回 null；不按目标账号状态过滤历史成绩。
+        说明：评分事务先取得全部项目锁，再对目标ID去重、升序逐条调用本查询。
+              FOR UPDATE 锁持续到事务结束，使并发学院调整等待；刷新缓存以免复用锁前资料。
+    -->
+    <select id="lockScoreTargetUser" resultType="com.hnkjzyxy.ab.model.User" useCache="false" flushCache="true">
+        SELECT user_id, college FROM sys_user WHERE user_id = #{targetId} FOR UPDATE
+    </select>
     <!--
         查询项目中指定教师的任务ID
         参数：pId（考核项目ID）；teacherId（教师编号）。

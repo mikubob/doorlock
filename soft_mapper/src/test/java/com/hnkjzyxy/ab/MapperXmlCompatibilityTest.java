@@ -13,6 +13,7 @@ import com.hnkjzyxy.ab.mapper.ResultMapper;
 import com.hnkjzyxy.ab.mapper.SwitchRecordMapper;
 import com.hnkjzyxy.ab.mapper.UserMapper;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
+import com.hnkjzyxy.ab.dto.ResultAccessScope;
 import com.hnkjzyxy.ab.model.Construct;
 import com.hnkjzyxy.ab.model.SwitchRecord;
 import org.apache.ibatis.mapping.BoundSql;
@@ -321,9 +322,12 @@ class MapperXmlCompatibilityTest {
         dto.setUserId("9");
         dto.setLimitScore(5);
         MappedStatement statement = statement(ResultMapper.class, "getUsersSubTaskScoreById");
-        BoundSql bound = statement.getBoundSql(dto);
+        // 使用与真实Mapper签名一致的命名参数；全学院范围不追加学院占位符，保留筛选参数数量断言。
+        parameters.put("dto", dto);
+        parameters.put("scope", ResultAccessScope.all(7));
+        BoundSql bound = statement.getBoundSql(parameters);
         assertEquals(3, bound.getParameterMappings().size());
-        configuration.newParameterHandler(statement, dto, bound).setParameters(mock(PreparedStatement.class));
+        configuration.newParameterHandler(statement, parameters, bound).setParameters(mock(PreparedStatement.class));
     }
 
     /**
@@ -373,6 +377,8 @@ class MapperXmlCompatibilityTest {
      * @throws Exception 实体无法实例化时抛出
      */
     private static Object sample(Class<?> type, Type generic) throws Exception {
+        // 范围对象仅允许工厂构造，通用参数绑定检查不能再尝试调用无参构造方法。
+        if (type == ResultAccessScope.class) return ResultAccessScope.college(7, "2026");
         if (type == String.class) return "2026";
         if (type == Integer.class || type == int.class) return 7;
         if (type == Long.class || type == long.class) return 7L;

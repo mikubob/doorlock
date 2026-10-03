@@ -13,6 +13,19 @@ import java.util.List;
 public interface UserRoleMapper extends BaseMapper<UserRole> {
 
     /**
+     * 查询用户关联的全部有效角色码
+     * <p>
+     * 只返回状态为1且编码非空、非全空白的真实角色；缺失角色记录及重复关联不增加权限。
+     * 按编码字节去重，保留大小写及首尾空格供上层精确匹配，不按名称或最高权重取单个角色。
+     * 对应查询禁用二级缓存并刷新本地缓存，不使用已有权限缓存决定本次授权。
+     * </p>
+     *
+     * @param userId 已核验的当前用户ID
+     * @return 去重的有效角色码列表，无匹配角色时返回空列表
+     */
+    List<String> selectActiveRoleCodes(@Param("userId") Integer userId);
+
+    /**
      * 查询用户角色ID集合
      *
      * @param userId 用户ID
