@@ -2,6 +2,9 @@ package com.hnkjzyxy.ab.mapper;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.hnkjzyxy.ab.dto.ProjectAssessRow;
+import com.hnkjzyxy.ab.dto.ProjectAssessScope;
+import com.hnkjzyxy.ab.params.ProjectQueryParam;
 import com.hnkjzyxy.ab.model.FlowTask;
 import com.hnkjzyxy.ab.model.Project;
 import com.hnkjzyxy.ab.vo.ProjectItemVo;
@@ -15,6 +18,36 @@ import java.util.List;
  * 考核项目数据访问接口
  */
 public interface ProjectMapper extends BaseMapper<Project> {
+
+    /**
+     * 查找筛选项目中接收名单格式异常的首个有效CC节点
+     *
+     * @param param 项目及时间筛选条件
+     * @return 异常节点ID，全部合法时返回null
+     */
+    Integer findInvalidAssessRecipient(@Param("param") ProjectQueryParam param);
+
+    /**
+     * 统计当前权限及全部筛选条件下的项目、用户组合数
+     *
+     * @param param 项目考核查询条件
+     * @param scope 服务端生成的访问范围
+     * @return 展示记录总数
+     */
+    long countAssessList(@Param("param") ProjectQueryParam param, @Param("scope") ProjectAssessScope scope);
+
+    /**
+     * 按总分、项目ID及用户ID排序查询当前页，不启用插件自动分页
+     *
+     * @param param 项目考核查询条件
+     * @param scope 服务端生成的访问范围
+     * @param offset 使用long计算的页偏移量
+     * @param limit 当前页最大条数
+     * @return 当前页记录及宽类型聚合分数
+     */
+    List<ProjectAssessRow> selectAssessListPage(@Param("param") ProjectQueryParam param,
+                                              @Param("scope") ProjectAssessScope scope,
+                                              @Param("offset") long offset, @Param("limit") int limit);
 
     /**
      * 查询考核项目详情

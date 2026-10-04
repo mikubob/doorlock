@@ -123,11 +123,14 @@ public interface ProjectService extends IService<Project> {
     List<String> getUserProjectYears(ProjectParam param);
 
     /**
-     * 查询项目考核结果列表
+     * 按当前用户可见范围在数据库排序分页查询项目考核列表
+     * <p>
+     * 每个项目、用户展示一行，按总分降序及项目、用户ID升序排列，rank为筛选全集顺序编号。
+     * </p>
      *
-     * @param param 考核项目操作或查询参数
-     * @param user 当前用户
-     * @return 统一接口响应
+     * @param param 可选筛选条件及分页参数，page大于0，limit为1至100
+     * @param user 认证链路取得的当前用户，请求userId不能替代其身份
+     * @return 保留顶层total、list并补充totalPage、page、limit的统一接口响应
      */
     ApiResult getProjectAssessList(ProjectQueryParam param, User user);
 

@@ -6,6 +6,199 @@
 <mapper namespace="com.hnkjzyxy.ab.mapper.ProjectMapper">
 
     <!--
+        考核列表共用的项目及有效CC节点关系。
+        项目覆盖请求时间区间；NULL项目状态不视为有效，保留原SQL比较语义。
+    -->
+    <sql id="assessProjectsAndFlows">
+        assess_projects AS (
+            SELECT p.id, p.title, p.start_time, p.end_time
+            FROM sys_project p
+            WHERE p.status &lt;&gt; 3
+            <if test="param.projectId != null">AND p.id = #{param.projectId}</if>
+            <if test="param.startTime != null">AND p.start_time &lt;= #{param.startTime}</if>
+            <if test="param.endTime != null">AND p.end_time >= #{param.endTime}</if>
+        ),
+        assess_flows AS (
+            SELECT p.id AS projectId, ft.id, ft.u_id, ft.role_id
+            FROM assess_projects p
+            JOIN sys_flow f ON f.p_id = p.id AND f.status = 1
+            JOIN sys_flow_task ft ON ft.parent_id = f.id AND ft.status = 1 AND ft.type = 'CC'
+        )
+    </sql>
+
+    <!--
+        接收名单审计：空数组合法；SQL NULL、空串、非数组、非法元素和超出INT范围均报错。
+        兼容整数及整数字符串；拒绝小数、布尔、对象、数组和null，避免JSON_TABLE隐式转换吞错。
+        安全占位仅用于诊断非法JSON，不用于业务候选生成；返回可定位的异常节点ID。
+    -->
+    <select id="findInvalidAssessRecipient" resultType="java.lang.Integer">
+        SELECT invalid.id FROM (
+        WITH <include refid="assessProjectsAndFlows"/>,
+        recipient_documents AS (
+            SELECT id, u_id AS document FROM assess_flows
+            UNION ALL
+            SELECT id, role_id AS document FROM assess_flows
+        ),
+        checked_documents AS (
+            SELECT id, COALESCE(JSON_VALID(document), 0) AS valid,
+                   CASE WHEN JSON_VALID(document) = 1 THEN document ELSE 'null' END AS document
+            FROM recipient_documents
+        )
+        SELECT d.id FROM checked_documents d
+        WHERE d.valid = 0 OR JSON_TYPE(d.document) &lt;&gt; 'ARRAY'
+        OR EXISTS (
+            SELECT 1
+            FROM JSON_TABLE(
+                CASE WHEN JSON_TYPE(d.document) = 'ARRAY' THEN d.document ELSE '[]' END,
+                '$[*]' COLUMNS (position FOR ORDINALITY)
+            ) elements
+            WHERE CASE
+                WHEN JSON_TYPE(JSON_EXTRACT(d.document, CONCAT('$[', elements.position - 1, ']')))
+                     IN ('INTEGER', 'STRING')
+                 AND JSON_UNQUOTE(JSON_EXTRACT(d.document, CONCAT('$[', elements.position - 1, ']')))
+                     REGEXP '^-?[0-9]{1,10}$'
+                THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(d.document, CONCAT('$[', elements.position - 1, ']')))
+                          AS DECIMAL(20, 0)) NOT BETWEEN -2147483648 AND 2147483647
+                ELSE TRUE
+            END
+        )
+        ORDER BY d.id LIMIT 1
+        ) invalid
+    </select>
+
+    <!--
+        COUNT和当前页共用候选、权限、聚合及过滤关系，按项目、用户去重。
+        本人分支只要求已有结果，不要求仍在CC名单；请求userId不参与操作人确定。
+        辅助角色关系保留旧getRoles语义，不新增role_status或学院条件。
+    -->
+    <sql id="assessFilteredRows">
+        WITH <include refid="assessProjectsAndFlows"/>,
+        assess_candidates AS (
+            <choose>
+                <when test="scope != null and scope.operatorId != null and scope.type.name() == 'SELF_RESULTS'">
+                    SELECT DISTINCT p.id AS projectId, r.u_id AS userId
+                    FROM assess_projects p
+                    JOIN sys_result r ON r.p_id = p.id AND r.u_id = #{scope.operatorId}
+                </when>
+                <when test="scope != null and scope.operatorId != null and (scope.type.name() == 'ALL_RECIPIENTS' or scope.type.name() == 'SHARED_ROLE_RECIPIENTS' or scope.type.name() == 'SHARED_DEPARTMENT_RECIPIENTS')">
+                    SELECT f.projectId, u.user_id AS userId
+                    FROM assess_flows f
+                    JOIN JSON_TABLE(CAST(f.u_id AS JSON), '$[*]' COLUMNS (
+                        userId INT PATH '$' ERROR ON EMPTY ERROR ON ERROR
+                    )) recipients ON TRUE
+                    JOIN sys_user u ON u.user_id = recipients.userId
+                    UNION
+                    SELECT f.projectId, u.user_id AS userId
+                    FROM assess_flows f
+                    JOIN JSON_TABLE(CAST(f.role_id AS JSON), '$[*]' COLUMNS (
+                        roleId INT PATH '$' ERROR ON EMPTY ERROR ON ERROR
+                    )) recipients ON TRUE
+                    JOIN sys_user_role ur ON ur.role_id = recipients.roleId
+                    JOIN sys_user u ON u.user_id = ur.user_id
+                </when>
+                <otherwise>
+                    SELECT 0 AS projectId, 0 AS userId WHERE 1 = 0
+                </otherwise>
+            </choose>
+        ),
+        assess_visible AS (
+            SELECT c.projectId, c.userId
+            FROM assess_candidates c
+            JOIN sys_user u ON u.user_id = c.userId
+            WHERE
+            <choose>
+                <when test="scope != null and (scope.type.name() == 'ALL_RECIPIENTS' or scope.type.name() == 'SELF_RESULTS')">
+                    1 = 1
+                </when>
+                <when test="scope != null and (scope.type.name() == 'SHARED_ROLE_RECIPIENTS' or scope.type.name() == 'SHARED_DEPARTMENT_RECIPIENTS')">
+                    EXISTS (
+                        SELECT 1 FROM sys_user_role operator_role
+                        JOIN sys_role role ON role.role_id = operator_role.role_id
+                        JOIN sys_user_role target_role ON target_role.role_id = operator_role.role_id
+                        WHERE operator_role.user_id = #{scope.operatorId}
+                          AND target_role.user_id = c.userId AND role.weight &lt;&gt; 1
+                        <if test="scope.type.name() == 'SHARED_DEPARTMENT_RECIPIENTS'">
+                            AND role.weight = 2
+                        </if>
+                    )
+                </when>
+                <otherwise>1 = 0</otherwise>
+            </choose>
+            <if test="param.roleId != null">
+                AND EXISTS (SELECT 1 FROM sys_user_role filter_role
+                            WHERE filter_role.user_id = c.userId AND filter_role.role_id = #{param.roleId})
+            </if>
+            <if test="param.nickName != null">
+                AND LOCATE(CAST(#{param.nickName} AS BINARY), CAST(u.nick_name AS BINARY)) > 0
+            </if>
+        ),
+        assess_totals AS (
+            SELECT c.projectId, c.userId, COALESCE(SUM(r.score), 0) AS score, MIN(r.id) AS firstResultId
+            FROM assess_visible c
+            LEFT JOIN sys_result r ON r.p_id = c.projectId AND r.u_id = c.userId
+            GROUP BY c.projectId, c.userId
+        ),
+        assess_rows AS (
+            SELECT a.projectId, a.userId, a.score,
+                   CASE WHEN first_result.is_finish = 1 THEN 1 ELSE 0 END AS status
+            FROM assess_totals a
+            LEFT JOIN sys_result first_result ON first_result.id = a.firstResultId
+        ),
+        assess_filtered AS (
+            SELECT projectId, userId, score, status FROM assess_rows
+            <where>
+                <if test="param.status != null">status = #{param.status}</if>
+            </where>
+        )
+    </sql>
+
+    <!--
+        统计最终展示记录；显式COUNT避免旧版分页插件改写复杂CTE。
+        外层SELECT兼容Connector/J 8.0.19对只读事务中WITH语句的识别。
+    -->
+    <select id="countAssessList" resultType="java.lang.Long">
+        SELECT counted.total FROM (
+        <include refid="assessFilteredRows"/>
+        SELECT COUNT(*) AS total FROM assess_filtered
+        ) counted
+    </select>
+
+    <!--
+        当前页字段映射；score以Long接收，服务层校验后写入原VO的Integer字段。
+    -->
+    <resultMap id="assessPageResultMap" type="com.hnkjzyxy.ab.dto.ProjectAssessRow" autoMapping="false">
+        <result property="projectId" column="projectId"/>
+        <result property="userId" column="userId"/>
+        <result property="projectName" column="projectName"/>
+        <result property="startTime" column="startTime"/>
+        <result property="endTime" column="endTime"/>
+        <result property="nickName" column="nickName"/>
+        <result property="userName" column="userName"/>
+        <result property="major" column="major"/>
+        <result property="totalScore" column="score" javaType="java.lang.Long"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <!--
+        固定总分降序、项目及用户ID升序；数据库仅返回绑定LIMIT的当前页。
+        CTE接收列显式转为JSON，避免MySQL对派生VARCHAR列的JSON_TABLE类型识别错误。
+    -->
+    <select id="selectAssessListPage" resultMap="assessPageResultMap">
+        SELECT paged.* FROM (
+        <include refid="assessFilteredRows"/>
+        SELECT a.projectId, a.userId, a.score, a.status,
+               p.title AS projectName, p.start_time AS startTime, p.end_time AS endTime,
+               u.nick_name AS nickName, u.user_name AS userName, u.major
+        FROM assess_filtered a
+        JOIN assess_projects p ON p.id = a.projectId
+        JOIN sys_user u ON u.user_id = a.userId
+        ORDER BY a.score DESC, a.projectId ASC, a.userId ASC
+        LIMIT #{offset}, #{limit}
+        ) paged
+        ORDER BY paged.score DESC, paged.projectId ASC, paged.userId ASC
+    </select>
+
+    <!--
         查询项目在指定时间范围内的流程节点
         参数：startTime（查询开始时间）；endTime（查询结束时间）；pId（考核项目ID）。
         返回：流程节点列表。

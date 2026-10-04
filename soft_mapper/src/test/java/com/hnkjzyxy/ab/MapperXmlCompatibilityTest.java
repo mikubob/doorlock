@@ -14,6 +14,7 @@ import com.hnkjzyxy.ab.mapper.SwitchRecordMapper;
 import com.hnkjzyxy.ab.mapper.UserMapper;
 import com.hnkjzyxy.ab.dto.SubTaskIdDto;
 import com.hnkjzyxy.ab.dto.ResultAccessScope;
+import com.hnkjzyxy.ab.dto.ProjectAssessScope;
 import com.hnkjzyxy.ab.model.Construct;
 import com.hnkjzyxy.ab.model.SwitchRecord;
 import org.apache.ibatis.mapping.BoundSql;
@@ -379,6 +380,7 @@ class MapperXmlCompatibilityTest {
     private static Object sample(Class<?> type, Type generic) throws Exception {
         // 范围对象仅允许工厂构造，通用参数绑定检查不能再尝试调用无参构造方法。
         if (type == ResultAccessScope.class) return ResultAccessScope.college(7, "2026");
+        if (type == ProjectAssessScope.class) return new ProjectAssessScope(7, ProjectAssessScope.Type.ALL_RECIPIENTS);
         if (type == String.class) return "2026";
         if (type == Integer.class || type == int.class) return 7;
         if (type == Long.class || type == long.class) return 7L;

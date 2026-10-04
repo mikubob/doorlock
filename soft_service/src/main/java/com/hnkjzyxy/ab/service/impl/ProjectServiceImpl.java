@@ -19,7 +19,6 @@ import com.hnkjzyxy.ab.mapper.NoticeMapper;
 import com.hnkjzyxy.ab.mapper.ProjectItemMapper;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
 import com.hnkjzyxy.ab.mapper.ResultMapper;
-import com.hnkjzyxy.ab.mapper.RoleMapper;
 import com.hnkjzyxy.ab.mapper.TaskMapper;
 import com.hnkjzyxy.ab.mapper.UserMapper;
 import com.hnkjzyxy.ab.mapper.UserRoleMapper;
@@ -31,7 +30,6 @@ import com.hnkjzyxy.ab.model.ResultExtend;
 import com.hnkjzyxy.ab.model.Role;
 import com.hnkjzyxy.ab.model.Task;
 import com.hnkjzyxy.ab.model.User;
-import com.hnkjzyxy.ab.model.UserRole;
 import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.params.ProjectQueryParam;
 import com.hnkjzyxy.ab.result.ApiResult;
@@ -41,8 +39,9 @@ import com.hnkjzyxy.ab.service.ProjectTaskImportService;
 import com.hnkjzyxy.ab.service.ResultExtendService;
 import com.hnkjzyxy.ab.service.ResultService;
 import com.hnkjzyxy.ab.service.TaskService;
-import com.hnkjzyxy.ab.service.UserService;
-import com.hnkjzyxy.ab.utils.PageUtils;
+import com.hnkjzyxy.ab.dto.ProjectAssessRow;
+import com.hnkjzyxy.ab.dto.ProjectAssessScope;
+import com.hnkjzyxy.ab.service.utils.ProjectAssessScopeResolver;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
 import com.hnkjzyxy.ab.service.support.ProjectTaskTreeSupport;
 import com.hnkjzyxy.ab.vo.FlowTaskVo;
@@ -62,6 +61,7 @@ import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -88,20 +88,15 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
     @Resource
     private UserRoleMapper userRoleMapper;
     /**
+     * 项目考核列表的认证用户范围解析器
+     */
+    @Resource
+    private ProjectAssessScopeResolver projectAssessScopeResolver;
+    /**
      * 审批流程数据访问接口
      */
     @Resource
     private FlowMapper flowMapper;
-    /**
-     * 用户业务服务
-     */
-    @Resource
-    private UserService userService;
-    /**
-     * 角色数据访问接口
-     */
-    @Resource
-    private RoleMapper roleMapper;
     /**
      * 用户数据访问接口
      */
@@ -682,150 +677,68 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      */
     @Override
     //@RedisCache(key = HnkjxyConstants.ASSESS_LIST)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ApiResult getProjectAssessList(ProjectQueryParam param, User user) {
-        //获取当前用户最高角色
-        Role role = userRoleMapper.getRoleWeight(user.getUserId());
-        //判断用户权限
-        //获取所有项目流程id
-        //List<ProjectVo> projectVos = projectMapper.getProjectAssessList();
-        List<ProjectVo> projectVos = new ArrayList<>();
-        //查询所有项目接收的所有用户id
-        //TODO
-        if (role.getWeight().intValue() >= HnkjzyEncode.LEADER.getCode()) {
-            //该用户是校级领导，可以看所有的数据
-            List<FlowTask> assessFlows = projectMapper.getProjectAssessFlow(param.getStartTime(), param.getEndTime(), param.getProjectId());
-            assessFlows.forEach(flow -> {
-                HashSet<Integer> uIds = new HashSet<>(JSON.parseArray(flow.getUId(), Integer.class));
-                List<Integer> roleIds = JSON.parseArray(flow.getRoleId(), Integer.class);
-                //通过角色id拿到用户id
-                roleIds.forEach(item -> {
-                    uIds.addAll(userRoleMapper.selectUserIdByRoleId(item));
-                });
-                uIds.forEach(item -> {
-                    addProjectVos(param, projectVos, flow, item);
-                });
-            });
-        } else if (role.getWeight().intValue() == HnkjzyEncode.DEAN.getCode()) {
-            //该用户为二级学院院长，可以看该二级学院下的教研室的所有的数据
-            List<FlowTask> assessFlows = projectMapper.getProjectAssessFlow(param.getStartTime(), param.getEndTime(), param.getProjectId());
-            assessFlows.forEach(flow -> {
-                HashSet<Integer> uIds = new HashSet<>(JSON.parseArray(flow.getUId(), Integer.class));
-                List<Integer> roleIds = JSON.parseArray(flow.getRoleId(), Integer.class);
-                //通过角色id拿到用户id
-                roleIds.forEach(item -> {
-                    uIds.addAll(userRoleMapper.selectUserIdByRoleId(item));
-                });
-                uIds.forEach(item -> {
-                    //判断是否为二级学院下面的一个教研室
-                    //获取当前用户的角色
-                    List<Integer> valRoles = userRoleMapper.getRoles(item);
-                    List<Integer> userRoles = userRoleMapper.getRoles(user.getUserId());
-                    if (checkDeanRoles(userRoles, valRoles)) {
-                        addProjectVos(param, projectVos, flow, item);
-                    }
-                });
-            });
-        } else if (role.getWeight().equals(HnkjzyEncode.DIRECTOR.getCode())) {
-            //教研室主任
-            //拿到自己教研室的用户数据
-            List<FlowTask> assessFlows = projectMapper.getProjectAssessFlow(param.getStartTime(), param.getEndTime(), param.getProjectId());
-            assessFlows.forEach(flow -> {
-                HashSet<Integer> uIds = new HashSet<>(JSON.parseArray(flow.getUId(), Integer.class));
-                List<Integer> roleIds = JSON.parseArray(flow.getRoleId(), Integer.class);
-                //通过角色id拿到用户id
-                roleIds.forEach(item -> {
-                    uIds.addAll(userRoleMapper.selectUserIdByRoleId(item));
-                });
-                uIds.forEach(item -> {
-                    //判断他们是不是一个教研室
-                    //获取当前用户的角色
-                    List<Integer> valRoles = userRoleMapper.getRoles(item);
-                    List<Integer> userRoles = userRoleMapper.getRoles(user.getUserId());
-                    if (checkRoles(userRoles, valRoles)) {
-                        addProjectVos(param, projectVos, flow, item);
-                    }
-                });
-            });
-        } else if (role.getWeight().compareTo(HnkjzyEncode.DIRECTOR.getCode()) == -1) {
-            //普通用户老师
-            List<Integer> projectIds = resultMapper.getProjectIds(user.getUserId());
-            projectIds.forEach(pId -> {
-                ProjectVo vo = new ProjectVo();
-                Project project = projectMapper.getProjectByTime(pId, param.getStartTime(), param.getEndTime());
-                if (ObjectUtil.isNotNull(project)) {
-                    vo.setStartTime(project.getStartTime());
-                    vo.setEndTime(project.getEndTime());
-                    vo.setProjectId(pId);
-                    if ((ObjectUtil.isNotNull(param.getNickName()) && user.getNickName().contains(param.getNickName())) || ObjectUtil.isNull(param.getNickName())) {
-                        Integer status = resultMapper.findResultStatus(user.getUserId(), pId);
-                        vo.setStatus(status != null && status == 1 ? 1 : 0);
-                        if ((ObjectUtil.isNotNull(param.getStatus()) && param.getStatus().equals(vo.getStatus())) || ObjectUtil.isNull(param.getStatus())) {
-                            vo.setUserId(user.getUserId());
-                            vo.setProjectName(projectMapper.getProjectName(pId));
-                            vo.setMajor(user.getMajor());
-                            vo.setNickName(user.getNickName());
-                            vo.setUserName(user.getUserName());
-                            Integer score = resultMapper.findTotalScore(user.getUserId(), pId);
-                            vo.setScore(score != null ? score : 0);
-                            projectVos.add(vo);
-                        }
-                    }
+        validateAssessQuery(param);
+        ProjectAssessScope scope = projectAssessScopeResolver.resolve(user);
+        if (scope.getType() != ProjectAssessScope.Type.NONE
+                && scope.getType() != ProjectAssessScope.Type.SELF_RESULTS) {
+            Integer invalidNode = projectMapper.findInvalidAssessRecipient(param);
+            if (invalidNode != null) {
+                throw new ProjectTaskException(500, "项目考核接收名单格式异常，流程节点ID：" + invalidNode);
+            }
+        }
+        long offset = ((long) param.getPage() - 1L) * param.getLimit();
+        long total = scope.getType() == ProjectAssessScope.Type.NONE
+                ? 0L : projectMapper.countAssessList(param, scope);
+        List<ProjectVo> list = new ArrayList<>();
+        if (offset < total) {
+            List<ProjectAssessRow> rows = projectMapper.selectAssessListPage(param, scope, offset, param.getLimit());
+            for (int i = 0; i < rows.size(); i++) {
+                ProjectAssessRow row = rows.get(i);
+                long score = row.getTotalScore() == null ? 0L : row.getTotalScore();
+                long rank = offset + i + 1L;
+                if (score < Integer.MIN_VALUE || score > Integer.MAX_VALUE || rank > Integer.MAX_VALUE) {
+                    throw new ProjectTaskException(500, "项目考核总分或排名超出接口数值范围");
                 }
-            });
+                ProjectVo vo = new ProjectVo();
+                BeanUtils.copyProperties(row, vo);
+                vo.setScore((int) score);
+                vo.setRank((int) rank);
+                list.add(vo);
+            }
         }
-        projectVos.sort((a1, a2) -> {
-            return a2.getScore().compareTo(a1.getScore());
-        });
-        int rank = 1;
-        for (ProjectVo projectVo : projectVos) {
-            projectVo.setRank(rank);  // 设置排名
-            rank++;
-        }
-        //TODO 分页的代码
-        Map<String, Object> page = PageUtils.page(projectVos, param.getPage(), param.getLimit());
+        Map<String, Object> page = new HashMap<>();
+        page.put("total", total);
+        page.put("totalPage", total / param.getLimit() + (total % param.getLimit() == 0 ? 0 : 1));
+        page.put("page", param.getPage());
+        page.put("limit", param.getLimit());
+        page.put("list", list.isEmpty() ? Collections.emptyList() : list);
         return ApiResult.ok(page);
     }
 
     /**
-     * 补充项目考核列表的用户、分数及状态信息
+     * 校验本接口可选筛选及分页边界，不改变共享参数类的下载材料校验
      *
-     * @param param 考核项目操作或查询参数
-     * @param projectVos 项目考核展示结果列表
-     * @param flow 流程节点信息
-     * @param item 被考核用户ID
+     * @param param 项目考核查询条件
+     * @throws ProjectTaskException 分页、ID、状态或时间区间不合法时返回400
      */
-    private void addProjectVos(ProjectQueryParam param, List<ProjectVo> projectVos, FlowTask flow, Integer item) {
-        ProjectVo vo = new ProjectVo();
-        vo.setProjectId(flow.getProjectId());
-        Project project = projectMapper.getProjectTime(flow.getProjectId());
-        vo.setStartTime(project.getStartTime());
-        vo.setEndTime(project.getEndTime());
-        vo.setProjectName(projectMapper.getProjectName(flow.getProjectId()));
-        User userInfo = userService.getById(item);
-        if (ObjectUtil.isNotEmpty(userInfo)) {
-            if ((ObjectUtil.isNotNull(param.getNickName()) && userInfo.getNickName().contains(param.getNickName())) || ObjectUtil.isNull(param.getNickName())) {
-                Integer status = resultMapper.findResultStatus(item, flow.getProjectId());
-                vo.setStatus(status != null && status == 1 ? 1 : 0);
-                if ((ObjectUtil.isNotNull(param.getStatus()) && param.getStatus().equals(vo.getStatus())) || ObjectUtil.isNull(param.getStatus())) {
-                    //判断当前用户是否包含某个角色
-                    Integer count = 0;
-                    if (ObjectUtil.isNotNull(param.getRoleId())) {
-                        count = userRoleMapper.selectCount(new QueryWrapper<UserRole>().eq("user_id", userInfo.getUserId()).eq("role_id", param.getRoleId()));
-                    }
-                    vo.setUserId(userInfo.getUserId());
-                    vo.setMajor(userInfo.getMajor());
-                    vo.setNickName(userInfo.getNickName());
-                    vo.setUserName(userInfo.getUserName());
-                    Integer score = resultMapper.findTotalScore(item, flow.getProjectId());
-                    vo.setScore(score != null ? score : 0);
-                    if ((ObjectUtil.isNotNull(param.getRoleId()) && count.intValue() > 0) || ObjectUtil.isNull(param.getRoleId())) {
-                        projectVos.add(vo);
-                    }
-                }
-            }
+    private void validateAssessQuery(ProjectQueryParam param) {
+        if (param == null || param.getPage() < 1 || param.getLimit() < 1 || param.getLimit() > 100) {
+            throw new ProjectTaskException(400, "页码必须大于0，每页条数必须在1至100之间");
+        }
+        if ((param.getProjectId() != null && param.getProjectId() <= 0)
+                || (param.getRoleId() != null && param.getRoleId() <= 0)) {
+            throw new ProjectTaskException(400, "项目ID和角色ID必须大于0");
+        }
+        if (param.getStatus() != null && param.getStatus() != 0 && param.getStatus() != 1) {
+            throw new ProjectTaskException(400, "考核状态仅允许0或1");
+        }
+        if (param.getStartTime() != null && param.getEndTime() != null
+                && param.getStartTime().after(param.getEndTime())) {
+            throw new ProjectTaskException(400, "查询开始时间不能晚于结束时间");
         }
     }
-
 
     /**
      * {@inheritDoc}
@@ -883,34 +796,4 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
         return projectMapper.getProjectAndCollegeByYear(year, pIds,college);
     }
 
-    /**
-     * 检查教研室主任看到的数据
-     *
-     * @param roles 当前用户角色ID集合
-     * @param roleIds 目标角色ID集合
-     * @return 操作或条件校验结果
-     */
-    private Boolean checkRoles(List<Integer> roles, List<Integer> roleIds) { //roles 当前登录用户角色，roleIds用户id角色
-        //除了普通用户角色之外, 属于同一个教研室
-        //判断接收的角色中有没有跟他一个教研室
-        return roles.stream().anyMatch(role -> {
-            Role one = roleMapper.selectOne(new QueryWrapper<Role>().eq("role_id", role));
-            return one.getWeight().equals(HnkjzyEncode.DEPARTMENT.getCode()) && roleIds.contains(role); //判断接收的角色中有没有跟他一个教研室
-        });
-    }
-
-
-    /**
-     * 检查二级学院下面是否包含对应的教研室   二级学院-》多个教研室
-     *
-     * @param roles   当前登录用户角色  软件学院院长
-     * @param roleIds 所有项目的用户id角色
-     * @return 操作或条件校验结果
-     */
-    private Boolean checkDeanRoles(List<Integer> roles, List<Integer> roleIds) {
-        return roles.stream().anyMatch(role -> {
-            Role one = roleMapper.selectOne(new QueryWrapper<Role>().eq("role_id", role));
-            return roleIds.contains(role); //判断接收的角色中有没有跟他一个教研室
-        });
-    }
 }

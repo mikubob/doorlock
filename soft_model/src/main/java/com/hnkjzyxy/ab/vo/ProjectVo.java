@@ -74,17 +74,17 @@ public class ProjectVo {
     private String major;
 
     /**
-     * 得分
+     * 项目、用户全部结果的总分，空分数归零
      */
     private Integer score;
 
     /**
-     * 按分数的排名
+     * 当前权限及筛选结果全集的顺序排名，同分按项目ID、用户ID递增
      */
     private Integer rank;
 
     /**
-     * 状态
+     * 最小结果ID的完成状态映射，等于1时为1，其余及无结果时为0
      */
     private Integer status;
 
