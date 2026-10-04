@@ -3,6 +3,7 @@ package com.hnkjzyxy.ab;
 import com.hnkjzyxy.ab.controller.ProjectController;
 import com.hnkjzyxy.ab.controller.SamrtLockController;
 import com.hnkjzyxy.ab.export.EvidenceWordExporter;
+import com.hnkjzyxy.ab.exception.PdfConversionException;
 import com.hnkjzyxy.ab.handler.GlobalExceptionHandler;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.params.ProjectResultSubmitParam;
@@ -105,6 +106,29 @@ class ResponsibilityWebTest {
                 .andExpect(header().string("Content-Disposition", "attachment;filename=evidence.docx"));
         verify(service).generate("[]");
         assertFalse(file.exists());
+    }
+
+    /**
+     * 验证生成失败时没有设置附件头或访问下载输出流。
+     */
+    @Test
+    void failedWordGenerationDoesNotBeginDownload() {
+        EvidenceWordService service = mock(EvidenceWordService.class);
+        PdfConversionException failure = new PdfConversionException(422, "parse", "佐证材料不是有效 PDF");
+        when(service.generate("evidence")).thenThrow(failure);
+        MockHttpServletResponse response = new MockHttpServletResponse() {
+            /** {@inheritDoc} */
+            @Override
+            public ServletOutputStream getOutputStream() {
+                fail("生成失败时不能开始下载");
+                return null;
+            }
+        };
+        assertSame(failure, assertThrows(PdfConversionException.class,
+                () -> new EvidenceWordExporter(service).export("evidence", response)));
+        assertNull(response.getHeader("Content-Disposition"));
+        assertNull(response.getContentType());
+        assertFalse(response.isCommitted());
     }
 
     /**

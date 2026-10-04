@@ -2,6 +2,7 @@ package com.hnkjzyxy.ab.handler;
 
 import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
+import com.hnkjzyxy.ab.exception.PdfConversionException;
 import com.hnkjzyxy.ab.result.ApiResult;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -17,6 +18,21 @@ import org.springframework.web.servlet.NoHandlerFoundException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 处理 PDF 转 Word 专用异常，生成失败时返回 JSON 而非附件。
+     *
+     * @param e 携带安全公开提示的转换异常
+     * @return HTTP 与业务码一致的响应；并发繁忙时提示重试时间
+     */
+    @ExceptionHandler(PdfConversionException.class)
+    public ResponseEntity<ApiResult> handler(PdfConversionException e) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(e.getStatus());
+        if ("busy".equals(e.getStage())) {
+            response.header("Retry-After", "5");
+        }
+        return response.body(ApiResult.error(e.getStatus(), e.getMessage()));
+    }
 
     /**
      * 处理成绩入口身份无效及权限不足异常

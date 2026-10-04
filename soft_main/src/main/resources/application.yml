@@ -1,3 +1,23 @@
 spring:
   profiles:
     active: dev
+
+evidence:
+  word:
+    render-dpi: 150
+    page-width-pt: 595.3
+    page-height-pt: 841.9
+    margin-pt: 36
+    paragraph-reserve-pt: 18
+    max-files: 20
+    max-pages-per-pdf: 50
+    max-total-pages: 50
+    max-file-size-mb: 50
+    max-total-input-size-mb: 100
+    max-page-pixels: 12000000
+    max-total-image-size-mb: 64
+    max-output-size-mb: 64
+    max-pdf-scratch-size-mb: 256
+    max-concurrent-exports: 1
+    max-generation-seconds: 60
+    min-jvm-max-heap-mb: 1024
