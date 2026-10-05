@@ -86,4 +86,19 @@ public interface ScheduleMapper {
      * @return 受影响的记录数量
      */
     int updateLoopCount(@Param("loopCount") int loopCount, @Param("taskId") int taskId);
+
+    /**
+     * 仅为仍然相同的期望配置登记对账结果，不覆盖并发新版本。
+     *
+     * @param taskId 真实任务主键
+     * @param rowVersion 对账读取的配置版本
+     * @param taskStatus 对账读取的业务状态
+     * @param syncStatus 对账结果
+     * @param message 结果说明
+     * @param syncedAt 成功时间，失败时为空
+     * @return 影响行数
+     */
+    int markSyncState(@Param("taskId") int taskId, @Param("rowVersion") Long rowVersion,
+            @Param("taskStatus") int taskStatus, @Param("syncStatus") String syncStatus,
+            @Param("message") String message, @Param("syncedAt") LocalDateTime syncedAt);
 }

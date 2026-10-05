@@ -5,6 +5,7 @@ import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
 import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,14 +22,31 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/courseSchedule")
-//@PreAuthorize("permitAll()") // 放行整个 Controller，无需认证
+@PreAuthorize("hasRole('admin')")
 public class CourseScheduleController {
+
+    /**
+     * 独立确认调整记录的新来源或明确转为本地课程。
+     *
+     * @param request 稳定身份、行版本及确认依据
+     * @return 复核结果
+     */
+    @PreAuthorize("hasRole('admin')")
+    @PostMapping("/rebindSource")
+    public ApiResult rebindSource(@RequestBody com.hnkjzyxy.ab.dto.CourseSourceRebindDto request) {
+        return courseScheduleService.rebindSource(request) ? ApiResult.ok("来源已独立复核") : ApiResult.error("复核失败");
+    }
 
     /**
      * 课表业务服务
      */
     @Autowired
     private CourseScheduleService courseScheduleService;
+    /**
+     * 认证用户所属学院。
+     */
+    @Autowired
+    private com.hnkjzyxy.ab.service.UserService userService;
 
     /**
      * 刷新课程安排数据（从 OA 拉取并整体替换课表）
@@ -38,14 +56,15 @@ public class CourseScheduleController {
      *
      * @return 同步结果，data 为本次同步明细
      */
-    @GetMapping("/refresh")
+    @PreAuthorize("hasRole('admin')")
+    @PostMapping("/refresh")
     public ApiResult refresh() {
         CourseScheduleSyncResult result = courseScheduleService.sync("manual");
         if (result.isSuccess()) {
             return ApiResult.ok("刷新成功").put("data", result);
         }
         String message = result.getMessage() == null ? "刷新失败" : result.getMessage();
-        return ApiResult.error(message);
+        return ApiResult.error(message).put("data", result);
     }
 
     /**
@@ -66,7 +85,15 @@ public class CourseScheduleController {
      * @return 统一接口响应
      */
     @PostMapping("/list")
-    public ApiResult list(@RequestBody(required = false) CourseSchedule courseSchedule) {
+    @PreAuthorize("isAuthenticated() and !hasRole('LOCK_ONLY')")
+    public ApiResult list(@RequestBody(required = false) CourseSchedule courseSchedule, org.springframework.security.core.Authentication authentication) {
+        if (courseSchedule == null) courseSchedule = new CourseSchedule();
+        boolean admin = authentication.getAuthorities().stream().anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
+        if (!admin) {
+            com.hnkjzyxy.ab.model.User user = userService.getUserByName(authentication.getName());
+            if (user == null || user.getCollege() == null) throw new com.hnkjzyxy.ab.exception.AuthPermissionException(403, "用户学院范围未确认");
+            courseSchedule.setDepartmentName(user.getCollege());
+        }
         List<CourseSchedule> list = courseScheduleService.getList(courseSchedule);
         return ApiResult.ok("data", list);
     }
@@ -93,6 +120,7 @@ public class CourseScheduleController {
      * @param courseSchedule 课表信息
      * @return 统一接口响应
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/add")
     public ApiResult add(@RequestBody CourseSchedule courseSchedule) {
         // 参数校验
@@ -126,6 +154,7 @@ public class CourseScheduleController {
      * @param courseSchedule 课表信息
      * @return 统一接口响应
      */
+    @PreAuthorize("hasRole('admin')")
     @PutMapping("/update")
     public ApiResult update(@RequestBody CourseSchedule courseSchedule) {
         if (courseSchedule.getId() == null) {
@@ -149,21 +178,18 @@ public class CourseScheduleController {
      * 删除课程
      *
      * @param id 课表ID
+     * @param rowVersion 最新行版本
+     * @param reason 独立停课理由
      * @return 统一接口响应
      */
+    @PreAuthorize("hasRole('admin')")
     @DeleteMapping("/delete/{id}")
-    public ApiResult delete(@PathVariable Integer id) {
-        CourseSchedule existCourse = courseScheduleService.getById(id);
-        if (existCourse == null) {
-            return ApiResult.error("课程不存在");
-        }
-
-        boolean result = courseScheduleService.deleteById(id);
-        if (result) {
-            return ApiResult.ok("删除成功");
-        } else {
-            return ApiResult.error("删除失败");
-        }
+    public ApiResult delete(@PathVariable Integer id,
+            @org.springframework.web.bind.annotation.RequestParam Long rowVersion,
+            @org.springframework.web.bind.annotation.RequestParam String reason) {
+        CourseSchedule patch = new CourseSchedule(); patch.setId(id); patch.setRowVersion(rowVersion);
+        patch.setEffective(0); patch.setChangeReason(reason);
+        return courseScheduleService.updateCourseSchedule(patch) ? ApiResult.ok("独立停课成功") : ApiResult.error("停课失败");
     }
 
     /**
@@ -172,17 +198,10 @@ public class CourseScheduleController {
      * @param ids 课表ID集合
      * @return 统一接口响应
      */
+    @PreAuthorize("hasRole('admin')")
     @DeleteMapping("/deleteBatch")
     public ApiResult deleteBatch(@RequestBody List<Integer> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return ApiResult.error("请选择要删除的课程");
-        }
-
-        boolean result = courseScheduleService.deleteBatch(ids);
-        if (result) {
-            return ApiResult.ok("删除成功");
-        } else {
-            return ApiResult.error("删除失败");
-        }
+        return ApiResult.error("请通过独立调整接口逐条提交课程身份、行版本及办理理由，不支持无版本批量停课");
     }
+
 }

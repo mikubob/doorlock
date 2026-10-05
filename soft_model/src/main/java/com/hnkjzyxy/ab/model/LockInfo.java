@@ -40,6 +40,12 @@ public class LockInfo {
      */
     @TableField("switch_status")
     private Integer switchStatus;
+
+    /**
+     * 设备实际状态最近一次成功观测时间；命令回执不更新此时间。
+     */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private java.time.LocalDateTime observedAt;
     
     /**
      * 教室编号（对应数据库JSH字段）
@@ -80,6 +86,16 @@ public class LockInfo {
      * 通道信息
      */
     private String remarks;
+
+    /**
+     * 内部教室绑定。
+     */
+    private Long classroomId;
+
+    /**
+     * 独立设备通道。
+     */
+    private String doorChannel;
 
 
 }

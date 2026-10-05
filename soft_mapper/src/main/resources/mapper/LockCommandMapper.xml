@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hnkjzyxy.ab.mapper.LockCommandMapper">
+    <select id="lockTask" resultType="com.hnkjzyxy.ab.model.ScheduleTask">
+        SELECT * FROM sys_schedule_task WHERE task_id=#{taskId} FOR UPDATE
+    </select>
+    <update id="invalidateObservation">
+        UPDATE sys_lock_info SET switch_status=NULL, observed_at=NULL
+        WHERE lock_id=#{lockId} AND BINARY sn_code=BINARY #{snCode}
+          AND door_channel=#{doorChannel} AND classroom_id=#{classroomId}
+    </update>
+    <update id="complete">
+        UPDATE sys_lock_command SET status=#{status}, error_message=#{errorMessage}, completed_time=#{completedTime}
+        WHERE id=#{id} AND status='submitted'
+    </update>
+    <update id="reviewUnknown">
+        UPDATE sys_lock_command SET status=#{status},error_message=#{errorMessage},completed_time=#{completedTime}
+        WHERE id=#{id} AND status='unknown'
+    </update>
+    <update id="consume">
+        UPDATE sys_schedule_task SET task_status=CASE WHEN loop_count=1 AND task_status=1 THEN 2 ELSE task_status END,
+          quartz_sync_status=CASE WHEN loop_count=1 AND task_status=1 THEN 'pending' ELSE quartz_sync_status END,
+          loop_count=CASE WHEN loop_count &gt; 0 THEN loop_count-1 ELSE loop_count END
+        WHERE task_id=#{taskId} AND loop_count &lt;&gt; 0
+    </update>
+    <update id="expirePending">
+        UPDATE sys_lock_command SET status='unknown', error_message='回执超期，需人工核对设备状态'
+        WHERE status='submitted' AND created_time &lt; DATE_SUB(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','+08:00'), INTERVAL 2 MINUTE)
+    </update>
+</mapper>

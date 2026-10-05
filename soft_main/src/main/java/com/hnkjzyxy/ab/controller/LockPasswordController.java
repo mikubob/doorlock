@@ -102,6 +102,7 @@ public class LockPasswordController {
      * @return 操作结果
      */
     @PostMapping("/setPassword")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('admin')")
     public ApiResult setLockPassword(@RequestParam("password") String password,
                                       @RequestParam("oldPassword") String oldPassword,
                                       @RequestParam(value = "description", required = false) String description) {

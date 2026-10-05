@@ -44,10 +44,16 @@ public class SmartLockStateService {
      * @return 在通讯及状态回写完成后返回原设备对象的 Future；通讯失败时异常完成
      */
     public CompletableFuture<LockInfo> refreshStatus(LockInfo lockInfo) {
+        if (!"1".equals(lockInfo.getDoorChannel())) {
+            CompletableFuture<LockInfo> unsupported = new CompletableFuture<>();
+            unsupported.completeExceptionally(new IllegalStateException("当前厂家查询仅支持第一通道，其他通道状态未知"));
+            return unsupported;
+        }
         return gateway.queryDoorStatus(lockInfo.getIpAddress(), lockInfo.getPortNumber(), lockInfo.getSnCode())
                 .thenApply(status -> {
                     lockInfo.setSwitchStatus(status);
-                    smartLockService.updateSwitchStatus(lockInfo.getLockId(), status);
+                    lockInfo.setObservedAt(java.time.LocalDateTime.now(com.hnkjzyxy.ab.service.CoursePeriodResolver.ZONE));
+                    if (!smartLockService.updateSwitchStatus(lockInfo.getLockId(), status)) throw new IllegalStateException("设备观测保存失败");
                     return lockInfo;
                 });
     }

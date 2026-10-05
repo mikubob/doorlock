@@ -30,6 +30,45 @@ public class CourseSchedule implements Serializable {
     private Integer id;
 
     /**
+     * 内部教室身份，歧义时为空。
+     */
+    private Long classroomId;
+    /**
+     * 内部课程登记身份，不能以全量替换的行号关联历史。
+     */
+    private String courseKey;
+    /**
+     * 来源 OA、LOCAL 或迁移后尚未核实的 UNVERIFIED。
+     */
+    private String sourceType;
+    /**
+     * 来源版本指纹，仅用于精确版本匹配，不能证明调课身份。
+     */
+    private String sourceFingerprint;
+    /**
+     * 本地独立调整标记，OA 同步保留调整层。
+     */
+    private Integer localAdjusted;
+    /**
+     * 有效标记，零为已独立停课。
+     */
+    private Integer effective;
+    /**
+     * 解析状态，PENDING 表示来源改变后需人工复核。
+     */
+    private String parseStatus;
+    /**
+     * 乐观行版本。
+     */
+    private Long rowVersion;
+    /**
+     * 独立课程调整理由，仅作输入。
+     */
+    @TableField(exist = false)
+    private String changeReason;
+
+
+    /**
      * 课程名称
      */
     @TableField("KCMC")
@@ -122,19 +161,22 @@ public class CourseSchedule implements Serializable {
     /**
      * 教学班人数
      */
-    @TableField("JXBRS")
+    @TableField(value = "JXBRS", insertStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED,
+            updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
     private Integer classSize;
 
     /**
      * 请假人数
      */
-    @TableField("QJRS")
+    @TableField(value = "QJRS", insertStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED,
+            updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
     private Integer leaveCount;
 
     /**
      * 是否有请假人数（0否1是）
      */
-    @TableField("SFYQJRS")
+    @TableField(value = "SFYQJRS", insertStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED,
+            updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
     private String hasLeave;
 
     /**
@@ -161,6 +203,7 @@ public class CourseSchedule implements Serializable {
     /**
      * 层
      */
+    @TableField(exist = false)
     private Integer floor;
 
     /**

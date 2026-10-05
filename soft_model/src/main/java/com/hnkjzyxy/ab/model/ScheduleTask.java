@@ -15,8 +15,26 @@ public class ScheduleTask {
     /**
      * 任务ID
      */
-    @TableId(value = "taskId", type = IdType.AUTO)
+    @TableId(value = "task_id", type = IdType.AUTO)
     private int taskId;
+
+    /**
+     * 数据库期望配置版本，回执扣次数不改变此版本。
+     */
+    private Long rowVersion = 0L;
+    /**
+     * Quartz 对账状态 pending、synced 或 failed。
+     */
+    private String quartzSyncStatus;
+    /**
+     * 最近对账原因，不包含设备密钥。
+     */
+    private String quartzSyncMessage;
+    /**
+     * 最近成功对账的学校时间。
+     */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime quartzSyncedAt;
 
     /**
      * 锁ID
@@ -39,7 +57,7 @@ public class ScheduleTask {
     private String taskDetails;
 
     /**
-     * 任务状态（0=未启用，1=已启用，3=已取消）
+     * 任务状态（0=未启用，1=已启用，2=已完成，3=已取消）
      */
     private int taskStatus;
 
@@ -52,6 +70,11 @@ public class ScheduleTask {
      * 备注
      */
     private String remarks;
+
+    /**
+     * 独立设备通道，不从备注推断。
+     */
+    private String doorChannel;
 
     /**
      * 创建时间

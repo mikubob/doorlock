@@ -46,7 +46,7 @@ public class CourseScheduleSyncJob {
      * 可通过 {@code schedule.sync.cron} 覆盖。
      * </p>
      */
-    @Scheduled(cron = "${schedule.sync.cron:0 0 3 * * ?}")
+    @Scheduled(cron = "${schedule.sync.cron:0 0 3 * * ?}", zone = "Asia/Shanghai")
     public void executeDaily() {
         CourseScheduleSyncResult result = courseScheduleService.sync("cron");
         if (result.isSuccess()) {

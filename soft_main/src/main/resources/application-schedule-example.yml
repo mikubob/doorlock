@@ -1,0 +1,15 @@
+# 配置示例，不会默认启用；请合并到实际生效的环境配置。
+# 未核实官方逐节作息、OA 完整覆盖和别名之前保持 false。
+school:
+  schedule:
+    version: legacy-pairs-v1
+    snapshot-ttl-seconds: 60
+    coverage-max-age-hours: 24
+    coverage-confirmed: false
+    # coverage-start: 校方确认的完整来源开始日期（yyyy-MM-dd）
+    # coverage-end: 校方确认的完整来源结束日期（yyyy-MM-dd）
+    # starts: {1: "官方第1节开始", 2: "官方第2节开始", ...}
+    # ends: {1: "官方第1节结束", 2: "官方第2节结束", ...}
+    campus-aliases: {}
+# 现有 schedule.sync 配置、Redis 租约和收缩保护继续生效。
+# 作息、覆盖或别名改变后须成功同步，旧发布版本不会继续证明空闲。

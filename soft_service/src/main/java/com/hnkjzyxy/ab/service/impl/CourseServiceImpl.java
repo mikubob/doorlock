@@ -20,12 +20,15 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 课程Service实现类
+ * 课程管理服务
+ * <p>
+ * 负责课程条件查询、课程 Excel 导入委托、班级与教室等选项查询，
+ * 并提供课程数据状态维护入口。
+ * </p>
  *
  * @version 1.0
  * @projectName: assessment
  * @author: Lucas
- * @description: TODO
  * @date: 2024/4/23 20:25
  */
 @Service

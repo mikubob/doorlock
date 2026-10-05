@@ -13,6 +13,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.enums.HnkjzyEncode;
 import com.hnkjzyxy.ab.annotation.RedisCache;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
+import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.mapper.FlowMapper;
 import com.hnkjzyxy.ab.mapper.FlowTaskMapper;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
@@ -718,9 +719,17 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
         return ApiResult.ok("data", map);
     }
 
-    //提交审批结果
     /**
-     * {@inheritDoc}
+     * 提交审批结果
+     * <p>
+     * 在项目行锁与事务内校验并写入，审批步骤、审批人及新增记录的有效状态由服务端确定。
+     * 同一审批人对同一项目、同一被考核用户、同一步骤不得重复提交有效审批，
+     * 仅检查 status=1 的记录，打回后失效的历史记录不阻止再次审批。
+     * </p>
+     *
+     * @param resultItem 审批意见、打回标志及待更新的考核结果
+     * @param user 当前认证审批人
+     * @throws ProjectTaskException 打回标志非法、项目或任务校验失败、无审批权限或已有有效审批记录时抛出
      */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
@@ -729,14 +738,17 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
             HnkjxyConstants.PROJECT_SCORE, HnkjxyConstants.PROJECT_SCALE, HnkjxyConstants.USER_PROJECTS, HnkjxyConstants.RESULT_LIST,
             HnkjxyConstants.USER_PROJECT_YEAR, HnkjxyConstants.PROJECT_FLOW, HnkjxyConstants.NOTICE_LIST, HnkjxyConstants.NOTICES, HnkjxyConstants.ASSESS_LIST}, allEntries = true)
     public void submitApprove(ResultItem resultItem, User user) {
+        if (!Integer.valueOf(0).equals(resultItem.getIsFlag())
+                && !Integer.valueOf(1).equals(resultItem.getIsFlag())) {
+            throw new ProjectTaskException(400, "是否打回仅允许0或1");
+        }
         projectTaskGuard.lock(resultItem.getPId());
         projectTaskGuard.validateTasks(resultItem.getPId(), resultItem.getUId(), resultItem.getResults(), true);
         ApproveVo vo = getApproveVo(user, resultItem.getPId());
         if (ObjectUtil.isNull(vo)) {
-            throw new RuntimeException("没有审批权限！");
+            throw new ProjectTaskException(403, "没有审批权限！");
         }
 
-        //TODO 判断是否已审批
         LambdaQueryWrapper<ResultItem> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ResultItem::getPId, resultItem.getPId())
                 .eq(ResultItem::getUId, resultItem.getUId())
@@ -745,9 +757,11 @@ public class FlowServiceImpl extends ServiceImpl<FlowMapper, Flow> implements Fl
                 .eq(ResultItem::getStep, vo.getSort());
         Integer count = resultItemService.count(wrapper);
         if (count > 0) {
-            throw new RuntimeException("已进行审批，不能再重复审批！");
+            throw new ProjectTaskException(409, "已进行审批，不能再重复审批！");
         }
 
+        resultItem.setId(null);
+        resultItem.setStatus(1);
         //设置当前审批步骤
         resultItem.setStep(vo.getSort());
         //设置当前审批人

@@ -133,8 +133,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
                 .and()
                 .authorizeRequests()
+                .antMatchers(org.springframework.http.HttpMethod.POST, "/courseSchedule/list", "/api/courseSchedule/list").authenticated()
                 // 将 courseSchedule 放在最前面，确保优先匹配
-                .antMatchers("/api/courseSchedule/**").permitAll()
+                .antMatchers("/api/courseSchedule/**", "/courseSchedule/**", "/api/exam/**", "/exam/**",
+                        "/classroomOccupancy/**", "/api/classroomOccupancy/**",
+                        "/smart/lock/**", "/api/smart/lock/**", "/lock/setPassword", "/api/lock/setPassword").hasRole("admin")
                 .antMatchers(config.getUrl()).permitAll()//放行白名单
                 .antMatchers("/api/studentInfo/synchronization").permitAll() // 新增：放行 /api/studentInfo/synchronization 接口
                 .anyRequest().authenticated()//其他请求都需要进行验证

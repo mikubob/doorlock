@@ -411,7 +411,12 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
 
         // —— 无 Excel 来源的字段：显式赋值，不再依赖数据库默认值与 ORM 策略的巧合 ——
         r.setCollege(resolveCollege(rowIndex));
-        r.setPeopleLeave(0);
+        r.setPeopleLeave(null);
+        r.setLeaveSource("UNKNOWN");
+        r.setSupplementReason("EXCEL_IMPORTED_NO_VERIFIED_COURSE");
+        r.setScheduleSnapshot("excel-import; row=" + rowIndex + "; date=" + r.getDate()
+                + "; section=" + r.getSection() + "; classroom=" + r.getClassroom()
+                + "; classes=" + r.getClasses() + "; teacher=" + r.getTeacher());
         r.setIsStand(1);
         r.setIsConsist(1);
         return r;
@@ -495,7 +500,7 @@ public class CheckResultDataListener extends AnalysisEventListener<CheckResultMo
         for (DateTimeFormatter f : DATE_FORMATS) {
             try {
                 LocalDate d = LocalDate.parse(s, f);
-                return Date.from(d.atStartOfDay(ZoneId.systemDefault()).toInstant());
+                return Date.from(d.atStartOfDay(ZoneId.of("Asia/Shanghai")).toInstant());
             } catch (DateTimeParseException ignored) {
                 // 继续尝试下一种格式
             }

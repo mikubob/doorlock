@@ -43,7 +43,7 @@ public class QuartzConfig {
         dataMap.put("taskId", taskId);
         dataMap.put("Channel", Channel);
         return JobBuilder.newJob(SmartLockJob.class)
-                .withIdentity("smartLockJob_" + lockId, "smartLockGroup")
+                .withIdentity("smartLockJob_" + taskId, "smartLockGroup")
                 .setJobData(dataMap)
                 .storeDurably()
                 .build();
@@ -86,6 +86,7 @@ public class QuartzConfig {
                 .forJob(jobDetail)
                 .withIdentity(jobDetail.getKey().getName() + "_cron_trigger", "smartLockTriggerGroup")
                 .withSchedule(CronScheduleBuilder.cronSchedule(cronExpression)
+                        .inTimeZone(java.util.TimeZone.getTimeZone("Asia/Shanghai"))
                         .withMisfireHandlingInstructionDoNothing())
                 .build();
     }
@@ -110,34 +111,13 @@ public class QuartzConfig {
      * @return Cron 表达式
      */
     public String generateWeeklyCronExpression(int hour, int minute, int[] daysOfWeek) {
-        // 前端传递0-6代表周一到周日，转换为Quartz的2-7,1
-        // 映射关系：
-        // 前端0(周一) → Quartz 2
-        // 前端1(周二) → Quartz 3
-        // 前端2(周三) → Quartz 4
-        // 前端3(周四) → Quartz 5
-        // 前端4(周五) → Quartz 6
-        // 前端5(周六) → Quartz 7
-        // 前端6(周日) → Quartz 1
-        StringBuilder days = new StringBuilder();
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || daysOfWeek == null || daysOfWeek.length == 0 || daysOfWeek.length > 7) throw new IllegalArgumentException("星期或时间参数错误");
+        java.util.Set<Integer> days = new java.util.TreeSet<>();
         for (int day : daysOfWeek) {
-            int quartzDay;
-            if (day == 6) {
-                quartzDay = 1; // 周日对应Quartz的1
-            } else {
-                quartzDay = day + 2; // 周一到周六对应Quartz的2-7
-            }
-            days.append(quartzDay).append(",");
+            if (day < 0 || day > 6 || !days.add(day == 6 ? 1 : day + 2)) throw new IllegalArgumentException("星期参数重复或超限");
         }
-        if (days.length() > 0) {
-            days.deleteCharAt(days.length() - 1); // 移除最后一个逗号
-        }
-
-        // 确保时分在有效范围内
-        hour = Math.max(0, Math.min(23, hour));
-        minute = Math.max(0, Math.min(59, minute));
-
-        return String.format("0 %d %d ? * %s", minute, hour, days.toString());
+        String expression = days.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        return String.format("0 %d %d ? * %s", minute, hour, expression);
     }
 
     /**

@@ -51,6 +51,16 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
      */
     @Autowired
     private CheckResultExcelImportService checkResultExcelImportService;
+    /**
+     * 课程身份访问。
+     */
+    @Autowired
+    private com.hnkjzyxy.ab.mapper.CourseScheduleMapper courseScheduleMapper;
+    /**
+     * 学校时间规则。
+     */
+    @Autowired
+    private com.hnkjzyxy.ab.service.CoursePeriodResolver periodResolver;
 
     /**
      * {@inheritDoc}
@@ -80,9 +90,43 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
     @Transactional
     public void addOrEdit(CheckResult resultVo) {
         if (resultVo.getId() == null) {
-            checkresultMapper.insert(resultVo);
+            if (resultVo.getCourseKey() != null && !resultVo.getCourseKey().trim().isEmpty()) {
+                List<com.hnkjzyxy.ab.model.CourseSchedule> matches = courseScheduleMapper.selectList(
+                        new LambdaQueryWrapper<com.hnkjzyxy.ab.model.CourseSchedule>()
+                                .eq(com.hnkjzyxy.ab.model.CourseSchedule::getCourseKey, resultVo.getCourseKey()));
+                if (matches.size() != 1) throw new IllegalArgumentException("课程身份存在歧义，请重新选择或填写补录理由");
+                com.hnkjzyxy.ab.model.CourseSchedule course = matches.get(0);
+                if (!java.util.Objects.equals(course.getDepartmentName(), resultVo.getCollege())) throw new IllegalArgumentException("巡查学院与课程来源不一致");
+                java.time.LocalDate day = java.time.Instant.ofEpochMilli(resultVo.getDate().getTime()).atZone(com.hnkjzyxy.ab.service.CoursePeriodResolver.ZONE).toLocalDate();
+                if (Integer.valueOf(0).equals(course.getEffective()) || "PENDING".equals(course.getParseStatus())
+                        || !periodResolver.date(course.getClassDate()).equals(day)
+                        || !java.util.Objects.equals(course.getClassName(), resultVo.getClasses())
+                        || !java.util.Objects.equals(course.getClassPeriod(), resultVo.getSection())
+                        || !java.util.Objects.equals(course.getClassroomNumber(), resultVo.getClassroom())) {
+                    throw new IllegalArgumentException("巡查日期、节次、班级或教室与有效课程不一致，请重新核对");
+                }
+                resultVo.setScheduleSnapshot(course.toString() + "; intervals=" + periodResolver.resolve(course));
+            } else {
+                if (resultVo.getSupplementReason() == null || resultVo.getSupplementReason().trim().isEmpty()) throw new IllegalArgumentException("无可靠课表关联时必须填写人工补录理由");
+                resultVo.setScheduleSnapshot("manual; date=" + resultVo.getDate() + "; section=" + resultVo.getSection()
+                        + "; classroom=" + resultVo.getClassroom() + "; classes=" + resultVo.getClasses() + "; teacher=" + resultVo.getTeacher());
+            }
+            resultVo.setLeaveSource(resultVo.getPeopleLeave() == null ? "UNKNOWN" : "MANUAL_CONFIRMED");
+            if (checkresultMapper.insert(resultVo) != 1) throw new IllegalStateException("巡查记录保存失败");
         } else {
-            checkresultMapper.updateById(resultVo);
+            CheckResult previous = checkresultMapper.selectById(resultVo.getId());
+            if (previous == null) throw new IllegalArgumentException("巡查记录不存在");
+            if (previous.getCourseKey() != null && ((!java.util.Objects.equals(previous.getDate(), resultVo.getDate()) && resultVo.getDate() != null)
+                    || (resultVo.getSection() != null && !java.util.Objects.equals(previous.getSection(), resultVo.getSection()))
+                    || (resultVo.getClasses() != null && !java.util.Objects.equals(previous.getClasses(), resultVo.getClasses()))
+                    || (resultVo.getClassroom() != null && !java.util.Objects.equals(previous.getClassroom(), resultVo.getClassroom())))) {
+                throw new IllegalArgumentException("已关联的历史巡查日期、节次、班级及教室不能更改，请另行补录并保留历史");
+            }
+            resultVo.setCourseKey(previous.getCourseKey()); resultVo.setScheduleSnapshot(previous.getScheduleSnapshot());
+            resultVo.setSupplementReason(previous.getSupplementReason()); resultVo.setLeaveSource(previous.getLeaveSource());
+            if (resultVo.getPeopleLeave() == null) resultVo.setPeopleLeave(previous.getPeopleLeave());
+            else resultVo.setLeaveSource("MANUAL_CONFIRMED");
+            if (checkresultMapper.updateById(resultVo) != 1) throw new IllegalStateException("巡查历史更新失败");
         }
     }
 

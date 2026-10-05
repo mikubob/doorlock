@@ -10,6 +10,14 @@
     -->
     <resultMap id="CourseScheduleResultMap" type="com.hnkjzyxy.ab.model.CourseSchedule">
         <id property="id" column="id"/>
+        <result property="classroomId" column="classroom_id"/>
+        <result property="courseKey" column="course_key"/>
+        <result property="sourceType" column="source_type"/>
+        <result property="sourceFingerprint" column="source_fingerprint"/>
+        <result property="localAdjusted" column="local_adjusted"/>
+        <result property="effective" column="effective"/>
+        <result property="parseStatus" column="parse_status"/>
+        <result property="rowVersion" column="row_version"/>
         <result property="courseName" column="KCMC"/>
         <result property="academicYear" column="KKXND"/>
         <result property="semester" column="KKXQM"/>
@@ -40,7 +48,7 @@
     -->
     <select id="selectListByCondition" resultMap="CourseScheduleResultMap">
         SELECT scs.*, sc.floor FROM sys_course_schedule scs
-        LEFT JOIN sys_classroom sc ON scs.JSH COLLATE utf8mb4_general_ci = sc.JSH COLLATE utf8mb4_general_ci
+        LEFT JOIN sys_classroom sc ON scs.classroom_id = sc.id
         <where>
             <if test="courseName != null and courseName != ''">
                 AND scs.KCMC = #{courseName}

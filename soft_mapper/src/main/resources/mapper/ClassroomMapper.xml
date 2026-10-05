@@ -25,8 +25,7 @@
         返回：教室列表。
     -->
     <select id="getClassroomList" resultMap="ClassroomResultMap">
-        SELECT sc.*, sli.switch_status as switchStatus FROM sys_classroom sc
-            LEFT JOIN sys_lock_info sli on  sli.JSH COLLATE utf8mb4_general_ci = sc.JSH COLLATE utf8mb4_general_ci
+        SELECT sc.* FROM sys_classroom sc
         <where>
             <if test="floor != null">
                 AND sc.floor = #{floor}
@@ -44,7 +43,7 @@
                 AND sc.JZWMC LIKE CONCAT('%', #{buildingName}, '%')
             </if>
             <if test="boardSn != null and boardSn != ''">
-                AND sc.board_sn = #{boardSn}
+                AND BINARY sc.board_sn = BINARY #{boardSn}
             </if>
         </where>
         ORDER BY id DESC

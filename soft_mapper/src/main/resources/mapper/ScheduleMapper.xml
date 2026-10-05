@@ -53,9 +53,9 @@
         参数：scheduleTask（定时任务）。
         返回：影响行数。
     -->
-    <insert id="insert">
-        insert into sys_schedule_task(lock_id,user_id,timed_operation,task_details,task_status,is_loop,remarks,created_time,hour,minute,updated_time,count_day,loop_count)
-        values(#{lockId},#{userId},#{timedOperation},#{taskDetails},#{taskStatus},#{isLoop},#{remarks},#{createdTime},#{hour},#{minute},#{updatedTime},#{countDay},#{loopCount})
+    <insert id="insert" useGeneratedKeys="true" keyProperty="taskId" keyColumn="task_id">
+        insert into sys_schedule_task(lock_id,user_id,timed_operation,task_details,task_status,is_loop,remarks,created_time,hour,minute,updated_time,count_day,loop_count,door_channel)
+        values(#{lockId},#{userId},#{timedOperation},#{taskDetails},#{taskStatus},#{isLoop},#{remarks},#{createdTime},#{hour},#{minute},#{updatedTime},#{countDay},#{loopCount},#{doorChannel})
     </insert>
 
     <!--
@@ -73,24 +73,26 @@
             task_status=#{taskStatus},
             is_loop=#{isLoop},
             remarks=#{remarks},
+            door_channel=#{doorChannel},
             created_time=#{createdTime},
             hour=#{hour},
             minute=#{minute},
             updated_time=#{updatedTime},
             count_day=#{countDay},
-            loop_count=#{loopCount}
+            loop_count=#{loopCount}, row_version=row_version+1, quartz_sync_status='pending', quartz_sync_message=NULL
         where task_id=#{taskId}
     </update>
 
     <!--
-        更新任务状态与已执行次数
-        参数：taskId（任务ID）；taskStatus（任务状态）；loopCount（已循环次数）。
+        只更新任务状态，不覆盖并发回执扣减的次数或任何通道配置。
+        参数：taskId（任务ID）；taskStatus（任务状态）；loopCount 为兼容参数，不用于此 SQL。
         返回：影响行数。
     -->
     <update id="updateStatus">
         update sys_schedule_task
-        set task_status=#{taskStatus},loop_count=#{loopCount}
-        where task_id=#{taskId}
+        set task_status=#{taskStatus},row_version=row_version+1,quartz_sync_status='pending',
+          updated_time=CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','+08:00')
+        where task_id=#{taskId} AND (#{taskStatus} &lt;&gt; 1 OR loop_count &lt;&gt; 0)
     </update>
 
     <!--
@@ -113,6 +115,12 @@
         update sys_schedule_task
         set loop_count=#{loopCount}
         where task_id=#{taskId}
+    </update>
+
+    <update id="markSyncState">
+        UPDATE sys_schedule_task SET quartz_sync_status=#{syncStatus}, quartz_sync_message=#{message},
+          quartz_synced_at=COALESCE(#{syncedAt},quartz_synced_at)
+        WHERE task_id=#{taskId} AND row_version=#{rowVersion} AND task_status=#{taskStatus}
     </update>
 
 </mapper>

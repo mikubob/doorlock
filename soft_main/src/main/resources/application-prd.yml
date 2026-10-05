@@ -118,14 +118,10 @@ yue:
     - "/api/pdf/conFile/**"
     - "/downloadZipPdf"
     - "/api/downloadZipPdf"
-    - "/courseSchedule/**"
-    - "/api/courseSchedule/**"
     - "/lock/login"  # 开锁密码登录接口
     - "/api/lock/login"  # 开锁密码登录接口(带api前缀)
     - "/api/classroom/list"
     - "/classroom/list"
-    - "/api/exam/**"
-    - "/exam/**"
 #upload:
 #  imgUrl: D:\uploadImg\
 #  fileUrl: D:\uploadFile\

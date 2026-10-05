@@ -101,8 +101,22 @@ public class ScheduleController {
     //@RepeatSubmit
     public ApiResult checkResultAddOrEdit(@Valid @RequestBody CheckResult resultVo, Authentication authentication) {
         User user = userService.getUserByName(authentication.getName());
-        int i = oaApiClient.queryHotelDataByToday(resultVo.getClasses());
-        resultVo.setPeopleLeave(i);
+        /**
+         * 历史接口不支持课程时段，请假人数保留人工确认或原快照，不用今天的数据覆盖。
+         */
+        boolean admin = authentication.getAuthorities().stream().anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
+        if (!admin) {
+            if (user == null || user.getCollege() == null) throw new com.hnkjzyxy.ab.exception.AuthPermissionException(403, "用户学院范围未确认");
+            if (resultVo.getId() != null) {
+                CheckResult previous = checkResultService.getById(resultVo.getId());
+                if (previous == null || !java.util.Objects.equals(user.getCollege(), previous.getCollege())) throw new com.hnkjzyxy.ab.exception.AuthPermissionException(403, "不能修改其他学院巡查");
+            }
+            resultVo.setCollege(user.getCollege());
+        }
+        if (resultVo.getId() != null && resultVo.getPeopleLeave() == null) {
+            CheckResult previous = checkResultService.getById(resultVo.getId());
+            if (previous != null) resultVo.setPeopleLeave(previous.getPeopleLeave());
+        }
         checkResultService.addOrEdit(resultVo);
 
         return ApiResult.ok();

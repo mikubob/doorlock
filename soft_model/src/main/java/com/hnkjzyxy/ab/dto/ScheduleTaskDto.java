@@ -15,7 +15,7 @@ public class ScheduleTaskDto {
     /**
      * 任务ID
      */
-    @TableId(value = "lockId", type = IdType.AUTO)
+    @TableId(value = "task_id", type = IdType.AUTO)
     private int taskId;
 
     /**
@@ -39,7 +39,7 @@ public class ScheduleTaskDto {
     private String taskDetails;
 
     /**
-     * 任务状态（0=未启用，1=已启用，3=已取消）
+     * 任务状态（0=未启用，1=已启用，2=已完成，3=已取消）
      */
     private int taskStatus;
 
@@ -52,6 +52,11 @@ public class ScheduleTaskDto {
      * 备注
      */
     private String remarks;
+
+    /**
+     * 独立设备通道，不从备注推断。
+     */
+    private String doorChannel;
 
     /**
      * 创建时间
@@ -74,7 +79,7 @@ public class ScheduleTaskDto {
     private LocalDateTime updatedTime;
 
     /**
-     * 重复执行的星期（0-6 数组，0=周日）
+     * 重复执行的星期（0-6 数组，0=周一，6=周日）
      */
     private int[] countDay;
 

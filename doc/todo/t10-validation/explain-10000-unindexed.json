@@ -1,0 +1,592 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "13.62"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
+      "table": {
+        "table_name": "paged",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 10,
+        "rows_produced_per_join": 10,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "2.62",
+          "eval_cost": "1.00",
+          "prefix_cost": "3.62",
+          "data_read_per_join": "7K"
+        },
+        "used_columns": [
+          "projectId",
+          "userId",
+          "score",
+          "status",
+          "projectName",
+          "startTime",
+          "endTime",
+          "nickName",
+          "userName",
+          "major"
+        ],
+        "materialized_from_subquery": {
+          "using_temporary_table": true,
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "cost_info": {
+              "query_cost": "1636913.15"
+            },
+            "ordering_operation": {
+              "using_temporary_table": true,
+              "using_filesort": true,
+              "cost_info": {
+                "sort_cost": "798494.00"
+              },
+              "nested_loop": [
+                {
+                  "table": {
+                    "table_name": "p",
+                    "access_type": "ALL",
+                    "possible_keys": [
+                      "PRIMARY"
+                    ],
+                    "rows_examined_per_scan": 2,
+                    "rows_produced_per_join": 1,
+                    "filtered": "50.00",
+                    "cost_info": {
+                      "read_cost": "0.35",
+                      "eval_cost": "0.10",
+                      "prefix_cost": "0.45",
+                      "data_read_per_join": "2K"
+                    },
+                    "used_columns": [
+                      "id",
+                      "title",
+                      "start_time",
+                      "end_time",
+                      "status"
+                    ],
+                    "attached_condition": "(`project_assess_test`.`p`.`status` <> 3)"
+                  }
+                },
+                {
+                  "table": {
+                    "table_name": "a",
+                    "access_type": "ref",
+                    "possible_keys": [
+                      "<auto_key0>"
+                    ],
+                    "key": "<auto_key0>",
+                    "used_key_parts": [
+                      "projectId"
+                    ],
+                    "key_length": "4",
+                    "ref": [
+                      "project_assess_test.p.id"
+                    ],
+                    "rows_examined_per_scan": 798494,
+                    "rows_produced_per_join": 798494,
+                    "filtered": "100.00",
+                    "cost_info": {
+                      "read_cost": "199623.50",
+                      "eval_cost": "79849.40",
+                      "prefix_cost": "279473.35",
+                      "data_read_per_join": "30M"
+                    },
+                    "used_columns": [
+                      "projectId",
+                      "userId",
+                      "score",
+                      "firstResultId"
+                    ],
+                    "materialized_from_subquery": {
+                      "using_temporary_table": true,
+                      "dependent": false,
+                      "cacheable": true,
+                      "query_block": {
+                        "select_id": 5,
+                        "cost_info": {
+                          "query_cost": "7985485.04"
+                        },
+                        "grouping_operation": {
+                          "using_temporary_table": true,
+                          "using_filesort": false,
+                          "nested_loop": [
+                            {
+                              "table": {
+                                "table_name": "c",
+                                "access_type": "ALL",
+                                "rows_examined_per_scan": 1021,
+                                "rows_produced_per_join": 1021,
+                                "filtered": "100.00",
+                                "cost_info": {
+                                  "read_cost": "15.26",
+                                  "eval_cost": "102.10",
+                                  "prefix_cost": "117.36",
+                                  "data_read_per_join": "15K"
+                                },
+                                "used_columns": [
+                                  "projectId",
+                                  "userId"
+                                ],
+                                "materialized_from_subquery": {
+                                  "using_temporary_table": true,
+                                  "dependent": false,
+                                  "cacheable": true,
+                                  "query_block": {
+                                    "union_result": {
+                                      "using_temporary_table": true,
+                                      "select_id": 13,
+                                      "table_name": "<union7,10>",
+                                      "access_type": "ALL",
+                                      "query_specifications": [
+                                        {
+                                          "dependent": false,
+                                          "cacheable": true,
+                                          "query_block": {
+                                            "select_id": 7,
+                                            "cost_info": {
+                                              "query_cost": "3.73"
+                                            },
+                                            "nested_loop": [
+                                              {
+                                                "table": {
+                                                  "table_name": "ft",
+                                                  "access_type": "ALL",
+                                                  "rows_examined_per_scan": 2,
+                                                  "rows_produced_per_join": 1,
+                                                  "filtered": "50.00",
+                                                  "cost_info": {
+                                                    "read_cost": "0.35",
+                                                    "eval_cost": "0.10",
+                                                    "prefix_cost": "0.45",
+                                                    "data_read_per_join": "6K"
+                                                  },
+                                                  "used_columns": [
+                                                    "type",
+                                                    "u_id",
+                                                    "parent_id",
+                                                    "status"
+                                                  ],
+                                                  "attached_condition": "(((`project_assess_test`.`ft`.`status` = 1) and (`project_assess_test`.`ft`.`type` = 'CC')) and (`project_assess_test`.`ft`.`parent_id` is not null))"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "f",
+                                                  "access_type": "eq_ref",
+                                                  "possible_keys": [
+                                                    "PRIMARY"
+                                                  ],
+                                                  "key": "PRIMARY",
+                                                  "used_key_parts": [
+                                                    "id"
+                                                  ],
+                                                  "key_length": "4",
+                                                  "ref": [
+                                                    "project_assess_test.ft.parent_id"
+                                                  ],
+                                                  "rows_examined_per_scan": 1,
+                                                  "rows_produced_per_join": 0,
+                                                  "filtered": "50.00",
+                                                  "cost_info": {
+                                                    "read_cost": "0.25",
+                                                    "eval_cost": "0.05",
+                                                    "prefix_cost": "0.80",
+                                                    "data_read_per_join": "956"
+                                                  },
+                                                  "used_columns": [
+                                                    "id",
+                                                    "p_id",
+                                                    "status"
+                                                  ],
+                                                  "attached_condition": "(`project_assess_test`.`f`.`status` = 1)"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "p",
+                                                  "access_type": "eq_ref",
+                                                  "possible_keys": [
+                                                    "PRIMARY"
+                                                  ],
+                                                  "key": "PRIMARY",
+                                                  "used_key_parts": [
+                                                    "id"
+                                                  ],
+                                                  "key_length": "4",
+                                                  "ref": [
+                                                    "project_assess_test.f.p_id"
+                                                  ],
+                                                  "rows_examined_per_scan": 1,
+                                                  "rows_produced_per_join": 0,
+                                                  "filtered": "50.00",
+                                                  "cost_info": {
+                                                    "read_cost": "0.12",
+                                                    "eval_cost": "0.03",
+                                                    "prefix_cost": "0.97",
+                                                    "data_read_per_join": "534"
+                                                  },
+                                                  "used_columns": [
+                                                    "id",
+                                                    "status"
+                                                  ],
+                                                  "attached_condition": "(`project_assess_test`.`p`.`status` <> 3)"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "recipients",
+                                                  "access_type": "ALL",
+                                                  "rows_examined_per_scan": 2,
+                                                  "rows_produced_per_join": 0,
+                                                  "filtered": "100.00",
+                                                  "table_function": "json_table",
+                                                  "using_temporary_table": true,
+                                                  "cost_info": {
+                                                    "read_cost": "2.53",
+                                                    "eval_cost": "0.05",
+                                                    "prefix_cost": "3.56",
+                                                    "data_read_per_join": "8"
+                                                  },
+                                                  "used_columns": [
+                                                    "userId"
+                                                  ],
+                                                  "attached_condition": "(`recipients`.`userId` is not null)"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "u",
+                                                  "access_type": "eq_ref",
+                                                  "possible_keys": [
+                                                    "PRIMARY"
+                                                  ],
+                                                  "key": "PRIMARY",
+                                                  "used_key_parts": [
+                                                    "user_id"
+                                                  ],
+                                                  "key_length": "4",
+                                                  "ref": [
+                                                    "recipients.userId"
+                                                  ],
+                                                  "rows_examined_per_scan": 1,
+                                                  "rows_produced_per_join": 0,
+                                                  "filtered": "100.00",
+                                                  "using_index": true,
+                                                  "cost_info": {
+                                                    "read_cost": "0.12",
+                                                    "eval_cost": "0.05",
+                                                    "prefix_cost": "3.73",
+                                                    "data_read_per_join": "1K"
+                                                  },
+                                                  "used_columns": [
+                                                    "user_id"
+                                                  ]
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "dependent": false,
+                                          "cacheable": true,
+                                          "query_block": {
+                                            "select_id": 10,
+                                            "cost_info": {
+                                              "query_cost": "1258.54"
+                                            },
+                                            "nested_loop": [
+                                              {
+                                                "table": {
+                                                  "table_name": "f",
+                                                  "access_type": "ALL",
+                                                  "possible_keys": [
+                                                    "PRIMARY"
+                                                  ],
+                                                  "rows_examined_per_scan": 2,
+                                                  "rows_produced_per_join": 1,
+                                                  "filtered": "50.00",
+                                                  "cost_info": {
+                                                    "read_cost": "0.35",
+                                                    "eval_cost": "0.10",
+                                                    "prefix_cost": "0.45",
+                                                    "data_read_per_join": "1K"
+                                                  },
+                                                  "used_columns": [
+                                                    "id",
+                                                    "p_id",
+                                                    "status"
+                                                  ],
+                                                  "attached_condition": "(`project_assess_test`.`f`.`status` = 1)"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "p",
+                                                  "access_type": "eq_ref",
+                                                  "possible_keys": [
+                                                    "PRIMARY"
+                                                  ],
+                                                  "key": "PRIMARY",
+                                                  "used_key_parts": [
+                                                    "id"
+                                                  ],
+                                                  "key_length": "4",
+                                                  "ref": [
+                                                    "project_assess_test.f.p_id"
+                                                  ],
+                                                  "rows_examined_per_scan": 1,
+                                                  "rows_produced_per_join": 0,
+                                                  "filtered": "50.00",
+                                                  "cost_info": {
+                                                    "read_cost": "0.25",
+                                                    "eval_cost": "0.05",
+                                                    "prefix_cost": "0.80",
+                                                    "data_read_per_join": "1K"
+                                                  },
+                                                  "used_columns": [
+                                                    "id",
+                                                    "status"
+                                                  ],
+                                                  "attached_condition": "(`project_assess_test`.`p`.`status` <> 3)"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "ft",
+                                                  "access_type": "ALL",
+                                                  "rows_examined_per_scan": 2,
+                                                  "rows_produced_per_join": 0,
+                                                  "filtered": "50.00",
+                                                  "using_join_buffer": "hash join",
+                                                  "cost_info": {
+                                                    "read_cost": "0.35",
+                                                    "eval_cost": "0.05",
+                                                    "prefix_cost": "1.20",
+                                                    "data_read_per_join": "3K"
+                                                  },
+                                                  "used_columns": [
+                                                    "type",
+                                                    "role_id",
+                                                    "parent_id",
+                                                    "status"
+                                                  ],
+                                                  "attached_condition": "((`project_assess_test`.`ft`.`status` = 1) and (`project_assess_test`.`ft`.`parent_id` = `project_assess_test`.`f`.`id`) and (`project_assess_test`.`ft`.`type` = 'CC'))"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "recipients",
+                                                  "access_type": "ALL",
+                                                  "rows_examined_per_scan": 2,
+                                                  "rows_produced_per_join": 1,
+                                                  "filtered": "100.00",
+                                                  "table_function": "json_table",
+                                                  "using_temporary_table": true,
+                                                  "cost_info": {
+                                                    "read_cost": "2.54",
+                                                    "eval_cost": "0.10",
+                                                    "prefix_cost": "3.84",
+                                                    "data_read_per_join": "16"
+                                                  },
+                                                  "used_columns": [
+                                                    "roleId"
+                                                  ]
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "ur",
+                                                  "access_type": "ALL",
+                                                  "rows_examined_per_scan": 10197,
+                                                  "rows_produced_per_join": 1019,
+                                                  "filtered": "10.00",
+                                                  "using_join_buffer": "hash join",
+                                                  "cost_info": {
+                                                    "read_cost": "5.57",
+                                                    "eval_cost": "101.97",
+                                                    "prefix_cost": "1029.11",
+                                                    "data_read_per_join": "15K"
+                                                  },
+                                                  "used_columns": [
+                                                    "user_id",
+                                                    "role_id"
+                                                  ],
+                                                  "attached_condition": "(`project_assess_test`.`ur`.`role_id` = `recipients`.`roleId`)"
+                                                }
+                                              },
+                                              {
+                                                "table": {
+                                                  "table_name": "u",
+                                                  "access_type": "eq_ref",
+                                                  "possible_keys": [
+                                                    "PRIMARY"
+                                                  ],
+                                                  "key": "PRIMARY",
+                                                  "used_key_parts": [
+                                                    "user_id"
+                                                  ],
+                                                  "key_length": "4",
+                                                  "ref": [
+                                                    "project_assess_test.ur.user_id"
+                                                  ],
+                                                  "rows_examined_per_scan": 1,
+                                                  "rows_produced_per_join": 1019,
+                                                  "filtered": "100.00",
+                                                  "using_index": true,
+                                                  "cost_info": {
+                                                    "read_cost": "127.46",
+                                                    "eval_cost": "101.97",
+                                                    "prefix_cost": "1258.54",
+                                                    "data_read_per_join": "2M"
+                                                  },
+                                                  "used_columns": [
+                                                    "user_id"
+                                                  ]
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "table": {
+                                "table_name": "u",
+                                "access_type": "eq_ref",
+                                "possible_keys": [
+                                  "PRIMARY"
+                                ],
+                                "key": "PRIMARY",
+                                "used_key_parts": [
+                                  "user_id"
+                                ],
+                                "key_length": "4",
+                                "ref": [
+                                  "c.userId"
+                                ],
+                                "rows_examined_per_scan": 1,
+                                "rows_produced_per_join": 1021,
+                                "filtered": "100.00",
+                                "using_index": true,
+                                "cost_info": {
+                                  "read_cost": "255.25",
+                                  "eval_cost": "102.10",
+                                  "prefix_cost": "474.71",
+                                  "data_read_per_join": "2M"
+                                },
+                                "used_columns": [
+                                  "user_id"
+                                ]
+                              }
+                            },
+                            {
+                              "table": {
+                                "table_name": "r",
+                                "access_type": "ALL",
+                                "rows_examined_per_scan": 78207,
+                                "rows_produced_per_join": 79849347,
+                                "filtered": "100.00",
+                                "using_join_buffer": "hash join",
+                                "cost_info": {
+                                  "read_cost": "75.63",
+                                  "eval_cost": "7984934.70",
+                                  "prefix_cost": "7985485.04",
+                                  "data_read_per_join": "32G"
+                                },
+                                "used_columns": [
+                                  "id",
+                                  "u_id",
+                                  "p_id",
+                                  "score"
+                                ],
+                                "attached_condition": "<if>(is_not_null_compl(r), ((`project_assess_test`.`r`.`u_id` = `c`.`userId`) and (`project_assess_test`.`r`.`p_id` = `c`.`projectId`)), true)"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "table": {
+                    "table_name": "u",
+                    "access_type": "eq_ref",
+                    "possible_keys": [
+                      "PRIMARY"
+                    ],
+                    "key": "PRIMARY",
+                    "used_key_parts": [
+                      "user_id"
+                    ],
+                    "key_length": "4",
+                    "ref": [
+                      "a.userId"
+                    ],
+                    "rows_examined_per_scan": 1,
+                    "rows_produced_per_join": 798494,
+                    "filtered": "100.00",
+                    "cost_info": {
+                      "read_cost": "199623.50",
+                      "eval_cost": "79849.40",
+                      "prefix_cost": "558946.25",
+                      "data_read_per_join": "2G"
+                    },
+                    "used_columns": [
+                      "user_id",
+                      "nick_name",
+                      "user_name",
+                      "major"
+                    ]
+                  }
+                },
+                {
+                  "table": {
+                    "table_name": "first_result",
+                    "access_type": "eq_ref",
+                    "possible_keys": [
+                      "PRIMARY"
+                    ],
+                    "key": "PRIMARY",
+                    "used_key_parts": [
+                      "id"
+                    ],
+                    "key_length": "4",
+                    "ref": [
+                      "a.firstResultId"
+                    ],
+                    "rows_examined_per_scan": 1,
+                    "rows_produced_per_join": 798494,
+                    "filtered": "100.00",
+                    "cost_info": {
+                      "read_cost": "199623.50",
+                      "eval_cost": "79849.40",
+                      "prefix_cost": "838419.15",
+                      "data_read_per_join": "335M"
+                    },
+                    "used_columns": [
+                      "id",
+                      "is_finish"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

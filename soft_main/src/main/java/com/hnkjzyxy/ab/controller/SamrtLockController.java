@@ -9,6 +9,9 @@ import com.hnkjzyxy.ab.model.ScheduleTask;
 import com.hnkjzyxy.ab.model.SwitchRecord;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.ScheduleService;
+import com.hnkjzyxy.ab.service.support.LockCommandService;
+import com.hnkjzyxy.ab.config.LockScheduleReconcileService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.hnkjzyxy.ab.service.SmartLockService;
 import com.hnkjzyxy.ab.service.SwitchRecordService;
 import com.hnkjzyxy.ab.service.UserService;
@@ -45,7 +48,33 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/smart/lock")
+@PreAuthorize("hasRole('admin')")
 public class SamrtLockController {
+    /**
+     * 厂家回执命令服务。
+     */
+    @Autowired
+    private LockCommandService commandService;
+    /**
+     * 持久化期望任务与 Quartz 对账。
+     */
+    @Autowired
+    private LockScheduleReconcileService reconcileService;
+    /**
+     * 设备绑定变更的共同事务及审计。
+     */
+    @Autowired
+    private com.hnkjzyxy.ab.service.ScheduleWriteCoordinator scheduleCoordinator;
+    /**
+     * 持久化命令回执查询。
+     */
+    @Autowired
+    private com.hnkjzyxy.ab.mapper.LockCommandMapper lockCommandMapper;
+    /**
+     * 未知回执的独立人工确认服务。
+     */
+    @Autowired
+    private com.hnkjzyxy.ab.service.support.LockCommandReceiptService receiptService;
     /**
      * 线程池：用于异步执行查询门锁状态任务
      */
@@ -112,9 +141,14 @@ public class SamrtLockController {
      * @param lockInfo 锁设备信息
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/addLockInfo")
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public ApiResult addLockInfo(@RequestBody LockInfo lockInfo) {
+        scheduleCoordinator.lock();
+        validateLockBinding(lockInfo);
         if(smartLockService.addLockInfoAll(lockInfo)){
+            scheduleCoordinator.changed("LOCK_BINDING_ADD", lockInfo.toString());
             return ApiResult.ok("添加成功");
         }else {
             return ApiResult.error("添加失败");
@@ -172,6 +206,7 @@ public class SamrtLockController {
      * @param lockId 锁设备信息（使用其中的 lockId 字段）
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/deleteLock")
     public ApiResult deleteLock(@RequestBody LockInfo lockId) {
         boolean result = smartLockService.deleteById(lockId.getLockId());
@@ -187,15 +222,20 @@ public class SamrtLockController {
      * @param lockInfo 锁设备信息
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/updateLock")
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public ApiResult updateLock(@RequestBody LockInfo lockInfo) {
+        scheduleCoordinator.lock();
         LockInfo byId = smartLockService.getById(lockInfo.getLockId());
         if (byId == null) {
             return ApiResult.error("锁不存在");
         }
         LockInfo UpdatelockInfo = setLockInfoPojo(lockInfo);
+        validateLockBinding(UpdatelockInfo);
         boolean result = smartLockService.update(UpdatelockInfo);
         if (result) {
+            scheduleCoordinator.changed("LOCK_BINDING_UPDATE", "before=" + byId + "; after=" + UpdatelockInfo);
             return ApiResult.ok("修改成功");
         }
         return ApiResult.error("修改失败");
@@ -203,66 +243,23 @@ public class SamrtLockController {
 
     /**
      * 更新锁开关状态（开锁 / 关锁）
-     * 支持普通用户 token 与开锁专用 token，并自动记录开关锁操作日志
+     * 管理端提交真实设备命令，回执与物理观测独立保存。
      *
      * @param lockInfo 锁状态信息（boardSn、switchStatus）
      * @param authentication 当前登录认证信息
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/updateSwitchStatus")
     public ApiResult updateSwitchStatus(@RequestBody LockInfo lockInfo, Authentication authentication) {
-        // 检查是否为开锁专用token
-        String username = authentication.getName();
-        boolean isLockOnlyToken = "LOCK_ONLY_USER".equals(username);
-
-
-        //联查获取到锁的完整信息
-        LockInfo byId = smartLockService.getByBoardSn(lockInfo.getBoardSn());
-        if (byId == null){
-            return ApiResult.error("你的sn不存在");
-        }
-        if (lockInfo.getSwitchStatus() == byId.getSwitchStatus()){
-            if (byId.getSwitchStatus()==1) {
-                return ApiResult.error("锁已处于开锁状态");
-            }
-            else {
-                return ApiResult.error("锁已处于关锁状态");
-            }
-        }
-        lockInfo.setLockId(byId.getLockId());
-
-        // 如果不是开锁专用token,需要获取用户信息并记录操作日志
-        UserVo userInfo = null;
-        if (!isLockOnlyToken) {
-            userInfo = userService.getUserInfo(authentication.getName());
-        }
-
-        //更改锁状态
-        boolean result = smartLockService.updateSwitchStatus(lockInfo.getLockId(), lockInfo.getSwitchStatus());
-        if (result) {
-            //判断用户的意图(开/关)
-            if (byId != null && lockInfo.getSwitchStatus() == 1) {
-                smartLockGateway.openDoor(byId.getIpAddress(), byId.getPortNumber(), byId.getSnCode(),byId.getRemarks());
-                SwitchRecord switchRecord = new SwitchRecord();
-                switchRecord.setOperationMethod(1);
-                switchRecord.setLockId(byId.getLockId());
-                // 如果是开锁专用token,userId设为-1表示通过密码开锁
-                switchRecord.setUserId(isLockOnlyToken ? -1 : userInfo.getUserId());
-                switchRecord.setOperationTime(LocalDateTime.now());
-                switchRecordService.insert(switchRecord);
-                return ApiResult.ok("开锁成功");
-            } else if (byId != null && lockInfo.getSwitchStatus() == 0) {
-                smartLockGateway.closeDoor(byId.getSnCode(), byId.getIpAddress(), byId.getPortNumber(),byId.getRemarks());
-                SwitchRecord switchRecord = new SwitchRecord();
-                switchRecord.setLockId(byId.getLockId());
-                switchRecord.setUserId(isLockOnlyToken ? -1 : userInfo.getUserId());
-                switchRecord.setOperationTime(LocalDateTime.now());
-                switchRecord.setOperationMethod(0);
-                switchRecordService.insert(switchRecord);
-                return ApiResult.ok("关锁成功");
-            }
-        }
-        return ApiResult.error("更新失败");
+        if (lockInfo.getSwitchStatus() == null || (lockInfo.getSwitchStatus() != 0 && lockInfo.getSwitchStatus() != 1)) return ApiResult.error("开关动作不合法");
+        LockInfo device = lockInfo.getLockId() == null ? smartLockService.getByBoardSn(lockInfo.getBoardSn()) : smartLockService.getById(lockInfo.getLockId());
+        if (device == null || device.getClassroomId() == null) return ApiResult.error("真实设备教室绑定未确认");
+        com.hnkjzyxy.ab.model.LockCommand command = commandService.submit(device, device.getDoorChannel(), lockInfo.getSwitchStatus() == 1,
+                authentication.getName(), null, java.util.UUID.randomUUID().toString(), null);
+        if ("failed".equals(command.getStatus())) return ApiResult.error("设备指令失败，物理状态未知").put("data", command);
+        return ApiResult.ok("acknowledged".equals(command.getStatus()) ? "指令已确认，物理状态待观测"
+                : "unknown".equals(command.getStatus()) ? "回执超时，设备状态待人工确认" : "门禁命令已提交，物理门状态待确认").put("data", command);
     }
 
     /**
@@ -334,17 +331,19 @@ public class SamrtLockController {
      * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      * @throws JsonProcessingException JSON 数据解析失败时抛出
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/updateTimerStatus")
     public ApiResult updateTimerStatus(@RequestBody ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException, JsonProcessingException {
-        ScheduleTask scheduleTaskTemp = trantoScheduleTask(scheduleTask);
-        scheduleService.updateStatus(scheduleTaskTemp);
-        if (scheduleTask.getTaskStatus() == 1) {
-            setTimerTask(scheduleTask, authentication);
-        }
-        if (scheduleService.updateStatus(scheduleTaskTemp) > 0) {
-            return ApiResult.ok("修改成功");
-        }
-        return ApiResult.error("修改失败");
+        ScheduleTask existing = scheduleService.getById(scheduleTask.getTaskId());
+        if (existing == null) return ApiResult.error("任务不存在");
+        if (scheduleTask.getTaskStatus() < 0 || scheduleTask.getTaskStatus() > 3) return ApiResult.error("任务状态不合法");
+        existing.setTaskStatus(scheduleTask.getTaskStatus());
+        existing.setUpdatedTime(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
+        if (existing.getTaskStatus() == 1 && existing.getLoopCount() == 0) return ApiResult.error("次数已耗尽，请独立修改次数后启用");
+        if (existing.getTaskStatus() == 1) validateTaskBinding(existing);
+        if (scheduleService.updateStatus(existing) != 1) return ApiResult.error("保存任务状态失败或次数已耗尽");
+        reconcileService.reconcile();
+        return ApiResult.ok("任务状态已保存，调度将自动对账");
     }
 
     /**
@@ -356,38 +355,20 @@ public class SamrtLockController {
      * @return 操作结果及生成的 Cron 表达式
      * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/addTimer")
     public ApiResult addTimer(@RequestBody ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException {
-        // 获取用户信息
-        UserVo userInfo = userService.getUserInfo(authentication.getName());
-        // 验证锁是否存在
-        LockInfo lockInfo = smartLockService.getById(scheduleTask.getLockId());
-        if (lockInfo == null) {
-            return ApiResult.error("锁不存在");
-        }
-        ScheduleTask scheduleTaskTemp = trantoScheduleTask(scheduleTask);
-        scheduleService.insert(scheduleTaskTemp);
-
-        // 生成Cron表达式（直接使用前端传递的0-6数组）
-        String cronExpression = quartzConfig.generateWeeklyCronExpression(scheduleTaskTemp.getHour(), scheduleTaskTemp.getMinute(), scheduleTask.getCountDay());
-
-        // 创建任务和触发器
-        JobDetail jobDetail = quartzConfig.createJobDetail(scheduleTaskTemp.getLockId(), userInfo.getUserId(), scheduleTaskTemp.getTaskId(),scheduleTask.getRemarks());
-        Trigger trigger;
-        if (scheduleTask.getLoopCount() > -2) {
-            trigger = quartzConfig.createCronTrigger(jobDetail, cronExpression, scheduleTaskTemp.getLoopCount());
-        } else {
-            trigger = quartzConfig.createCronTrigger(jobDetail, cronExpression);
-        }
-        // 获取调度器并安排任务
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        // 先删除可能存在的同名任务
-        if (scheduler.checkExists(jobDetail.getKey())) {
-            scheduler.deleteJob(jobDetail.getKey());
-        }
-
-        scheduler.scheduleJob(jobDetail, trigger);
-        return ApiResult.ok("每周定时任务已设置", cronExpression);
+        ScheduleTask task = trantoScheduleTask(scheduleTask);
+        task.setUserId(userService.getUserInfo(authentication.getName()).getUserId());
+        task.setTaskId(0);
+        validateTaskBinding(task);
+        quartzConfig.generateWeeklyCronExpression(task.getHour(), task.getMinute(), scheduleTask.getCountDay());
+        if (task.getDoorChannel() == null || !task.getDoorChannel().matches("[1-4]")) return ApiResult.error("请配置真实通道1至4");
+        if (task.getLoopCount() < -1 || task.getLoopCount() == 0) return ApiResult.error("次数必须为正数或-1（无限）");
+        if (task.getTaskStatus() != 0 && task.getTaskStatus() != 1) return ApiResult.error("新增任务只能未启用或已启用");
+        if (scheduleService.insert(task) != 1) return ApiResult.error("保存任务失败");
+        reconcileService.reconcile();
+        return ApiResult.ok("任务已保存，调度将自动对账").put("data", task);
     }
 
     /**
@@ -399,27 +380,21 @@ public class SamrtLockController {
      * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      * @throws JsonProcessingException JSON 数据解析失败时抛出
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/updateTimer")
     public ApiResult updateTimer(@RequestBody ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException, JsonProcessingException {
-        ScheduleTask byId = scheduleService.getById(scheduleTask.getTaskId());
-        ScheduleTask scheduleTaskTemp = trantoScheduleTask(scheduleTask);
-        byId.setTaskDetails(scheduleTaskTemp.getTaskDetails());
-        byId.setHour(scheduleTaskTemp.getHour());
-        byId.setMinute(scheduleTaskTemp.getMinute());
-        // 直接使用前端传递的0-6数组
-        byId.setCountDay(Arrays.toString(scheduleTask.getCountDay()));
-        byId.setLoopCount(scheduleTaskTemp.getLoopCount());
-        byId.setIsLoop(scheduleTaskTemp.getIsLoop());
-        byId.setUpdatedTime(LocalDateTime.now());
-        byId.setRemarks(scheduleTaskTemp.getRemarks());
-        int update = scheduleService.update(byId);
-        if (byId.getTaskStatus() == 1) {
-            setTimerTask(scheduleTask, authentication);
-        }
-        if (update > 0) {
-            return ApiResult.ok("修改成功");
-        }
-        return ApiResult.error("修改失败");
+        ScheduleTask old = scheduleService.getById(scheduleTask.getTaskId());
+        if (old == null) return ApiResult.error("任务不存在");
+        ScheduleTask task = trantoScheduleTask(scheduleTask);
+        task.setUserId(old.getUserId()); task.setCreatedTime(old.getCreatedTime()); task.setLockId(old.getLockId());
+        task.setTaskStatus(old.getTaskStatus());
+        quartzConfig.generateWeeklyCronExpression(task.getHour(), task.getMinute(), scheduleTask.getCountDay());
+        if (task.getDoorChannel() == null || !task.getDoorChannel().matches("[1-4]") || task.getLoopCount() < -1) return ApiResult.error("通道或次数不合法");
+        if (task.getLoopCount() == 0 && old.getLoopCount() != 0) return ApiResult.error("零次仅表示耗尽，请填写正数或-1");
+        validateTaskBinding(task);
+        if (scheduleService.update(task) != 1) return ApiResult.error("保存任务失败");
+        reconcileService.reconcile();
+        return ApiResult.ok("任务已保存，调度将自动对账");
     }
 
     /**
@@ -429,6 +404,7 @@ public class SamrtLockController {
      * @return 操作结果
      * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/cancelWeeklyTimer")
     public ApiResult cancelWeeklyTimer(@RequestBody ScheduleTask scheduleTask) throws SchedulerException {
         if (cancelTimer(scheduleTask) > 0) {
@@ -445,17 +421,12 @@ public class SamrtLockController {
      * @throws SchedulerException Quartz 任务查询或调度操作失败时抛出
      */
     public int cancelTimer(ScheduleTask scheduleTask) throws SchedulerException {
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        JobKey jobKey = new JobKey("smartLockJob_" + scheduleTask.getLockId(), "smartLockGroup");
-
-        if (scheduler.checkExists(jobKey)) {
-            scheduler.deleteJob(jobKey);
-            scheduleTask.setTaskStatus(3);
-            scheduleService.updateStatus(scheduleTask);
-            return 1;
-        }
-        scheduleService.updateStatus(scheduleTask);
-        return 0;
+        ScheduleTask old = scheduleService.getById(scheduleTask.getTaskId());
+        if (old == null) return 0;
+        if (old.getTaskStatus() == 3) return 1;
+        old.setTaskStatus(3); old.setUpdatedTime(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
+        if (scheduleService.updateStatus(old) != 1) throw new IllegalStateException("取消任务保存失败");
+        reconcileService.reconcile(); return 1;
     }
 
     /**
@@ -474,12 +445,14 @@ public class SamrtLockController {
                     try {
                         return smartLockStateService.refreshStatus(lockInfo).handle((updated, error) -> {
                             if (error != null) {
+                                lockInfo.setSwitchStatus(null);
                                 System.err.println("查询锁状态失败: " + lockInfo.getSnCode() + ", 错误: " + error.getMessage());
                                 return lockInfo;
                             }
                             return updated;
                         });
                     } catch (Exception e) {
+                        lockInfo.setSwitchStatus(null);
                         System.err.println("查询锁状态失败: " + lockInfo.getSnCode() + ", 错误: " + e.getMessage());
                         return CompletableFuture.completedFuture(lockInfo);
                     }
@@ -508,37 +481,7 @@ public class SamrtLockController {
      * @throws JsonProcessingException JSON 数据解析失败时抛出
      */
     public void setTimerTask(ScheduleTaskDto scheduleTask, Authentication authentication) throws SchedulerException, JsonProcessingException {
-        ScheduleTask scheduleTask1 = scheduleService.getById(scheduleTask.getTaskId());
-        // 获取用户信息
-        UserVo userInfo = userService.getUserInfo(authentication.getName());
-
-        // 直接使用前端传递的0-6数组
-        String countDay = scheduleTask1.getCountDay();
-        ObjectMapper mapper = new ObjectMapper();
-        int[] days = mapper.readValue(countDay, int[].class);
-
-
-        // 生成Cron表达式
-        String cronExpression = quartzConfig.generateWeeklyCronExpression(scheduleTask1.getHour(), scheduleTask1.getMinute(), days);
-
-        // 创建任务和触发器
-        JobDetail jobDetail = quartzConfig.createJobDetail(scheduleTask1.getLockId(), userInfo.getUserId(), scheduleTask1.getTaskId(),scheduleTask.getRemarks());
-        Trigger trigger;
-        if (scheduleTask.getLoopCount() > 0) {
-            trigger = quartzConfig.createCronTrigger(jobDetail, cronExpression, scheduleTask1.getLoopCount());
-        } else {
-            trigger = quartzConfig.createCronTrigger(jobDetail, cronExpression);
-        }
-
-        // 获取调度器并安排任务
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-
-        // 先删除可能存在的同名任务
-        if (scheduler.checkExists(jobDetail.getKey())) {
-            scheduler.deleteJob(jobDetail.getKey());
-        }
-
-        scheduler.scheduleJob(jobDetail, trigger);
+        reconcileService.reconcile();
     }
 
     /**
@@ -554,7 +497,7 @@ public class SamrtLockController {
         scheduleTaskTemp.setTaskStatus(scheduleTaskDto.getTaskStatus());
         scheduleTaskTemp.setUserId(scheduleTaskDto.getUserId());
         scheduleTaskTemp.setTaskDetails(scheduleTaskDto.getTaskDetails());
-        scheduleTaskTemp.setUpdatedTime(LocalDateTime.now());
+        scheduleTaskTemp.setUpdatedTime(LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
         scheduleTaskTemp.setIsLoop(scheduleTaskDto.getIsLoop());
         scheduleTaskTemp.setHour(scheduleTaskDto.getHour());
         scheduleTaskTemp.setMinute(scheduleTaskDto.getMinute());
@@ -566,11 +509,89 @@ public class SamrtLockController {
 
         scheduleTaskTemp.setTimedOperation(scheduleTaskDto.getTimedOperation());
         scheduleTaskTemp.setRemarks(scheduleTaskDto.getRemarks());
+        scheduleTaskTemp.setDoorChannel(scheduleTaskDto.getDoorChannel());
         scheduleTaskTemp.setTaskStatus(scheduleTaskDto.getTaskStatus());
-        scheduleTaskTemp.setCreatedTime(LocalDateTime.now());
+        scheduleTaskTemp.setCreatedTime(LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
         scheduleTaskTemp.setLoopCount(scheduleTaskDto.getLoopCount());
 
         return scheduleTaskTemp;
+    }
+
+    /**
+     * 查询命令回执，厂家指令确认不代表物理门已开。
+     *
+     * @param commandId 命令稳定主键
+     * @return 提交、确认、失败或未知及设备绑定快照
+     */
+    @GetMapping("/command/{commandId}")
+    public ApiResult command(@org.springframework.web.bind.annotation.PathVariable String commandId) {
+        com.hnkjzyxy.ab.model.LockCommand command = lockCommandMapper.selectById(commandId);
+        return command == null ? ApiResult.error("命令不存在") : ApiResult.ok("data", command);
+    }
+
+    /**
+     * 查询指定真实任务的未知回执，用于现场核查，不重新发送历史动作。
+     *
+     * @param taskId 真实任务主键
+     * @return 最多二百条未知回执
+     */
+    @GetMapping("/commands")
+    public ApiResult unknownCommands(@RequestParam Integer taskId) {
+        return ApiResult.ok("data", lockCommandMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.hnkjzyxy.ab.model.LockCommand>()
+                .eq(com.hnkjzyxy.ab.model.LockCommand::getTaskId, taskId).eq(com.hnkjzyxy.ab.model.LockCommand::getStatus, "unknown")
+                .orderByDesc(com.hnkjzyxy.ab.model.LockCommand::getCreatedTime).last("LIMIT 200")));
+    }
+
+    /**
+     * 管理员依据真实核查收敛未知指令；此接口不产生设备动作。
+     *
+     * @param commandId 命令主键
+     * @param request 确认结果及理由
+     * @return 独立复核结果
+     */
+    @PostMapping("/command/{commandId}/review")
+    public ApiResult reviewCommand(@org.springframework.web.bind.annotation.PathVariable String commandId,
+            @RequestBody com.hnkjzyxy.ab.dto.LockCommandReviewDto request) {
+        receiptService.review(commandId, request);
+        reconcileService.reconcile();
+        return ApiResult.ok("原指令已独立复核，未补发设备动作");
+    }
+
+    /**
+     * 核实内部教室、真实设备及独立通道，名称由唯一教室主键读取。
+     *
+     * @param lock 待保存的真实绑定
+     */
+    private void validateLockBinding(LockInfo lock) {
+        if (lock.getClassroomId() == null || lock.getDoorChannel() == null || !lock.getDoorChannel().matches("[1-4]")) {
+            throw new IllegalArgumentException("必须选择唯一教室主键及通道1至4");
+        }
+        if (lock.getSnCode() == null || lock.getSnCode().trim().isEmpty() || lock.getSnCode().length() > 128
+                || lock.getIpAddress() == null || lock.getIpAddress().trim().isEmpty()
+                || lock.getPortNumber() == null || lock.getPortNumber() < 1 || lock.getPortNumber() > 65535) {
+            throw new IllegalArgumentException("真实设备通讯信息不完整");
+        }
+        boolean duplicate = smartLockService.getAll().stream().anyMatch(other -> !java.util.Objects.equals(other.getLockId(), lock.getLockId())
+                && lock.getSnCode().equals(other.getSnCode()) && lock.getDoorChannel().equals(other.getDoorChannel()));
+        if (duplicate) throw new IllegalArgumentException("设备同一通道已有绑定，请独立核实");
+        com.hnkjzyxy.ab.model.Classroom room = scheduleCoordinator.room(lock.getClassroomId(), null);
+        lock.setClassroomNumber(room.getClassroomNumber()); lock.setClassroomName(room.getClassroomName());
+        lock.setCampusName(room.getCampusName()); lock.setBuildingName(room.getBuildingName());
+        lock.setSwitchStatus(null); lock.setObservedAt(null);
+    }
+
+    /**
+     * 任务通道必须与真实锁的教室通道绑定一致，不凭描述或任意数字发指令。
+     *
+     * @param task 待保存的任务
+     */
+    private void validateTaskBinding(ScheduleTask task) {
+        LockInfo lock = smartLockService.getById(task.getLockId());
+        if (lock == null || lock.getClassroomId() == null || task.getDoorChannel() == null
+                || !task.getDoorChannel().equals(lock.getDoorChannel())) {
+            throw new IllegalArgumentException("任务与真实教室、锁或通道绑定不一致，请先核实绑定");
+        }
+        if (task.getTimedOperation() != 0 && task.getTimedOperation() != 1) throw new IllegalArgumentException("门禁动作不合法");
     }
 
     /**
@@ -581,15 +602,14 @@ public class SamrtLockController {
      */
     public LockInfo setLockInfoPojo(LockInfo lockInfo) {
         LockInfo byId = smartLockService.getById(lockInfo.getLockId());
-        if (lockInfo.getSwitchStatus() != null) {
-            byId.setSwitchStatus(lockInfo.getSwitchStatus());
-        }
         if (lockInfo.getClassroomNumber() != null) {
             byId.setClassroomNumber(lockInfo.getClassroomNumber());
         }
         if (lockInfo.getRemarks() != null) {
             byId.setRemarks(lockInfo.getRemarks());
         }
+        if (lockInfo.getClassroomId() != null) byId.setClassroomId(lockInfo.getClassroomId());
+        if (lockInfo.getDoorChannel() != null) byId.setDoorChannel(lockInfo.getDoorChannel());
         return byId;
     }
 

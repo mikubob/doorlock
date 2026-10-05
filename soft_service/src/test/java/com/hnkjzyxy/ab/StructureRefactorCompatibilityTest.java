@@ -40,7 +40,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/** 验证跨模块资源、请求模型、事务及异步状态回写的行为。 */
+/**
+ * 验证跨模块资源、请求模型、事务及异步状态回写的行为。
+ */
 class StructureRefactorCompatibilityTest {
     /**
      * 验证请求类型兼容旧 JSON 且输出模型不承担输入校验
@@ -136,6 +138,7 @@ class StructureRefactorCompatibilityTest {
     void doorQueriesKeepTheirOwnResultsAndPersistOnlyAfterCommunicationCompletes() {
         SmartLockGateway gateway = mock(SmartLockGateway.class);
         SmartLockService persistence = mock(SmartLockService.class);
+        when(persistence.updateSwitchStatus(anyInt(), anyInt())).thenReturn(true);
         CompletableFuture<Integer> firstReply = new CompletableFuture<>();
         CompletableFuture<Integer> secondReply = new CompletableFuture<>();
         when(gateway.queryDoorStatus("10.0.0.1", 8000, "first")).thenReturn(firstReply);
@@ -188,6 +191,7 @@ class StructureRefactorCompatibilityTest {
         lock.setIpAddress(ip);
         lock.setSnCode(sn);
         lock.setPortNumber(8000);
+        lock.setDoorChannel("1");
         return lock;
     }
 }

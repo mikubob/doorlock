@@ -20,6 +20,9 @@
         <result property="createTime" column="create_time"/>
         <result property="updateTime" column="update_time"/>
         <result property="status" column="status"/>
+        <result property="classroomId" column="classroom_id"/>
+        <result property="rowVersion" column="row_version"/>
+        <result property="actualEndTime" column="actual_end_time"/>
     </resultMap>
 
     <!--
@@ -28,14 +31,16 @@
         返回：考试列表。
     -->
     <select id="getExamList" resultMap="ExamResultMap">
-        SELECT * FROM sys_exam se
-        left join sys_classroom sc ON se.board_sn = sc.board_sn
+        SELECT se.* FROM sys_exam se
         <where>
             <if test="examCode != null and examCode != ''">
                 AND exam_code LIKE CONCAT('%', #{examCode}, '%')
             </if>
+            <if test="classroomId != null">
+                AND se.classroom_id = #{classroomId}
+            </if>
             <if test="boardSn != null">
-                AND se.board_sn = #{boardSn}
+                AND BINARY se.board_sn = BINARY #{boardSn}
             </if>
             <if test="status != null">
                 AND status = #{status}

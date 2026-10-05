@@ -60,7 +60,7 @@ public class TransactionalMysqlLock {
         }
         try {
             if (!execute(connection, "SELECT GET_LOCK(?, 0)", name)) {
-                throw new IllegalStateException("其他实例正在替换课表，本次同步放弃");
+                throw new IllegalStateException("排程正在更新，请刷新后重试");
             }
         } catch (SQLException e) {
             throw new IllegalStateException("无法获取数据库同步锁，本次同步放弃", e);

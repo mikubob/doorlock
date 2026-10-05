@@ -1,12 +1,10 @@
 package com.hnkjzyxy.ab.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.hnkjzyxy.ab.model.Classroom;
 import com.hnkjzyxy.ab.model.Exam;
 import com.hnkjzyxy.ab.result.ApiResult;
-import com.hnkjzyxy.ab.service.ClassroomService;
 import com.hnkjzyxy.ab.service.ExamService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -26,6 +23,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/exam")
+@PreAuthorize("hasRole('admin')")
 public class ExamController {
 
     /**
@@ -33,11 +31,19 @@ public class ExamController {
      */
     @Autowired
     private ExamService examService;
+
     /**
-     * 教室业务服务
+     * 排考预览，实际提交仍在新事务中重新验证。
+     * @param exams 考试批次
+     * @param update 是否更新
+     * @return 最新冲突提示
      */
-    @Autowired
-    private ClassroomService classroomService;
+    @PostMapping("/preview")
+    @PreAuthorize("hasRole('admin')")
+    public ApiResult preview(@RequestBody List<Exam> exams, @RequestParam(defaultValue = "false") boolean update) {
+        String error = examService.preview(exams, update);
+        return error == null ? ApiResult.ok("目标教室及整个时段校验通过") : ApiResult.error(error);
+    }
 
     /**
      * 动态查询考试列表
@@ -48,10 +54,6 @@ public class ExamController {
     @PostMapping("/list")
     public ApiResult list(@RequestBody(required = false) Exam exam) {
         List<Exam> list = examService.getExamList(exam);
-        // 判断考试列表是否为空
-        if (list.isEmpty()) {
-            return ApiResult.error("考场不存在");
-        }
         return ApiResult.ok("data", list);
     }
 
@@ -76,64 +78,11 @@ public class ExamController {
      * @param exam 考试信息
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/add")
     public ApiResult add(@RequestBody Exam exam) {
-        if (exam.getBoardSn() == null){
-            return ApiResult.error("请选择教室");
-        }
-        Classroom classroom = new Classroom();
-        classroom.setBoardSn(exam.getBoardSn());
-        List<Classroom> classroomList = classroomService.getClassroomList(classroom);
-        if (classroomList.isEmpty()) {
-            return ApiResult.error("教室不存在");
-        }
-        // 参数校验
-        if (exam.getExamCode() == null || exam.getExamCode().isEmpty()) {
-            return ApiResult.error("考试号不能为空");
-        }
-        if (exam.getStartTime() == null) {
-            return ApiResult.error("考试开始时间不能为空");
-        }
-        if (exam.getEndTime() == null) {
-            return ApiResult.error("考试结束时间不能为空");
-        }
-        if (exam.getStartTime().isAfter(exam.getEndTime())) {
-            return ApiResult.error("开始时间不能晚于结束时间");
-        }
-
-        LocalDateTime startTime1 = exam.getStartTime();
-        LocalDateTime endTime1 = exam.getEndTime();
-        
-        // 查询同一个教室的所有考试，检查时间是否冲突
-        LambdaQueryWrapper<Exam> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Exam::getBoardSn, exam.getBoardSn());
-        List<Exam> list = examService.list(queryWrapper);
-
-        for (Exam exam1 : list) {
-            LocalDateTime startTime = exam1.getStartTime();
-            LocalDateTime endTime = exam1.getEndTime();
-
-            // 判断两个时间段是否有交集
-            boolean hasConflict = !(endTime1.isBefore(startTime) || startTime1.isAfter(endTime));
-
-            if (hasConflict) {
-                return ApiResult.error("该教室在此时间段已有考试安排，时间冲突");
-            }
-        }
-
-
-
-        // 设置默认值
-        if (exam.getStatus() == null) {
-            exam.setStatus(0); // 默认未开始
-        }
-
-        boolean result = examService.save(exam);
-        if (result) {
-            return ApiResult.ok("新增成功");
-        } else {
-            return ApiResult.error("新增失败");
-        }
+        String error = examService.batchAdd(java.util.Collections.singletonList(exam));
+        return error == null ? ApiResult.ok("新增成功") : ApiResult.error(error);
     }
 
     /**
@@ -142,55 +91,11 @@ public class ExamController {
      * @param exam 考试信息
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PutMapping("/update")
     public ApiResult update(@RequestBody Exam exam) {
-        if (exam.getBoardSn() == null){
-            return ApiResult.error("请选择教室");
-        }
-        Classroom classroom = new Classroom();
-        classroom.setBoardSn(exam.getBoardSn());
-        List<Classroom> classroomList = classroomService.getClassroomList(classroom);
-        if (classroomList.isEmpty()) {
-            return ApiResult.error("教室不存在");
-        }
-        // 参数校验
-        if (exam.getId() == null) {
-            return ApiResult.error("考试ID不能为空");
-        }
-
-        Exam existExam = examService.getById(exam.getId());
-        if (existExam == null) {
-            return ApiResult.error("考试不存在");
-        }
-
-        // 如果修改了考试时间或教室，需要检查时间是否冲突
-        LocalDateTime startTime1 = exam.getStartTime() != null ? exam.getStartTime() : existExam.getStartTime();
-        LocalDateTime endTime1 = exam.getEndTime() != null ? exam.getEndTime() : existExam.getEndTime();
-        Integer boardSn = exam.getBoardSn() != null ? exam.getBoardSn() : existExam.getBoardSn();
-
-        LambdaQueryWrapper<Exam> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Exam::getBoardSn, boardSn)
-                .ne(Exam::getId, exam.getId()); // 排除当前考试本身
-        List<Exam> list = examService.list(queryWrapper);
-
-        for (Exam exam1 : list) {
-            LocalDateTime startTime = exam1.getStartTime();
-            LocalDateTime endTime = exam1.getEndTime();
-
-            // 判断两个时间段是否有交集
-            boolean hasConflict = !(endTime1.isBefore(startTime) || startTime1.isAfter(endTime));
-
-            if (hasConflict) {
-                return ApiResult.error("该教室在此时间段已有考试安排，时间冲突");
-            }
-        }
-
-        boolean result = examService.updateById(exam);
-        if (result) {
-            return ApiResult.ok("更新成功");
-        } else {
-            return ApiResult.error("更新失败");
-        }
+        String error = examService.batchUpdate(java.util.Collections.singletonList(exam));
+        return error == null ? ApiResult.ok("更新成功") : ApiResult.error(error);
     }
 
     /**
@@ -199,9 +104,10 @@ public class ExamController {
      * @param id sn
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @DeleteMapping("/{id}")
     public ApiResult delete(@PathVariable Long id) {
-        boolean result = examService.removeById(id);
+        boolean result = examService.deleteExams(java.util.Collections.singletonList(id));
         if (result) {
             return ApiResult.ok("删除成功");
         } else {
@@ -215,13 +121,14 @@ public class ExamController {
      * @param ids 考试ID列表
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @DeleteMapping("/batchDelete")
     public ApiResult deleteBatch(@RequestBody List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return ApiResult.error("请选择要删除的考试");
         }
 
-        boolean result = examService.removeByIds(ids);
+        boolean result = examService.deleteExams(ids);
         if (result) {
             return ApiResult.ok("批量删除成功");
         } else {
@@ -236,32 +143,19 @@ public class ExamController {
      * @param status 状态 0=未开始 1=进行中 2=已结束
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PutMapping("/status/{id}")
     public ApiResult updateStatus(@PathVariable Long id, @RequestParam Integer status) {
-        if (status == null || status < 0 || status > 2) {
-            return ApiResult.error("状态参数错误");
-        }
-
-        Exam exam = examService.getById(id);
-        if (exam == null) {
-            return ApiResult.error("考试不存在");
-        }
-
-        exam.setStatus(status);
-
-        boolean result = examService.updateById(exam);
-        if (result) {
-            return ApiResult.ok("状态更新成功");
-        } else {
-            return ApiResult.error("状态更新失败");
-        }
+        return ApiResult.error("请通过更新接口提交状态及行版本，重新启用必须重新验证课表");
     }
+
     /**
      * 批量添加考试
      *
      * @param exams 考试信息列表
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PostMapping("/batchAdd")
     public ApiResult batchAdd(@RequestBody List<Exam> exams) {
         if (exams == null || exams.isEmpty()) {
@@ -281,6 +175,7 @@ public class ExamController {
      * @param exams 考试信息列表（必须包含id）
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('admin')")
     @PutMapping("/batchUpdate")
     public ApiResult batchUpdate(@RequestBody List<Exam> exams) {
         if (exams == null || exams.isEmpty()) {

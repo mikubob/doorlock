@@ -36,6 +36,14 @@ public interface CourseScheduleService extends IService<CourseSchedule> {
     boolean updateCourseSchedule(CourseSchedule courseSchedule);
 
     /**
+     * 明确复核来源改变的独立调整，保留调整及原稳定课程键。
+     *
+     * @param request 双方稳定身份、最新版本和确认理由
+     * @return 复核成功返回 true
+     */
+    boolean rebindSource(com.hnkjzyxy.ab.dto.CourseSourceRebindDto request);
+
+    /**
      * 删除课程
      *
      * @param id 课表ID

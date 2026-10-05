@@ -30,6 +30,27 @@ public class Exam implements Serializable {
     private Long id;
 
     /**
+     * 内部教室主键，不依赖班牌设备。
+     */
+    private Long classroomId;
+    /**
+     * 乐观行版本。
+     */
+    private Long rowVersion;
+    /**
+     * 提前结束的真实学校时刻，旧状态二不会自动复活。
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    private LocalDateTime actualEndTime;
+    /**
+     * 服务端派生的时间状态。
+     */
+    @TableField(exist = false)
+    private String timeStatus;
+
+
+    /**
      * 考试号
      */
     @TableField("exam_code")
@@ -38,8 +59,8 @@ public class Exam implements Serializable {
     /**
      * sn码
      */
-    @TableField("board_sn")
-    private Integer boardSn;
+    @TableField(value = "board_sn", updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    private String boardSn;
 
     /**
      * 考试内容

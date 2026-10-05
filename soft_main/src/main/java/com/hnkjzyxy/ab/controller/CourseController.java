@@ -187,6 +187,7 @@ public class CourseController {
         int arrival = 0;
         //请假人次
         int numberLeaveRequests = 0;
+        boolean leaveUnknown = false;
         //带食物率
         int foodCarryingRate = 0;
 
@@ -198,7 +199,8 @@ public class CourseController {
             //2.实到人数
             arrival += checkResult.getArrival();
             //3.请假人次
-            numberLeaveRequests += checkResult.getPeopleLeave();
+            if (checkResult.getPeopleLeave() == null) leaveUnknown = true;
+            else numberLeaveRequests += checkResult.getPeopleLeave();
             //4.带食物人数
             foodCarryingRate += checkResult.getFoodBringPerson();
         }
@@ -212,7 +214,7 @@ public class CourseController {
             checkResultResponse.setAbsenteeismRate("0%"); // 避免除零错误
         }
         //请假人数
-        checkResultResponse.setNumberLeaveRequests(String.valueOf(numberLeaveRequests));
+        checkResultResponse.setNumberLeaveRequests(leaveUnknown ? "未知" : String.valueOf(numberLeaveRequests));
 
         // 带食物率计算
         if (arrival > 0) {

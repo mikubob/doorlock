@@ -31,7 +31,7 @@ public class Classroom implements Serializable {
      * 电子班牌SN码
      */
     @TableField("board_sn")
-    private int boardSn;
+    private String boardSn;
 
     /**
      * 教室编号
@@ -64,5 +64,11 @@ public class Classroom implements Serializable {
     /**
      * 锁状态
      */
+    @TableField(exist = false)
     private Integer switchStatus;
+
+    /**
+     * 真实座位容量，未核实保持为空。
+     */
+    private Integer capacity;
 }

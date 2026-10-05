@@ -27,5 +27,5 @@ public interface ExamMapper extends BaseMapper<Exam> {
      * @param boardSn 电子班牌SN
      * @return 至少删除一条考试安排时返回 true
      */
-    boolean removeByBoardSn(@Param("boardSn") Long boardSn);
+    boolean removeByBoardSn(@Param("boardSn") String boardSn);
 }

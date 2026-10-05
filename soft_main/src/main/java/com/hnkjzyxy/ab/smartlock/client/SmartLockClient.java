@@ -24,7 +24,9 @@ import com.hnkjzyxy.ab.smartlock.listener.DefaultConnectorListener;
 import com.hnkjzyxy.ab.smartlock.support.CommandAllocator;
 import com.hnkjzyxy.ab.smartlock.command.CloseDoorCommand;
 
-/** 门禁 SDK 适配器，只负责设备通讯，不读写数据库。 */
+/**
+ * 门禁 SDK 适配器，只负责设备通讯，不读写数据库。
+ */
 @Component
 public class SmartLockClient implements SmartLockGateway {
 
@@ -40,63 +42,49 @@ public class SmartLockClient implements SmartLockGateway {
      * @param Channel 门禁通道编号
      */
     @Override
-    public void openDoor(String ipAddress, int port, String snStr,String Channel) {
-        ConnectorAllocator allocator = ConnectorAllocator.GetAllocator();
-        CompletableFuture<Boolean> futurePrice = new CompletableFuture<>();
-        allocator.AddListener(new DefaultConnectorListener());
+    public void openDoor(String ip, int port, String sn, String channel) { sendDoorCommand(ip, port, sn, channel, true); }
 
-        CommandDetail detail = new CommandDetail();
-        detail.Identity = new Door8800Identity(
-                snStr,
-                "FFFFFFFF",
-                E_ControllerType.Door8900);
-
-        TCPClientDetail tcp = new TCPClientDetail(ipAddress, port);
-        tcp.Timeout = 5000;
-        tcp.RestartCount = 1;
-        detail.Connector = tcp;
-        detail.RestartCount = 3;
-        detail.Timeout = 3000;
-
-        RemoteDoor_Parameter parameter1 = new RemoteDoor_Parameter(detail);
-        parameter1.Door.SetDoor(Integer.parseInt(Channel), 1);
-//        parameter1.Door.SetDoor(Integer.parseInt(Channel), 1);
-//       parameter1.Door.SetDoor(2, 1);
-
-        HoldDoor cmd = new HoldDoor(parameter1);
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Void> sendDoorCommand(String ip, int port, String sn, String channel, boolean open) {
+        if (channel == null || !channel.matches("[1-4]")) throw new IllegalArgumentException("通道必须为1至4");
+        CompletableFuture<Void> receipt = new CompletableFuture<>();
+        CommandDetail detail = CommandAllocator.getTcpCommandDetail(sn, ip, port);
+        if (detail == null) throw new IllegalArgumentException("设备通讯参数无效");
         detail.Event = new ConnectorEvent() {
+            /**
+             * {@inheritDoc}
+             */
             @Override
-            public void CommandCompleteEvent(INCommand cmd, INCommandResult result) {
-                System.out.println("CommandCompleteEvent命令执行成功！");
-                futurePrice.complete(true);
-            }
-
+            public void CommandCompleteEvent(INCommand command, INCommandResult result) { receipt.complete(null); }
+            /**
+             * {@inheritDoc}
+             */
             @Override
-            public void CommandTimeout(INCommand cmd) {
-                System.out.println("CommandTimeout命令执行超时！");
-                futurePrice.completeExceptionally(new Exception("命令执行超时"));
-            }
-
+            public void CommandTimeout(INCommand command) { receipt.completeExceptionally(new java.util.concurrent.TimeoutException("设备命令超时")); }
+            /**
+             * {@inheritDoc}
+             */
             @Override
-            public void ConnectorErrorEvent(ConnectorDetail detail) {
-                System.out.println("ConnectorErrorEvent连接设备出错！");
-                futurePrice.completeExceptionally(new Exception("连接设备出错"));
-            }
-
+            public void ConnectorErrorEvent(ConnectorDetail connector) { receipt.completeExceptionally(new IllegalStateException("设备连接失败")); }
+            /**
+             * {@inheritDoc}
+             */
             @Override
-            public void ConnectorErrorEvent(INCommand cmd, boolean isStop) {
-                System.out.println("ConnectorErrorEvent连接设备出错！");
-                futurePrice.completeExceptionally(new Exception("连接设备出错"));
-            }
-
+            public void ConnectorErrorEvent(INCommand command, boolean stopped) { receipt.completeExceptionally(new IllegalStateException("设备连接失败")); }
+            /**
+             * {@inheritDoc}
+             */
             @Override
-            public void PasswordErrorEvent(INCommand cmd) {
-                System.out.println("PasswordErrorEvent设备通讯密码错误！");
-                futurePrice.completeExceptionally(new Exception("设备通讯密码错误"));
-            }
+            public void PasswordErrorEvent(INCommand command) { receipt.completeExceptionally(new IllegalStateException("设备通讯认证失败")); }
         };
-        allocator.AddCommand(cmd);
+        RemoteDoor_Parameter parameter = new RemoteDoor_Parameter(detail);
+        parameter.Door.SetDoor(Integer.parseInt(channel), 1);
+        if (open) CommandAllocator.addCommand(new HoldDoor(parameter));
+        else CommandAllocator.addCommand(new Door.Access.Door8800.Command.Door.CloseDoor(parameter));
+        return receipt;
     }
 
     /**
@@ -189,13 +177,5 @@ public class SmartLockClient implements SmartLockGateway {
      * @param Channel 门禁通道编号
      */
     @Override
-    public void closeDoor(String sn, String ip, int port,String Channel) {
-        CommandDetail detail = CommandAllocator.getTcpCommandDetail(sn, ip, port);
-        // 增加空检查
-        if (detail == null) {
-            throw new IllegalArgumentException("无法获取有效的CommandDetail");
-        }
-        CloseDoorCommand cmd = new CloseDoorCommand(detail);
-        cmd.execute(Channel);
-    }
+    public void closeDoor(String sn, String ip, int port, String channel) { sendDoorCommand(ip, port, sn, channel, false); }
 }

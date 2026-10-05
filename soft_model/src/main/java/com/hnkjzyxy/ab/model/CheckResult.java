@@ -28,6 +28,22 @@ public class CheckResult implements Serializable {
      * 主键ID
      */
     private Long id;
+    /**
+     * 课程登记身份，历史不依赖全量替换行号。
+     */
+    private String courseKey;
+    /**
+     * 巡查时课程、班级、教师和区间的不可变快照。
+     */
+    private String scheduleSnapshot;
+    /**
+     * 请假人数来源，人工确认或历史快照。
+     */
+    private String leaveSource;
+    /**
+     * 无可靠课程关联时的补录理由。
+     */
+    private String supplementReason;
 
     /**
      * 巡查日期
@@ -139,7 +155,7 @@ public class CheckResult implements Serializable {
     /**
      * 请假人次
      */
-    private int peopleLeave;
+    private Integer peopleLeave;
 
     /**
      * 备注

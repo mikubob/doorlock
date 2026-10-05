@@ -24,7 +24,7 @@ public interface ExamService extends IService<Exam> {
      * @param boardSn 电子班牌SN
      * @return 操作或条件校验结果
      */
-    boolean removeByBoardSn(Long boardSn);
+    boolean removeByBoardSn(String boardSn);
 
     /**
      * 批量添加考试
@@ -40,6 +40,21 @@ public interface ExamService extends IService<Exam> {
      * @return 操作结果，成功返回null，失败返回错误信息
      */
     String batchAdd(List<Exam> exams);
+
+    /**
+     * 共同事务内整批删除考试。
+     * @param ids 考试主键
+     * @return 是否成功
+     */
+    boolean deleteExams(List<Long> ids);
+
+    /**
+     * 只验证本批最终排程，不保存或创建课程调整。
+     * @param exams 最终考试批次
+     * @param update 是否为更新批次
+     * @return 校验错误，成功返回空
+     */
+    String preview(List<Exam> exams, boolean update);
 
     /**
      * 批量更新考试

@@ -8,6 +8,15 @@ import com.hnkjzyxy.ab.config.ScheduleSyncProperties;
 import com.hnkjzyxy.ab.mapper.CourseScheduleMapper;
 import com.hnkjzyxy.ab.model.CourseSchedule;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
+import com.hnkjzyxy.ab.service.ScheduleWriteCoordinator;
+import com.hnkjzyxy.ab.service.CoursePeriodResolver;
+import com.hnkjzyxy.ab.mapper.ClassroomMapper;
+import com.hnkjzyxy.ab.model.Classroom;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.DigestUtils;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import com.hnkjzyxy.ab.utils.RedisLockUtils;
 import com.hnkjzyxy.ab.utils.TransactionalMysqlLock;
 import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
@@ -86,6 +95,21 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      * 保护课表替换事务直到提交或回滚完成的数据库会话锁
      */
     private final TransactionalMysqlLock databaseLock;
+    /**
+     * 统一排程事务及校验。
+     */
+    @Autowired
+    private ScheduleWriteCoordinator coordinator;
+    /**
+     * 教室身份访问。
+     */
+    @Autowired
+    private ClassroomMapper classroomMapper;
+    /**
+     * 统一作息解析。
+     */
+    @Autowired
+    private CoursePeriodResolver periodResolver;
 
     /**
      * 进程内锁，避免同一实例重复发起同步；跨实例由 Redis 租约和数据库事务锁保护。
@@ -134,7 +158,15 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveCourseSchedule(CourseSchedule courseSchedule) {
-        return courseScheduleMapper.insert(courseSchedule) > 0;
+        coordinator.lock();
+        if (courseSchedule.getId() != null) throw new IllegalArgumentException("新增课程不能指定ID");
+        courseSchedule.setSourceType("LOCAL"); courseSchedule.setCourseKey(UUID.randomUUID().toString());
+        courseSchedule.setLocalAdjusted(1); courseSchedule.setEffective(1); courseSchedule.setRowVersion(0L);
+        coordinator.validateCourseWrite(courseSchedule);
+        if (courseScheduleMapper.insert(courseSchedule) != 1) throw new IllegalStateException("新增课程失败，已回滚");
+        coordinator.changed("COURSE_ADD", courseSchedule.toString());
+        coordinator.reconcileConflicts();
+        return true;
     }
 
     /**
@@ -143,7 +175,101 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateCourseSchedule(CourseSchedule courseSchedule) {
-        return courseScheduleMapper.updateById(courseSchedule) > 0;
+        coordinator.lock();
+        CourseSchedule old = courseScheduleMapper.selectById(courseSchedule.getId());
+        if (old == null) throw new IllegalArgumentException("课程不存在");
+        if (courseSchedule.getRowVersion() == null || !courseSchedule.getRowVersion().equals(old.getRowVersion())) throw new IllegalArgumentException("课程已被修改，请刷新后重试");
+        if (courseSchedule.getChangeReason() == null || courseSchedule.getChangeReason().trim().isEmpty()) throw new IllegalArgumentException("独立停课/调课必须填写理由");
+        CourseSchedule merged = new CourseSchedule();
+        BeanUtils.copyProperties(old, merged);
+        java.beans.PropertyDescriptor[] descriptors = BeanUtils.getPropertyDescriptors(CourseSchedule.class);
+        Set<String> editable = new HashSet<>(Arrays.asList("courseName", "academicYear", "semester", "week", "dayOfWeek", "classPeriod", "classroomNumber", "teachingLocation", "campus", "buildingName", "teacherId", "teacherName", "departmentName", "className", "counselorName", "classSize", "leaveCount", "hasLeave", "classDate", "classroomId", "effective"));
+        try {
+            for (java.beans.PropertyDescriptor descriptor : descriptors) {
+                if (!editable.contains(descriptor.getName())) continue;
+                Object value = descriptor.getReadMethod().invoke(courseSchedule);
+                if (value != null) descriptor.getWriteMethod().invoke(merged, value);
+            }
+        } catch (ReflectiveOperationException e) { throw new IllegalStateException("课程合并失败", e); }
+        if (courseSchedule.getClassroomId() == null && (courseSchedule.getClassroomNumber() != null || courseSchedule.getCampus() != null || courseSchedule.getBuildingName() != null)) merged.setClassroomId(null);
+        if (merged.getEffective() != null && merged.getEffective() != 0 && merged.getEffective() != 1) throw new IllegalArgumentException("课程有效状态不合法");
+        merged.setLocalAdjusted(1); merged.setRowVersion(old.getRowVersion() + 1);
+        if (!Objects.equals(old.getClassName(), merged.getClassName())) merged.setClassSize(null);
+        if (!Objects.equals(old.getClassName(), merged.getClassName()) || !Objects.equals(old.getClassDate(), merged.getClassDate())
+                || !Objects.equals(old.getClassPeriod(), merged.getClassPeriod())) {
+            merged.setLeaveCount(null); merged.setHasLeave(null);
+        }
+        if (old.getSourceFingerprint() == null && "OA".equals(old.getSourceType())) merged.setSourceFingerprint(fingerprint(old));
+        coordinator.validateCourseWrite(merged);
+        merged.setParseStatus("PENDING".equals(old.getParseStatus()) ? "PENDING" : "RESOLVED");
+        if (courseScheduleMapper.updateById(merged) != 1) throw new IllegalStateException("调整课程失败，已回滚");
+        coordinator.changed("COURSE_ADJUST_APPROVED", "before=" + old + "; after=" + merged + "; reason=" + courseSchedule.getChangeReason());
+        coordinator.reconcileConflicts();
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean rebindSource(com.hnkjzyxy.ab.dto.CourseSourceRebindDto request) {
+        coordinator.lock();
+        if (request == null || request.getReason() == null || request.getReason().trim().isEmpty()) {
+            throw new IllegalArgumentException("来源复核必须填写确认依据");
+        }
+        List<CourseSchedule> rows = courseScheduleMapper.selectList(null);
+        CourseSchedule old = uniqueCourse(rows, request.getCourseKey());
+        if (!Integer.valueOf(1).equals(old.getLocalAdjusted()) || !"PENDING".equals(old.getParseStatus())) {
+            throw new IllegalArgumentException("仅待复核的独立调整可以关联来源");
+        }
+        if (request.getRowVersion() == null || !request.getRowVersion().equals(old.getRowVersion())) {
+            throw new IllegalArgumentException("调整已被修改，请刷新后复核");
+        }
+        String before = old.toString();
+        CourseSchedule merged = new CourseSchedule();
+        BeanUtils.copyProperties(old, merged);
+        String sourceDetail = "人工确认来源已撤销，转为本地课程";
+        if (request.getSourceCourseKey() == null || request.getSourceCourseKey().trim().isEmpty()) {
+            merged.setSourceType("LOCAL");
+        } else {
+            CourseSchedule source = uniqueCourse(rows, request.getSourceCourseKey());
+            if (Objects.equals(source.getCourseKey(), old.getCourseKey()) || !"OA".equals(source.getSourceType())
+                    || Integer.valueOf(1).equals(source.getLocalAdjusted()) || source.getSourceFingerprint() == null) {
+                throw new IllegalArgumentException("请选择未独立调整的新 OA 来源");
+            }
+            if (request.getSourceRowVersion() == null || !request.getSourceRowVersion().equals(source.getRowVersion())) {
+                throw new IllegalArgumentException("来源已更新，请刷新后复核");
+            }
+            sourceDetail = source.toString();
+            merged.setSourceType("OA");
+            merged.setSourceFingerprint(source.getSourceFingerprint());
+            if (courseScheduleMapper.deleteById(source.getId()) != 1) {
+                throw new IllegalStateException("来源关联失败，已回滚");
+            }
+        }
+        coordinator.validateCourseWrite(merged);
+        merged.setParseStatus("RESOLVED");
+        merged.setRowVersion(old.getRowVersion() + 1);
+        if (courseScheduleMapper.updateById(merged) != 1) throw new IllegalStateException("保存复核失败，已回滚");
+        coordinator.changed("COURSE_SOURCE_REBIND_APPROVED", "before=" + before + "; source=" + sourceDetail
+                + "; after=" + merged + "; reason=" + request.getReason().trim());
+        coordinator.reconcileConflicts();
+        return true;
+    }
+
+    /**
+     * 根据稳定键读取唯一课程，不采用首条匹配。
+     *
+     * @param rows 最新课程集合
+     * @param key 稳定课程键
+     * @return 唯一课程
+     */
+    private CourseSchedule uniqueCourse(List<CourseSchedule> rows, String key) {
+        List<CourseSchedule> found = rows.stream().filter(c -> key != null && key.equals(c.getCourseKey()))
+                .collect(java.util.stream.Collectors.toList());
+        if (found.size() != 1) throw new IllegalArgumentException("课程来源不存在或不唯一，请刷新后复核");
+        return found.get(0);
     }
 
     /**
@@ -152,7 +278,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteById(Integer id) {
-        return courseScheduleMapper.deleteById(id) > 0;
+        coordinator.lock();
+        cancelCourse(id);
+        coordinator.changed("COURSE_CANCEL_APPROVED", "courseId=" + id);
+        coordinator.reconcileConflicts();
+        return true;
     }
 
     /**
@@ -164,7 +294,12 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         if (ids == null || ids.isEmpty()) {
             return false;
         }
-        return courseScheduleMapper.deleteBatchIds(ids) > 0;
+        coordinator.lock();
+        if (ids.size() > 200 || ids.contains(null) || new HashSet<>(ids).size() != ids.size()) throw new IllegalArgumentException("课程ID缺失、重复或超限");
+        for (Integer id : ids) cancelCourse(id);
+        coordinator.changed("COURSE_CANCEL_BATCH_APPROVED", ids.toString());
+        coordinator.reconcileConflicts();
+        return true;
     }
 
     /**
@@ -275,16 +410,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             }
             result.setValidRows(schedules.size());
             if (invalidRows > 0) {
-                log.warn("[课表同步][{}] 共 {} 条记录因缺少必要字段被跳过", source, invalidRows);
+                throw new IllegalStateException("OA 存在 " + invalidRows + " 条缺少必要字段的课表，本次发布放弃");
             }
 
-            int previousRows = replaceAtomically(schedules, lease);
+            PublicationCount count = replaceAtomically(schedules, lease);
+            int previousRows = count.getPreviousRows();
             result.setPreviousRows(previousRows);
-            result.setSavedRows(schedules.size());
+            result.setSavedRows(count.getSavedRows());
             result.setSuccess(true);
             result.setMessage("同步成功");
             log.info("[课表同步][{}] 完成：替换前 {} 条 → 拉取 {} 条 → 入库 {} 条", source,
-                    previousRows, totalRows, schedules.size());
+                    previousRows, totalRows, count.getSavedRows());
         } catch (Exception e) {
             result.setSuccess(false);
             result.setMessage(e.getMessage());
@@ -330,12 +466,12 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      *
      * @param schedules 待写入数据
      * @param lease     当前实例持有的分布式锁租约
-     * @return 替换前的课表行数
+     * @return 替换前 OA 行数与保留独立调整后的实际发布行数
      */
-    private int replaceAtomically(List<CourseSchedule> schedules, RedisLockUtils.LockLease lease) {
+    private PublicationCount replaceAtomically(List<CourseSchedule> schedules, RedisLockUtils.LockLease lease) {
         int batchSize = syncProperties.getBatchSize() > 0 ? syncProperties.getBatchSize() : 500;
         return transactionTemplate.execute(status -> {
-            databaseLock.acquire("assessment:course_schedule:sync");
+            coordinator.lock();
             lease.requireOwned();
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 /**
@@ -348,20 +484,89 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     lease.requireOwned();
                 }
             });
-            int previousRows = courseScheduleMapper.countAll();
+            int previousRows = courseScheduleMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CourseSchedule>().eq(CourseSchedule::getSourceType, "OA"));
             validateRows(schedules.size(), previousRows);
+            List<CourseSchedule> previous = courseScheduleMapper.selectList(null);
+            List<Classroom> rooms = classroomMapper.selectList(null);
+            Map<String, List<CourseSchedule>> oldVersions = new HashMap<>();
+            for (CourseSchedule old : previous) {
+                String key = old.getSourceFingerprint() == null ? fingerprint(old) : old.getSourceFingerprint();
+                if (!"LOCAL".equals(old.getSourceType())) oldVersions.computeIfAbsent(key, k -> new ArrayList<>()).add(old);
+            }
+            Map<String, Long> newCounts = schedules.stream().collect(java.util.stream.Collectors.groupingBy(this::fingerprint, java.util.stream.Collectors.counting()));
+            Set<String> retained = new HashSet<>();
+            List<CourseSchedule> publish = new ArrayList<>();
+            for (CourseSchedule incoming : schedules) {
+                String key = fingerprint(incoming);
+                List<CourseSchedule> candidates = oldVersions.getOrDefault(key, Collections.emptyList());
+                if (candidates.size() == 1 && newCounts.get(key) == 1) {
+                    CourseSchedule old = candidates.get(0);
+                    if (Integer.valueOf(1).equals(old.getLocalAdjusted())) {
+                        if (Objects.equals(old.getClassName(), incoming.getClassName())) old.setClassSize(incoming.getClassSize());
+                        else old.setClassSize(null);
+                        if (Objects.equals(old.getClassName(), incoming.getClassName())
+                                && Objects.equals(old.getClassDate(), incoming.getClassDate())
+                                && Objects.equals(old.getClassPeriod(), incoming.getClassPeriod())) {
+                            old.setLeaveCount(incoming.getLeaveCount()); old.setHasLeave(incoming.getHasLeave());
+                        } else { old.setLeaveCount(null); old.setHasLeave(null); }
+                        incoming = old;
+                    } else {
+                        incoming.setCourseKey(old.getCourseKey()); incoming.setRowVersion(old.getRowVersion() + 1);
+                    }
+                    retained.add(old.getCourseKey());
+                }
+                if (incoming.getCourseKey() == null) incoming.setCourseKey(UUID.randomUUID().toString());
+                incoming.setId(null); incoming.setSourceType("OA"); incoming.setSourceFingerprint(key);
+                if (incoming.getLocalAdjusted() == null) incoming.setLocalAdjusted(0);
+                if (incoming.getEffective() == null) incoming.setEffective(1);
+                if (incoming.getRowVersion() == null) incoming.setRowVersion(0L);
+                incoming.setClassroomId(coordinator.binding(incoming, rooms));
+                try {
+                    periodResolver.resolve(incoming);
+                    if (!"PENDING".equals(incoming.getParseStatus())) incoming.setParseStatus(incoming.getClassroomId() == null ? "UNBOUND" : "RESOLVED");
+                } catch (RuntimeException error) { incoming.setParseStatus("INVALID"); }
+                publish.add(incoming);
+            }
+            for (CourseSchedule old : previous) {
+                if ("LOCAL".equals(old.getSourceType())) { publish.add(old); }
+                else if ((Integer.valueOf(1).equals(old.getLocalAdjusted()) || "UNVERIFIED".equals(old.getSourceType()))
+                        && !retained.contains(old.getCourseKey())) {
+                    old.setLocalAdjusted(1);
+                    old.setParseStatus("PENDING"); old.setRowVersion(old.getRowVersion() + 1); publish.add(old);
+                    coordinator.changed("COURSE_ADJUSTMENT_REVIEW", "source changed; courseKey=" + old.getCourseKey());
+                }
+            }
             int deleted = courseScheduleMapper.deleteAll();
             log.info("[课表同步] 已清除旧数据 {} 条，开始批量写入 {} 条", deleted, schedules.size());
-            for (int i = 0; i < schedules.size(); i += batchSize) {
+            for (int i = 0; i < publish.size(); i += batchSize) {
                 lease.requireOwned();
-                int end = Math.min(i + batchSize, schedules.size());
-                List<CourseSchedule> batch = new ArrayList<>(schedules.subList(i, end));
+                int end = Math.min(i + batchSize, publish.size());
+                List<CourseSchedule> batch = new ArrayList<>(publish.subList(i, end));
                 if (!saveBatch(batch, batchSize)) {
                     throw new IllegalStateException("课表批量写入失败，本次替换已回滚");
                 }
             }
-            return previousRows;
+            coordinator.published(schedules);
+            coordinator.changed("OA_PUBLISH", "rows=" + publish.size() + "; previous=" + previousRows);
+            coordinator.reconcileConflicts();
+            return new PublicationCount(previousRows, publish.size());
         });
+    }
+
+    /**
+     * 单次发布事务中的真实计数，不由事务后的另一轮读取推断。
+     */
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    private static class PublicationCount {
+        /**
+         * 替换前 OA 行数。
+         */
+        private int previousRows;
+        /**
+         * 本地课程及调整保留后的实际发布行数。
+         */
+        private int savedRows;
     }
 
     /**
@@ -374,7 +579,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             String value = String.format(
                     "{\"time\":\"%s\",\"executed\":%s,\"success\":%s,\"totalRows\":%d,\"validRows\":%d,"
                             + "\"savedRows\":%d,\"previousRows\":%d,\"costMillis\":%d,\"message\":\"%s\"}",
-                    LocalDateTime.now().format(TIME_FORMATTER), result.isExecuted(), result.isSuccess(),
+                    LocalDateTime.now(CoursePeriodResolver.ZONE).format(TIME_FORMATTER), result.isExecuted(), result.isSuccess(),
                     result.getTotalRows(), result.getValidRows(), result.getSavedRows(),
                     result.getPreviousRows(), result.getCostMillis(),
                     result.getMessage() == null ? "" : result.getMessage().replace("\"", "'"));
@@ -413,13 +618,13 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
         // 数值类型字段
         if (node.has("JXBRS") && !node.path("JXBRS").isNull()) {
-            course.setClassSize(node.path("JXBRS").asInt(0));
+            course.setClassSize(nonNegativeCount(node.path("JXBRS")));
         }
         if (node.has("QJRS") && !node.path("QJRS").isNull()) {
-            course.setLeaveCount(node.path("QJRS").asInt(0));
+            course.setLeaveCount(nonNegativeCount(node.path("QJRS")));
         }
 
-        course.setHasLeave(node.path("SFYQJRS").asText("0"));           // 是否有请假
+        course.setHasLeave(node.path("SFYQJRS").asText(null));
         course.setClassDate(node.path("SKRQ").asText(null));            // 上课日期
 
         // 验证必要字段
@@ -440,5 +645,44 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      */
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    /**
+     * 缺失、非整数或超限人数保持未知，不能由 OA 解析默认值制造零人。
+     *
+     * @param node 原始人数字段
+     * @return 已确认的非负整数，无法确定返回 null
+     */
+    private Integer nonNegativeCount(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) return null;
+        String text = node.asText().trim();
+        if (!text.matches("\\d+")) return null;
+        try { return Integer.valueOf(text); }
+        catch (NumberFormatException error) { return null; }
+    }
+
+    /**
+     * 保存独立停课层，删除来源课程不能让下一次 OA 同步复活。
+     * @param id 课程行主键
+     */
+    private void cancelCourse(Integer id) {
+        CourseSchedule old = courseScheduleMapper.selectById(id);
+        if (old == null) throw new IllegalArgumentException("课程不存在");
+        if (old.getSourceFingerprint() == null) old.setSourceFingerprint(fingerprint(old));
+        old.setEffective(0); old.setLocalAdjusted(1); old.setRowVersion(old.getRowVersion() + 1);
+        if (courseScheduleMapper.updateById(old) != 1) throw new IllegalStateException("停课失败，已回滚");
+    }
+
+    /**
+     * 生成来源版本指纹，仅精确匹配未改变的 OA 版本；调课身份变化必须人工复核。
+     * @param course 来源课程
+     * @return 版本指纹
+     */
+    private String fingerprint(CourseSchedule course) {
+        String value = String.join("|", Arrays.asList(course.getCourseName(), course.getAcademicYear(), course.getSemester(),
+                course.getTeacherId(), course.getClassName(), course.getClassDate(), course.getClassPeriod(),
+                course.getClassroomNumber(), course.getCampus(), course.getBuildingName()).stream()
+                .map(v -> v == null ? "" : v.trim()).toArray(String[]::new));
+        return DigestUtils.md5DigestAsHex(value.getBytes(StandardCharsets.UTF_8));
     }
 }
