@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.model;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -38,10 +39,10 @@ public class Exam implements Serializable {
      */
     private Long rowVersion;
     /**
-     * 提前结束的真实学校时刻，旧状态二不会自动复活。
+     * 考试实际结束的学校时刻；自然结束使用计划结束时间。
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
     private LocalDateTime actualEndTime;
     /**
      * 服务端派生的时间状态。
@@ -59,7 +60,7 @@ public class Exam implements Serializable {
     /**
      * sn码
      */
-    @TableField(value = "board_sn", updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    @TableField(value = "board_sn", updateStrategy = FieldStrategy.IGNORED)
     private String boardSn;
 
     /**
@@ -109,7 +110,7 @@ public class Exam implements Serializable {
     private LocalDateTime updateTime;
 
     /**
-     * 状态 0=未开始 1=进行中 2=已结束
+     * 生命周期：0=未开始，1=进行中，2=已结束，3=提前结束，4=取消安排。
      */
     @TableField("status")
     private Integer status;

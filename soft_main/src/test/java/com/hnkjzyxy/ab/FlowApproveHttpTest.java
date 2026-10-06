@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -130,7 +131,7 @@ class FlowApproveHttpTest {
         assertEquals(7, item.getUserId()); assertEquals(2, item.getStep());
         assertEquals(2, item.getResults().get(0).getStep());
         assertEquals(1, item.getResults().get(0).getIsFinish());
-        org.mockito.InOrder order = inOrder(guard, items, results, itemMapper);
+        InOrder order = inOrder(guard, items, results, itemMapper);
         order.verify(guard).lock(1);
         order.verify(guard).validateTasks(eq(1), eq(11), anyList(), eq(true));
         order.verify(items).count(any());

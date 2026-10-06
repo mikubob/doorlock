@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.model;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -161,22 +162,22 @@ public class CourseSchedule implements Serializable {
     /**
      * 教学班人数
      */
-    @TableField(value = "JXBRS", insertStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED,
-            updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    @TableField(value = "JXBRS", insertStrategy = FieldStrategy.IGNORED,
+            updateStrategy = FieldStrategy.IGNORED)
     private Integer classSize;
 
     /**
      * 请假人数
      */
-    @TableField(value = "QJRS", insertStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED,
-            updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    @TableField(value = "QJRS", insertStrategy = FieldStrategy.IGNORED,
+            updateStrategy = FieldStrategy.IGNORED)
     private Integer leaveCount;
 
     /**
      * 是否有请假人数（0否1是）
      */
-    @TableField(value = "SFYQJRS", insertStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED,
-            updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.IGNORED)
+    @TableField(value = "SFYQJRS", insertStrategy = FieldStrategy.IGNORED,
+            updateStrategy = FieldStrategy.IGNORED)
     private String hasLeave;
 
     /**

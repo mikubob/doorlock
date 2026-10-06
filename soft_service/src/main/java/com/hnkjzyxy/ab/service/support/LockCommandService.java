@@ -5,10 +5,12 @@ import com.hnkjzyxy.ab.mapper.LockCommandMapper;
 import com.hnkjzyxy.ab.model.*;
 import com.hnkjzyxy.ab.service.CoursePeriodResolver;
 import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -90,7 +92,7 @@ public class LockCommandService {
                 if (mapper.invalidateObservation(lock) != 1) throw new IllegalStateException("锁绑定已改变或不存在");
                 return null;
             });
-        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+        } catch (DuplicateKeyException duplicate) {
             return mapper.selectOne(new LambdaQueryWrapper<LockCommand>().eq(LockCommand::getRequestId, requestId));
         }
         try { gateway.sendDoorCommand(lock.getIpAddress(), lock.getPortNumber(), lock.getSnCode(), channel, open)

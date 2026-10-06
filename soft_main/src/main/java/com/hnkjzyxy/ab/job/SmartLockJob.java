@@ -8,6 +8,8 @@ import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 /**
  * 按真实任务身份触发，复核最新状态及配置，设备回执才扣减次数。
  */
@@ -40,7 +42,7 @@ public class SmartLockJob implements Job {
             if (task == null || task.getTaskStatus() != 1 || task.getLoopCount() == 0
                     || !LockScheduleReconcileService.version(task).equals(data.getString("sourceVersion"))) return;
             LockInfo device = smartLockService.getById(task.getLockId());
-            if (device == null || device.getClassroomId() == null || !java.util.Objects.equals(task.getDoorChannel(), device.getDoorChannel())) {
+            if (device == null || device.getClassroomId() == null || !Objects.equals(task.getDoorChannel(), device.getDoorChannel())) {
                 throw new IllegalArgumentException("设备教室或通道绑定已改变，请独立核实任务");
             }
             String requestId = "timer:" + task.getTaskId() + ":" + context.getScheduledFireTime().getTime();

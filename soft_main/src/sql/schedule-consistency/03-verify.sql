@@ -92,3 +92,6 @@ SELECT task_id,task_status,loop_count,door_channel FROM sys_schedule_task
 WHERE loop_count=0 OR door_channel IS NULL OR door_channel NOT REGEXP '^[1-4]$';
 SELECT lock_id,JSH,classroom_id,door_channel FROM sys_lock_info
 WHERE classroom_id IS NULL OR door_channel IS NULL OR door_channel NOT REGEXP '^[1-4]$';
+
+-- 0 未开始、1 进行中、2 已结束、3 提前结束、4 取消安排；正常状态由应用自动更新。
+SELECT id,status,row_version FROM sys_exam WHERE status IS NULL OR status NOT IN (0,1,2,3,4);

@@ -11,6 +11,12 @@ import java.util.List;
 public interface ExamService extends IService<Exam> {
 
     /**
+     * 按学校时间刷新普通考试状态，保留终态并记录系统操作。
+     * @return 更新记录数
+     */
+    int refreshStatuses();
+
+    /**
      * 动态查询考试列表
      *
      * @param exam 考试查询条件

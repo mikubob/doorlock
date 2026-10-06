@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -81,7 +82,7 @@ public class ExamController {
     @PreAuthorize("hasRole('admin')")
     @PostMapping("/add")
     public ApiResult add(@RequestBody Exam exam) {
-        String error = examService.batchAdd(java.util.Collections.singletonList(exam));
+        String error = examService.batchAdd(Collections.singletonList(exam));
         return error == null ? ApiResult.ok("新增成功") : ApiResult.error(error);
     }
 
@@ -94,7 +95,7 @@ public class ExamController {
     @PreAuthorize("hasRole('admin')")
     @PutMapping("/update")
     public ApiResult update(@RequestBody Exam exam) {
-        String error = examService.batchUpdate(java.util.Collections.singletonList(exam));
+        String error = examService.batchUpdate(Collections.singletonList(exam));
         return error == null ? ApiResult.ok("更新成功") : ApiResult.error(error);
     }
 
@@ -107,7 +108,7 @@ public class ExamController {
     @PreAuthorize("hasRole('admin')")
     @DeleteMapping("/{id}")
     public ApiResult delete(@PathVariable Long id) {
-        boolean result = examService.deleteExams(java.util.Collections.singletonList(id));
+        boolean result = examService.deleteExams(Collections.singletonList(id));
         if (result) {
             return ApiResult.ok("删除成功");
         } else {
@@ -140,7 +141,7 @@ public class ExamController {
      * 更新考试状态
      *
      * @param id     考试ID
-     * @param status 状态 0=未开始 1=进行中 2=已结束
+     * @param status 生命周期，0=未开始，1=进行中，2=已结束，3=提前结束，4=取消安排
      * @return 操作结果
      */
     @PreAuthorize("hasRole('admin')")

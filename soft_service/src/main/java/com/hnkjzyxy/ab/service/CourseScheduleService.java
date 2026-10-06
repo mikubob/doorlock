@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.hnkjzyxy.ab.dto.CourseSourceRebindDto;
 import com.hnkjzyxy.ab.model.CourseSchedule;
 import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 
@@ -41,7 +42,7 @@ public interface CourseScheduleService extends IService<CourseSchedule> {
      * @param request 双方稳定身份、最新版本和确认理由
      * @return 复核成功返回 true
      */
-    boolean rebindSource(com.hnkjzyxy.ab.dto.CourseSourceRebindDto request);
+    boolean rebindSource(CourseSourceRebindDto request);
 
     /**
      * 删除课程

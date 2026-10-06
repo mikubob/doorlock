@@ -40,4 +40,4 @@ WHERE remarks IS NULL OR remarks NOT REGEXP '^[1-4]$' OR loop_count<0;
 -- 历史状态二及实际结束来源需业务复核，迁移不能据时间擅自恢复。
 SELECT status,COUNT(*) records FROM sys_exam GROUP BY status;
 SELECT id,start_time,end_time,status FROM sys_exam
-WHERE start_time IS NULL OR end_time IS NULL OR end_time<=start_time OR status NOT IN (0,1,2);
+WHERE start_time IS NULL OR end_time IS NULL OR end_time<=start_time OR status NOT IN (0,1,2,3,4);

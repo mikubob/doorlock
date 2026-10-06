@@ -1,17 +1,58 @@
 package com.hnkjzyxy.ab;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hnkjzyxy.ab.client.OaApiClient;
 import com.hnkjzyxy.ab.config.*;
+import com.hnkjzyxy.ab.controller.ExamController;
+import com.hnkjzyxy.ab.controller.ExamRecordController;
+import com.hnkjzyxy.ab.controller.MenuController;
+import com.hnkjzyxy.ab.dto.CourseSourceRebindDto;
+import com.hnkjzyxy.ab.dto.LockCommandReviewDto;
 import com.hnkjzyxy.ab.mapper.*;
 import com.hnkjzyxy.ab.model.*;
 import com.hnkjzyxy.ab.service.*;
+import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
+import com.hnkjzyxy.ab.service.impl.CheckResultServiceImpl;
+import com.hnkjzyxy.ab.service.impl.CourseScheduleServiceImpl;
 import com.hnkjzyxy.ab.service.impl.ExamServiceImpl;
 import com.hnkjzyxy.ab.service.support.LockCommandReceiptService;
+import com.hnkjzyxy.ab.service.support.LockCommandService;
+import com.hnkjzyxy.ab.utils.RedisLockUtils;
 import com.hnkjzyxy.ab.utils.TransactionalMysqlLock;
+import com.hnkjzyxy.ab.vo.ExamRecordQuery;
 import com.hnkjzyxy.ab.vo.ScheduleInterval;
+import org.apache.ibatis.builder.xml.XMLMapperBuilder;
+import org.apache.ibatis.mapping.BoundSql;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
+import org.quartz.CronTrigger;
+import org.quartz.JobDetail;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.Trigger;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+
+import java.io.InputStream;
 import java.time.*;
 import java.util.*;
+import java.util.Date;
+import java.util.concurrent.TimeoutException;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -77,6 +118,7 @@ public class ScheduleConsistencyTest {
         when(exams.insert(any())).thenReturn(1); when(exams.updateById(any())).thenReturn(1);
         coordinator = new ScheduleWriteCoordinator(mock(TransactionalMysqlLock.class), states, audits, rooms, courses, exams, resolver, properties);
         service = new ExamServiceImpl(); ReflectionTestUtils.setField(service, "baseMapper", exams); ReflectionTestUtils.setField(service, "coordinator", coordinator);
+        setExamTime("2026-10-05T00:00:00");
     }
 
     /**
@@ -249,7 +291,7 @@ public class ScheduleConsistencyTest {
         assertEquals("0 30 8 ? * 4,6",config.generateWeeklyCronExpression(8,30,new int[]{2,4}));
         assertEquals("0 30 8 ? * 1",config.generateWeeklyCronExpression(8,30,new int[]{6}));
         assertThrows(IllegalArgumentException.class,()->config.generateWeeklyCronExpression(24,30,new int[]{1}));
-        org.quartz.CronTrigger trigger=(org.quartz.CronTrigger)config.createCronTrigger(config.createJobDetail(1,1,10,"1"),"0 30 8 ? * 1");
+        CronTrigger trigger=(CronTrigger)config.createCronTrigger(config.createJobDetail(1,1,10,"1"),"0 30 8 ? * 1");
         assertEquals("Asia/Shanghai",trigger.getTimeZone().getID());
     }
     /**
@@ -298,12 +340,12 @@ public class ScheduleConsistencyTest {
      */
     @Test
     void mapperXmlContractsParse() throws Exception {
-        com.baomidou.mybatisplus.core.MybatisConfiguration config=new com.baomidou.mybatisplus.core.MybatisConfiguration();
+        MybatisConfiguration config=new MybatisConfiguration();
         for (String name : Arrays.asList("ExamMapper","ClassroomMapper","CourseScheduleMapper","ScheduleMapper","SmartLockMapper","ScheduleStateMapper","ScheduleAuditMapper","LockCommandMapper")) {
             String resource="mapper/"+name+".xml";
-            try (java.io.InputStream stream=getClass().getClassLoader().getResourceAsStream(resource)) {
+            try (InputStream stream=getClass().getClassLoader().getResourceAsStream(resource)) {
                 assertNotNull(stream,resource);
-                new org.apache.ibatis.builder.xml.XMLMapperBuilder(stream,config,resource,config.getSqlFragments()).parse();
+                new XMLMapperBuilder(stream,config,resource,config.getSqlFragments()).parse();
             }
         }
         assertTrue(config.hasStatement("com.hnkjzyxy.ab.mapper.LockCommandMapper.consume"));
@@ -321,8 +363,8 @@ public class ScheduleConsistencyTest {
         when(courses.selectList(any())).thenReturn(Arrays.asList(old, source));
         when(courses.deleteById(10)).thenReturn(1); when(courses.updateById(any())).thenReturn(1);
         ScheduleWriteCoordinator protocol = mock(ScheduleWriteCoordinator.class);
-        com.hnkjzyxy.ab.service.impl.CourseScheduleServiceImpl courseService = courseService(protocol);
-        com.hnkjzyxy.ab.dto.CourseSourceRebindDto request = new com.hnkjzyxy.ab.dto.CourseSourceRebindDto();
+        CourseScheduleServiceImpl courseService = courseService(protocol);
+        CourseSourceRebindDto request = new CourseSourceRebindDto();
         request.setCourseKey(old.getCourseKey()); request.setRowVersion(3L); request.setSourceCourseKey(source.getCourseKey());
         request.setSourceRowVersion(5L); request.setReason("教务确认课程来源变更，原停课继续有效");
         assertTrue(courseService.rebindSource(request));
@@ -352,12 +394,12 @@ public class ScheduleConsistencyTest {
      * @param protocol 模拟共同事务协议
      * @return 课程服务
      */
-    private com.hnkjzyxy.ab.service.impl.CourseScheduleServiceImpl courseService(ScheduleWriteCoordinator protocol) {
-        com.hnkjzyxy.ab.service.impl.CourseScheduleServiceImpl result = new com.hnkjzyxy.ab.service.impl.CourseScheduleServiceImpl(
-                courses, new ScheduleSyncProperties(), mock(com.hnkjzyxy.ab.utils.RedisLockUtils.class),
-                mock(org.springframework.data.redis.core.StringRedisTemplate.class),
-                mock(org.springframework.transaction.PlatformTransactionManager.class),
-                mock(com.hnkjzyxy.ab.client.OaApiClient.class), mock(TransactionalMysqlLock.class));
+    private CourseScheduleServiceImpl courseService(ScheduleWriteCoordinator protocol) {
+        CourseScheduleServiceImpl result = new CourseScheduleServiceImpl(
+                courses, new ScheduleSyncProperties(), mock(RedisLockUtils.class),
+                mock(StringRedisTemplate.class),
+                mock(PlatformTransactionManager.class),
+                mock(OaApiClient.class), mock(TransactionalMysqlLock.class));
         ReflectionTestUtils.setField(result, "coordinator", protocol);
         return result;
     }
@@ -369,7 +411,7 @@ public class ScheduleConsistencyTest {
     void timeoutReceiptStaysUnknown() {
         LockCommandMapper mapper = mock(LockCommandMapper.class); when(mapper.complete(any())).thenReturn(1);
         LockCommand command = new LockCommand(); command.setTaskId(77);
-        new LockCommandReceiptService(mapper).complete(command, new java.util.concurrent.TimeoutException());
+        new LockCommandReceiptService(mapper).complete(command, new TimeoutException());
         assertEquals("unknown", command.getStatus()); verify(mapper, never()).consume(any());
     }
 
@@ -383,7 +425,7 @@ public class ScheduleConsistencyTest {
         old.setScheduleSnapshot("historical-snapshot"); old.setPeopleLeave(3); old.setLeaveSource("MANUAL_CONFIRMED");
         old.setClasses("原班级"); old.setSection("1-2"); old.setClassroom("101");
         when(mapper.selectById(1L)).thenReturn(old); when(mapper.updateById(any())).thenReturn(1);
-        com.hnkjzyxy.ab.service.impl.CheckResultServiceImpl patrol = new com.hnkjzyxy.ab.service.impl.CheckResultServiceImpl();
+        CheckResultServiceImpl patrol = new CheckResultServiceImpl();
         ReflectionTestUtils.setField(patrol, "checkresultMapper", mapper); ReflectionTestUtils.setField(patrol, "courseScheduleMapper", courses);
         CheckResult patch = new CheckResult(); patch.setId(1L); patrol.addOrEdit(patch);
         assertEquals(3, patch.getPeopleLeave()); assertEquals("historical-snapshot", patch.getScheduleSnapshot());
@@ -412,27 +454,27 @@ public class ScheduleConsistencyTest {
      */
     @Test
     void methodSecurityRejectsUnauthorizedExamWrites() {
-        try (org.springframework.context.annotation.AnnotationConfigApplicationContext context =
-                     new org.springframework.context.annotation.AnnotationConfigApplicationContext(SecurityFixture.class)) {
-            com.hnkjzyxy.ab.controller.ExamController controller = context.getBean(com.hnkjzyxy.ab.controller.ExamController.class);
+        try (AnnotationConfigApplicationContext context =
+                     new AnnotationConfigApplicationContext(SecurityFixture.class)) {
+            ExamController controller = context.getBean(ExamController.class);
             ExamService backend = context.getBean(ExamService.class);
-            org.springframework.security.core.context.SecurityContextHolder.clearContext();
-            assertThrows(org.springframework.security.authentication.AuthenticationCredentialsNotFoundException.class,
+            SecurityContextHolder.clearContext();
+            assertThrows(AuthenticationCredentialsNotFoundException.class,
                     () -> controller.batchAdd(Collections.emptyList()));
             for (String role : Arrays.asList("ROLE_user", "ROLE_LOCK_ONLY")) {
-                org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
-                        new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("user", "unused",
-                                Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority(role))));
-                assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken("user", "unused",
+                                Collections.singletonList(new SimpleGrantedAuthority(role))));
+                assertThrows(AccessDeniedException.class,
                         () -> controller.batchAdd(Collections.emptyList()));
             }
             verifyNoInteractions(backend);
-            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
-                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("admin", "unused",
-                            Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_admin"))));
+            SecurityContextHolder.getContext().setAuthentication(
+                    new UsernamePasswordAuthenticationToken("admin", "unused",
+                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_admin"))));
             controller.batchAdd(Collections.singletonList(exam("2026-10-05T12:00:00", "2026-10-05T13:00:00")));
             verify(backend).batchAdd(anyList());
-        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+        } finally { SecurityContextHolder.clearContext(); }
     }
 
     /**
@@ -442,8 +484,8 @@ public class ScheduleConsistencyTest {
      */
     @Test
     void oaUnknownAttendanceDoesNotBecomeZero() throws Exception {
-        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
-        com.hnkjzyxy.ab.service.impl.CourseScheduleServiceImpl importer = courseService(mock(ScheduleWriteCoordinator.class));
+        ObjectMapper json = new ObjectMapper();
+        CourseScheduleServiceImpl importer = courseService(mock(ScheduleWriteCoordinator.class));
         CourseSchedule unknown = ReflectionTestUtils.invokeMethod(importer, "convertToCourseSchedule", json.readTree(
                 "{\"KCMC\":\"数学\",\"BJMC\":\"一班\",\"SKRQ\":\"20261005\",\"JXBRS\":\"unknown\",\"QJRS\":-1}"));
         assertNotNull(unknown); assertNull(unknown.getClassSize()); assertNull(unknown.getLeaveCount()); assertNull(unknown.getHasLeave());
@@ -460,15 +502,15 @@ public class ScheduleConsistencyTest {
     @Test
     void quartzRegistrationFailureRemainsRetryable() throws Exception {
         ScheduleService tasks = mock(ScheduleService.class); ScheduleMapper mapper = mock(ScheduleMapper.class);
-        org.springframework.scheduling.quartz.SchedulerFactoryBean factory = mock(org.springframework.scheduling.quartz.SchedulerFactoryBean.class);
-        org.quartz.Scheduler scheduler = mock(org.quartz.Scheduler.class); when(factory.getScheduler()).thenReturn(scheduler);
+        SchedulerFactoryBean factory = mock(SchedulerFactoryBean.class);
+        Scheduler scheduler = mock(Scheduler.class); when(factory.getScheduler()).thenReturn(scheduler);
         ScheduleTask task = new ScheduleTask(); task.setTaskId(77); task.setLockId(9); task.setUserId(1);
         task.setTaskStatus(1); task.setLoopCount(2); task.setDoorChannel("1"); task.setCountDay("[2,4]");
         task.setHour(8); task.setMinute(30); task.setTimedOperation(1);
         when(tasks.getAll()).thenReturn(Collections.singletonList(task));
         when(scheduler.getJobKeys(any())).thenReturn(Collections.emptySet());
-        when(scheduler.scheduleJob(any(org.quartz.JobDetail.class), any(org.quartz.Trigger.class)))
-                .thenThrow(new org.quartz.SchedulerException("模拟注册失败")).thenReturn(new java.util.Date());
+        when(scheduler.scheduleJob(any(JobDetail.class), any(Trigger.class)))
+                .thenThrow(new SchedulerException("模拟注册失败")).thenReturn(new Date());
         LockScheduleReconcileService reconciliation = new LockScheduleReconcileService(tasks, new QuartzConfig(), factory, mapper);
         reconciliation.reconcile(); reconciliation.reconcile();
         verify(mapper).markSyncState(eq(77), eq(0L), eq(1), eq("failed"), anyString(), isNull());
@@ -486,7 +528,7 @@ public class ScheduleConsistencyTest {
         when(mapper.selectById("unknown-command")).thenReturn(command); when(mapper.reviewUnknown(any())).thenReturn(1);
         LockCommandReceiptService receipts = new LockCommandReceiptService(mapper);
         ReflectionTestUtils.setField(receipts, "coordinator", mock(ScheduleWriteCoordinator.class));
-        com.hnkjzyxy.ab.dto.LockCommandReviewDto review = new com.hnkjzyxy.ab.dto.LockCommandReviewDto();
+        LockCommandReviewDto review = new LockCommandReviewDto();
         review.setExecuted(true); review.setReason("现场确认原指令已执行，确认来源为值班人员核查");
         receipts.review("unknown-command", review);
         assertEquals("acknowledged", command.getStatus());
@@ -500,38 +542,296 @@ public class ScheduleConsistencyTest {
     @Test
     void commandReservationRejectsChangedTaskVersion() {
         LockCommandMapper mapper = mock(LockCommandMapper.class);
-        com.hnkjzyxy.ab.service.gateway.SmartLockGateway gateway = mock(com.hnkjzyxy.ab.service.gateway.SmartLockGateway.class);
-        org.springframework.transaction.PlatformTransactionManager manager = mock(org.springframework.transaction.PlatformTransactionManager.class);
-        when(manager.getTransaction(any())).thenReturn(new org.springframework.transaction.support.SimpleTransactionStatus());
+        SmartLockGateway gateway = mock(SmartLockGateway.class);
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
         ScheduleTask current = new ScheduleTask(); current.setTaskId(77); current.setRowVersion(3L);
         current.setLockId(9); current.setTaskStatus(1); current.setLoopCount(2); current.setDoorChannel("1"); current.setTimedOperation(1);
         when(mapper.lockTask(77)).thenReturn(current);
         LockInfo lock = new LockInfo(); lock.setLockId(9); lock.setClassroomId(1L); lock.setDoorChannel("1");
         lock.setIpAddress("127.0.0.1"); lock.setPortNumber(8000); lock.setSnCode("001A");
-        com.hnkjzyxy.ab.service.support.LockCommandService commands = new com.hnkjzyxy.ab.service.support.LockCommandService(
+        LockCommandService commands = new LockCommandService(
                 mapper, gateway, new LockCommandReceiptService(mapper), manager);
         assertThrows(IllegalStateException.class, () -> commands.submit(lock, "1", true, "user:1", 77, "old-task-fire", 2L));
         verifyNoInteractions(gateway); verify(mapper, never()).insert(any());
     }
 
     /**
+     * 未开始和进行中接收旧值，非法状态码拒绝保存。
+     */
+    @Test
+    void examStatusOnlyAllowsActiveOrCancelled() {
+        Exam row = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00");
+        row.setStatus(5);
+        assertTrue(service.preview(Arrays.asList(row), false).contains("状态不合法"));
+        assertTrue(service.batchAdd(Arrays.asList(row)).contains("状态不合法"));
+        verify(exams, never()).insert(any());
+        verify(exams, never()).updateById(any());
+        row.setStatus(1); assertNull(service.preview(Arrays.asList(row), false));
+        row.setStatus(0); assertNull(service.preview(Arrays.asList(row), false));
+    }
+
+    /**
+     * 普通编辑校正未来考试为未开始，保留媒体和时间并递增行版本。
+     */
+    @Test
+    void editingExamUnifiesStatusWithoutLosingOtherFields() {
+        Exam old = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00");
+        old.setId(19L); old.setStatus(1); old.setRowVersion(7L); old.setImageUrl("existing.png");
+        when(exams.selectList(any())).thenReturn(Arrays.asList(old));
+        Exam zero = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00");
+        zero.setId(20L); zero.setClassroomId(2L); zero.setRowVersion(7L); zero.setImageUrl("zero.png");
+        when(exams.selectList(any())).thenReturn(Arrays.asList(old, zero));
+        Exam patch = new Exam(); patch.setId(19L); patch.setRowVersion(7L); patch.setExamContent("修改考试内容");
+        Exam zeroPatch = new Exam(); zeroPatch.setId(20L); zeroPatch.setRowVersion(7L); zeroPatch.setExamContent("修改另一考试内容");
+        assertNull(service.batchUpdate(Arrays.asList(patch, zeroPatch)));
+        ArgumentCaptor<Exam> saved = ArgumentCaptor.forClass(Exam.class);
+        verify(exams, times(2)).updateById(saved.capture());
+        Exam first = saved.getAllValues().get(0), second = saved.getAllValues().get(1);
+        assertEquals(Integer.valueOf(0), first.getStatus());
+        assertEquals(Integer.valueOf(0), second.getStatus());
+        assertEquals(Long.valueOf(8L), first.getRowVersion());
+        assertEquals("existing.png", first.getImageUrl());
+        assertEquals("zero.png", second.getImageUrl());
+        assertEquals(old.getStartTime(), first.getStartTime());
+        assertEquals(old.getEndTime(), first.getEndTime());
+    }
+
+    /**
+     * 新考试未传状态时按时间确定未开始状态。
+     */
+    @Test
+    void newExamDefaultsToExistingActiveStatus() {
+        Exam row = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); row.setStatus(null);
+        assertNull(service.batchAdd(Arrays.asList(row)));
+        ArgumentCaptor<Exam> saved = ArgumentCaptor.forClass(Exam.class);
+        verify(exams).insert(saved.capture());
+        assertEquals(Integer.valueOf(0), saved.getValue().getStatus());
+    }
+
+    /**
+     * 设置确定的学校时刻。
+     * @param value 学校当地时间
+     */
+    private void setExamTime(String value) {
+        ReflectionTestUtils.setField(service, "clock", Clock.fixed(LocalDateTime.parse(value).atZone(CoursePeriodResolver.ZONE).toInstant(), CoursePeriodResolver.ZONE));
+    }
+
+    /**
+     * 自动跨越边界、停机补齐和旧终态不复活，重复运行不重复审计。
+     */
+    @Test
+    void lifecycleRefreshPersistsBoundariesAndPreservesTerminalStates() {
+        Exam future = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); future.setId(1L); future.setStatus(1);
+        Exam running = exam("2026-10-04T09:00:00", "2026-10-04T10:00:00"); running.setId(2L);
+        Exam legacy = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); legacy.setId(3L); legacy.setStatus(2);
+        Exam early = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); early.setId(4L); early.setStatus(3);
+        Exam cancelled = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); cancelled.setId(5L); cancelled.setStatus(4);
+        List<Exam> stored = new ArrayList<>(Arrays.asList(future, running, legacy, early, cancelled));
+        when(exams.selectList(any())).thenAnswer(invocation -> new ArrayList<>(stored));
+        when(exams.updateById(any())).thenAnswer(invocation -> {
+            Exam row = invocation.getArgument(0); stored.removeIf(item -> item.getId().equals(row.getId())); stored.add(row); return 1;
+        });
+        assertEquals(2, service.refreshStatuses());
+        assertEquals(0, stored.stream().filter(row -> row.getId().equals(1L)).findFirst().get().getStatus());
+        assertEquals(2, stored.stream().filter(row -> row.getId().equals(2L)).findFirst().get().getStatus());
+        assertEquals(0, service.refreshStatuses());
+        setExamTime("2026-10-05T09:00:00"); assertEquals(1, service.refreshStatuses());
+        setExamTime("2026-10-05T10:00:00"); assertEquals(1, service.refreshStatuses());
+        assertEquals(0, service.refreshStatuses());
+        assertEquals(3, early.getStatus()); assertEquals(4, cancelled.getStatus()); assertEquals(2, legacy.getStatus());
+        ArgumentCaptor<ScheduleAudit> audit = ArgumentCaptor.forClass(ScheduleAudit.class);
+        verify(audits, times(3)).insert(audit.capture());
+        for (ScheduleAudit record : audit.getAllValues()) {
+            assertEquals("EXAM_STATUS_AUTO", record.getAction()); assertEquals("system", record.getActor());
+            assertTrue(record.getDetail().contains("\"before\"")); assertTrue(record.getDetail().contains("\"after\""));
+        }
+    }
+
+    /**
+     * 只有进行中的考试允许提前结束，取消和重新启用保留正确时间及版本。
+     */
+    @Test
+    void earlyEndCancellationAndReactivationHaveDistinctStates() {
+        Exam old = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); old.setId(10L);
+        when(exams.selectList(any())).thenReturn(Collections.singletonList(old));
+        Exam patch = new Exam(); patch.setId(10L); patch.setRowVersion(0L); patch.setStatus(3);
+        assertTrue(service.batchUpdate(Collections.singletonList(patch)).contains("只有进行中"));
+        patch.setStatus(2); assertTrue(service.batchUpdate(Collections.singletonList(patch)).contains("尚未到结束时间"));
+        setExamTime("2026-10-05T09:30:00"); patch.setStatus(3);
+        assertNull(service.batchUpdate(Collections.singletonList(patch)));
+        ArgumentCaptor<Exam> saved = ArgumentCaptor.forClass(Exam.class);
+        verify(exams).updateById(saved.capture());
+        assertEquals(3, saved.getValue().getStatus()); assertEquals(LocalDateTime.parse("2026-10-05T09:30:00"), saved.getValue().getActualEndTime());
+        patch.setStatus(4); assertNull(service.batchUpdate(Collections.singletonList(patch)));
+        verify(exams, times(2)).updateById(saved.capture());
+        assertEquals(4, saved.getValue().getStatus()); assertNull(saved.getValue().getActualEndTime());
+        old.setStatus(4); old.setActualEndTime(LocalDateTime.parse("2026-10-05T09:20:00"));
+        patch.setStatus(0); assertNull(service.batchUpdate(Collections.singletonList(patch)));
+        verify(exams, times(3)).updateById(saved.capture());
+        assertEquals(1, saved.getValue().getStatus()); assertNull(saved.getValue().getActualEndTime());
+    }
+
+    /**
+     * 自动更新失败必须抛出异常，让事务回滚并允许下一轮重试。
+     */
+    @Test
+    void automaticRefreshFailureDoesNotWriteAudit() {
+        Exam old = exam("2026-10-04T09:00:00", "2026-10-04T10:00:00"); old.setId(10L);
+        when(exams.selectList(any())).thenReturn(Collections.singletonList(old)); when(exams.updateById(any())).thenReturn(0);
+        assertThrows(IllegalStateException.class, () -> service.refreshStatuses()); verify(audits, never()).insert(any());
+    }
+
+    /**
+     * 考试记录菜单只从获授权的开锁记录派生，同一权限且不重复添加。
+     */
+    @Test
+    void examRecordMenuInheritsUnlockRecordPermission() {
+        Menu lock = new Menu(); lock.setMenuId(12); lock.setComponent("smartlockrecord"); lock.setCode("smart:record"); lock.setParentId(8); lock.setIsNav(true);
+        List<Menu> tree = new ArrayList<>(Collections.singletonList(lock));
+        MenuController.appendExamRecords(tree);
+        assertEquals(2, tree.size()); assertEquals("examrecord", tree.get(1).getComponent()); assertEquals("/home/examrecord", tree.get(1).getPath());
+        assertEquals(lock.getCode(), tree.get(1).getCode()); assertEquals(lock.getParentId(), tree.get(1).getParentId());
+        MenuController.appendExamRecords(tree); assertEquals(2, tree.size());
+        List<Menu> denied = new ArrayList<>(); MenuController.appendExamRecords(denied); assertTrue(denied.isEmpty());
+    }
+
+    /**
+     * 考试记录分页参数及时间范围须合法，读取不产生业务写入。
+     */
+    @Test
+    void examRecordQueryIsBoundedAndReadOnly() {
+        ExamRecordService records = new ExamRecordService(audits);
+        ExamRecordQuery query = new ExamRecordQuery();
+        query.setSize(101); assertThrows(IllegalArgumentException.class, () -> records.list(query));
+        query.setSize(20); query.setFrom(LocalDateTime.parse("2026-10-05T10:00:00")); query.setTo(LocalDateTime.parse("2026-10-05T09:00:00"));
+        assertThrows(IllegalArgumentException.class, () -> records.list(query));
+        query.setTo(null); query.setPage(2); when(audits.countExamRecords(query)).thenReturn(21L);
+        assertEquals(21L, records.list(query).get("total")); verify(audits).pageExamRecords(query, 20L);
+        verify(audits, never()).insert(any());
+    }
+
+    /**
+     * 考试记录与开锁记录采用登录用户权限，匿名不得读取。
+     */
+    @Test
+    void examRecordReadUsesAuthenticatedPermissionRatherThanAdminWritePermission() {
+        try (AnnotationConfigApplicationContext context =
+                     new AnnotationConfigApplicationContext(SecurityFixture.class)) {
+            ExamRecordController controller = context.getBean(ExamRecordController.class);
+            UserService users = context.getBean(UserService.class); ExamRecordService records = context.getBean(ExamRecordService.class);
+            SecurityContextHolder.clearContext();
+            assertThrows(AuthenticationCredentialsNotFoundException.class,
+                    () -> controller.list(new ExamRecordQuery(), null));
+            Authentication authenticated = new UsernamePasswordAuthenticationToken("user", "unused",
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_user")));
+            SecurityContextHolder.getContext().setAuthentication(authenticated);
+            when(users.getUserByName("user")).thenReturn(new User());
+            controller.list(new ExamRecordQuery(), authenticated); verify(records).list(any());
+            when(users.getUserByName("user")).thenReturn(null);
+            assertThrows(IllegalArgumentException.class, () -> controller.list(new ExamRecordQuery(), authenticated));
+            verify(records, times(1)).list(any());
+        } finally { SecurityContextHolder.clearContext(); }
+    }
+
+    /**
+     * 记录筛选 SQL 只包含考试操作，所有输入均以绑定参数传入。
+     * @throws Exception XML 解析失败
+     */
+    @Test
+    void examRecordSqlBindsFiltersAndExcludesScheduleIssues() throws Exception {
+        MybatisConfiguration configuration = new MybatisConfiguration();
+        String resource = "mapper/ScheduleAuditMapper.xml";
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
+            new XMLMapperBuilder(stream, configuration, resource, configuration.getSqlFragments()).parse();
+        }
+        ExamRecordQuery query = new ExamRecordQuery(); query.setActor("' OR 1=1 --"); query.setAction("EXAM_UPDATE");
+        query.setFrom(LocalDateTime.parse("2026-10-05T09:00:00")); query.setTo(LocalDateTime.parse("2026-10-05T10:00:00"));
+        Map<String, Object> params = new HashMap<>(); params.put("query", query); params.put("offset", 20L);
+        BoundSql sql = configuration.getMappedStatement("com.hnkjzyxy.ab.mapper.ScheduleAuditMapper.pageExamRecords").getBoundSql(params);
+        assertTrue(sql.getSql().contains("EXAM_STATUS_AUTO")); assertFalse(sql.getSql().contains("EXAM_BINDING_UNKNOWN"));
+        assertFalse(sql.getSql().contains(query.getActor())); assertEquals(6, sql.getParameterMappings().size());
+    }
+
+    /**
+     * 三种终态释放教室且不再要求已删除设备的身份绑定。
+     */
+    @Test
+    void allTerminalStatesReleaseOccupancyAndAllowCourseWrite() {
+        ClassroomOccupancyService occupancy = new ClassroomOccupancyService(rooms, courses, exams, states, coordinator, resolver, properties,
+                Clock.fixed(LocalDateTime.parse("2026-10-05T09:30:00").atZone(CoursePeriodResolver.ZONE).toInstant(), CoursePeriodResolver.ZONE));
+        for (int status : Arrays.asList(2, 3, 4)) {
+            Exam old = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); old.setId(10L); old.setStatus(status);
+            old.setClassroomId(null); old.setBoardSn("removed-device");
+            when(exams.selectList(any())).thenReturn(Collections.singletonList(old));
+            Map<?, ?> room = (Map<?, ?>) ((List<?>) occupancy.snapshot(1L, null).get("classrooms")).get(0);
+            assertEquals("idle", room.get("occupancyStatus")); assertTrue(((List<?>) room.get("upcomingEvents")).isEmpty());
+            assertTrue(((List<?>) occupancy.schedule(1L, LocalDate.of(2026,10,5), LocalDate.of(2026,10,5)).get("events")).isEmpty());
+            assertDoesNotThrow(() -> coordinator.validateCourseWrite(course("1-2")));
+            assertNull(service.preview(Collections.singletonList(exam("2026-10-05T09:00:00", "2026-10-05T10:00:00")), false));
+        }
+    }
+
+    /**
+     * 单场详情和列表筛选读取前均持久化最新状态及版本。
+     */
+    @Test
+    void examReadsRefreshBeforeReturningOrFiltering() {
+        Exam old = exam("2026-10-05T09:00:00", "2026-10-05T10:00:00"); old.setId(10L);
+        when(exams.selectList(any())).thenReturn(Collections.singletonList(old));
+        when(exams.updateById(any())).thenAnswer(invocation -> {
+            Exam row = invocation.getArgument(0); old.setStatus(row.getStatus()); old.setRowVersion(row.getRowVersion()); old.setActualEndTime(row.getActualEndTime()); return 1;
+        });
+        when(exams.selectById(10L)).thenReturn(old); when(exams.getExamList(any())).thenReturn(Collections.singletonList(old));
+        setExamTime("2026-10-05T09:00:00"); assertEquals(1, service.getById(10L).getStatus());
+        setExamTime("2026-10-05T10:00:00"); Exam filter = new Exam(); filter.setStatus(2);
+        assertEquals(2, service.getExamList(filter).get(0).getStatus()); assertEquals("ended", old.getTimeStatus());
+        assertEquals(LocalDateTime.parse("2026-10-05T10:00:00"), old.getActualEndTime());
+        assertEquals(2L, old.getRowVersion());
+    }
+
+    /**
      * 仅加载方法安全及模拟考试服务，不连接应用数据源、Redis 或设备。
      */
-    @org.springframework.context.annotation.Configuration
-    @org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity(prePostEnabled = true)
+    @Configuration
+    @EnableGlobalMethodSecurity(prePostEnabled = true)
     public static class SecurityFixture {
         /**
          * 创建模拟业务服务。
          * @return 考试业务替身
          */
-        @org.springframework.context.annotation.Bean
+        @Bean
         public ExamService exams() { return mock(ExamService.class); }
+
+        /**
+         * 模拟记录查询服务。
+         * @return 记录服务替身
+         */
+        @Bean
+        public ExamRecordService records() { return mock(ExamRecordService.class); }
+
+        /**
+         * 模拟账号目录。
+         * @return 用户服务替身
+         */
+        @Bean
+        public UserService users() { return mock(UserService.class); }
+
+        /**
+         * 实际记录控制器，加载真实方法权限。
+         * @return 考试记录控制器
+         */
+        @Bean
+        public ExamRecordController recordController(ExamRecordService records, UserService users) {
+            return new ExamRecordController(records, users);
+        }
+
 
         /**
          * 使用实际控制器与方法权限表达式。
          * @return 考试控制器
          */
-        @org.springframework.context.annotation.Bean
-        public com.hnkjzyxy.ab.controller.ExamController controller() { return new com.hnkjzyxy.ab.controller.ExamController(); }
+        @Bean
+        public ExamController controller() { return new ExamController(); }
     }
 }

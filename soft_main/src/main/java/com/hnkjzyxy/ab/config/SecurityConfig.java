@@ -11,6 +11,7 @@ import com.hnkjzyxy.ab.security.user.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -133,7 +134,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
                 .and()
                 .authorizeRequests()
-                .antMatchers(org.springframework.http.HttpMethod.POST, "/courseSchedule/list", "/api/courseSchedule/list").authenticated()
+                .antMatchers(HttpMethod.POST, "/courseSchedule/list", "/api/courseSchedule/list").authenticated()
                 // 将 courseSchedule 放在最前面，确保优先匹配
                 .antMatchers("/api/courseSchedule/**", "/courseSchedule/**", "/api/exam/**", "/exam/**",
                         "/classroomOccupancy/**", "/api/classroomOccupancy/**",

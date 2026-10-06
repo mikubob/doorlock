@@ -251,4 +251,4 @@ WHERE door_channel IS NULL AND remarks REGEXP '^[1-4]$';
 UPDATE sys_check_result SET leave_source='LEGACY_UNVERIFIED'
 WHERE leave_source IS NULL AND course_key IS NULL AND schedule_snapshot IS NULL;
 
--- 完成后运行同目录 03-verify.sql；当前已核验通过的库无需重复升级。
+-- 完成后运行同目录 03-verify.sql。

@@ -10,19 +10,19 @@ import Door.Access.Connector.ConnectorEvent;
 import Door.Access.Connector.E_ControllerType;
 import Door.Access.Connector.TCPClient.TCPClientDetail;
 import Door.Access.Door8800.Command.Data.DoorPortDetail;
+import Door.Access.Door8800.Command.Door.CloseDoor;
 import Door.Access.Door8800.Command.Door.HoldDoor;
 import Door.Access.Door8800.Command.Door.Parameter.RemoteDoor_Parameter;
 import Door.Access.Door8800.Command.System.ReadWorkStatus;
 import Door.Access.Door8800.Command.System.Result.ReadWorkStatus_Result;
 import Door.Access.Door8800.Door8800Identity;
-import org.springframework.stereotype.Component;
-
-import java.util.concurrent.CompletableFuture;
-
 import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
 import com.hnkjzyxy.ab.smartlock.listener.DefaultConnectorListener;
 import com.hnkjzyxy.ab.smartlock.support.CommandAllocator;
-import com.hnkjzyxy.ab.smartlock.command.CloseDoorCommand;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 门禁 SDK 适配器，只负责设备通讯，不读写数据库。
@@ -36,10 +36,10 @@ public class SmartLockClient implements SmartLockGateway {
      * 命令结果由设备通讯回调处理，本方法不等待设备完成操作。
      * </p>
      *
-     * @param ipAddress 门禁设备IP地址
+     * @param ip 门禁设备IP地址
      * @param port 门禁设备TCP端口
-     * @param snStr 门禁设备SN
-     * @param Channel 门禁通道编号
+     * @param sn 门禁设备SN
+     * @param channel 门禁通道编号
      */
     @Override
     public void openDoor(String ip, int port, String sn, String channel) { sendDoorCommand(ip, port, sn, channel, true); }
@@ -63,7 +63,7 @@ public class SmartLockClient implements SmartLockGateway {
              * {@inheritDoc}
              */
             @Override
-            public void CommandTimeout(INCommand command) { receipt.completeExceptionally(new java.util.concurrent.TimeoutException("设备命令超时")); }
+            public void CommandTimeout(INCommand command) { receipt.completeExceptionally(new TimeoutException("设备命令超时")); }
             /**
              * {@inheritDoc}
              */
@@ -83,7 +83,7 @@ public class SmartLockClient implements SmartLockGateway {
         RemoteDoor_Parameter parameter = new RemoteDoor_Parameter(detail);
         parameter.Door.SetDoor(Integer.parseInt(channel), 1);
         if (open) CommandAllocator.addCommand(new HoldDoor(parameter));
-        else CommandAllocator.addCommand(new Door.Access.Door8800.Command.Door.CloseDoor(parameter));
+        else CommandAllocator.addCommand(new CloseDoor(parameter));
         return receipt;
     }
 

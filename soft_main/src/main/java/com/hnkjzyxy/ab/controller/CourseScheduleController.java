@@ -1,11 +1,16 @@
 package com.hnkjzyxy.ab.controller;
 
+import com.hnkjzyxy.ab.dto.CourseSourceRebindDto;
+import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.model.CourseSchedule;
+import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
+import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -33,7 +39,7 @@ public class CourseScheduleController {
      */
     @PreAuthorize("hasRole('admin')")
     @PostMapping("/rebindSource")
-    public ApiResult rebindSource(@RequestBody com.hnkjzyxy.ab.dto.CourseSourceRebindDto request) {
+    public ApiResult rebindSource(@RequestBody CourseSourceRebindDto request) {
         return courseScheduleService.rebindSource(request) ? ApiResult.ok("来源已独立复核") : ApiResult.error("复核失败");
     }
 
@@ -46,7 +52,7 @@ public class CourseScheduleController {
      * 认证用户所属学院。
      */
     @Autowired
-    private com.hnkjzyxy.ab.service.UserService userService;
+    private UserService userService;
 
     /**
      * 刷新课程安排数据（从 OA 拉取并整体替换课表）
@@ -86,12 +92,12 @@ public class CourseScheduleController {
      */
     @PostMapping("/list")
     @PreAuthorize("isAuthenticated() and !hasRole('LOCK_ONLY')")
-    public ApiResult list(@RequestBody(required = false) CourseSchedule courseSchedule, org.springframework.security.core.Authentication authentication) {
+    public ApiResult list(@RequestBody(required = false) CourseSchedule courseSchedule, Authentication authentication) {
         if (courseSchedule == null) courseSchedule = new CourseSchedule();
         boolean admin = authentication.getAuthorities().stream().anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
         if (!admin) {
-            com.hnkjzyxy.ab.model.User user = userService.getUserByName(authentication.getName());
-            if (user == null || user.getCollege() == null) throw new com.hnkjzyxy.ab.exception.AuthPermissionException(403, "用户学院范围未确认");
+            User user = userService.getUserByName(authentication.getName());
+            if (user == null || user.getCollege() == null) throw new AuthPermissionException(403, "用户学院范围未确认");
             courseSchedule.setDepartmentName(user.getCollege());
         }
         List<CourseSchedule> list = courseScheduleService.getList(courseSchedule);
@@ -185,8 +191,8 @@ public class CourseScheduleController {
     @PreAuthorize("hasRole('admin')")
     @DeleteMapping("/delete/{id}")
     public ApiResult delete(@PathVariable Integer id,
-            @org.springframework.web.bind.annotation.RequestParam Long rowVersion,
-            @org.springframework.web.bind.annotation.RequestParam String reason) {
+            @RequestParam Long rowVersion,
+            @RequestParam String reason) {
         CourseSchedule patch = new CourseSchedule(); patch.setId(id); patch.setRowVersion(rowVersion);
         patch.setEffective(0); patch.setChangeReason(reason);
         return courseScheduleService.updateCourseSchedule(patch) ? ApiResult.ok("独立停课成功") : ApiResult.error("停课失败");

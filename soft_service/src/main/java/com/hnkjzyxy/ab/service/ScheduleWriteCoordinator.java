@@ -91,13 +91,23 @@ public class ScheduleWriteCoordinator {
      * @param detail 变更明细
      */
     public void changed(String action, String detail) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        changed(action, detail, auth == null ? "system" : auth.getName());
+    }
+
+    /**
+     * 以指定操作人原子记录版本及审计，定时任务明确标记为系统。
+     * @param action 操作
+     * @param detail 变更明细
+     * @param actor 操作人
+     */
+    public void changed(String action, String detail, String actor) {
         ScheduleState state = stateMapper.selectById(1);
         state.setScheduleVersion(state.getScheduleVersion() + 1);
         if (stateMapper.updateById(state) != 1) throw new IllegalStateException("更新排程版本失败");
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         ScheduleAudit audit = new ScheduleAudit();
         audit.setScheduleVersion(state.getScheduleVersion()); audit.setAction(action);
-        audit.setActor(auth == null ? "system" : auth.getName()); audit.setDetail(detail);
+        audit.setActor(actor); audit.setDetail(detail);
         audit.setCreatedTime(LocalDateTime.now(CoursePeriodResolver.ZONE));
         if (auditMapper.insert(audit) != 1) throw new IllegalStateException("保存排程审计失败");
     }
@@ -161,7 +171,7 @@ public class ScheduleWriteCoordinator {
      * @param exam 最终考试
      */
     public void validateCourseConflict(Exam exam) {
-        if (Integer.valueOf(2).equals(exam.getStatus())) return;
+        if (ExamLifecycle.terminal(exam.getStatus())) return;
         if (!covered(stateMapper.selectById(1), exam.getStartTime().toLocalDate(), exam.getEndTime().toLocalDate())) {
             throw new IllegalArgumentException("课表状态无法确认，请刷新或处理后重试（目标日期未在可信覆盖范围内）");
         }
@@ -204,9 +214,10 @@ public class ScheduleWriteCoordinator {
         List<ScheduleInterval> intervals = resolver.resolve(course);
         if (Integer.valueOf(0).equals(course.getEffective())) return;
         for (Exam exam : examMapper.selectList(null)) {
+            if (ExamLifecycle.terminal(exam.getStatus())) continue;
             Long examRoom = exam.getClassroomId();
             if (examRoom == null) examRoom = room(null, exam.getBoardSn()).getId();
-            if (!id.equals(examRoom) || Integer.valueOf(2).equals(exam.getStatus())) continue;
+            if (!id.equals(examRoom) || ExamLifecycle.terminal(exam.getStatus())) continue;
             if (exam.getStartTime() == null || exam.getEndTime() == null) throw new IllegalArgumentException("已有考试时间无法确认");
             for (ScheduleInterval interval : intervals) if (CoursePeriodResolver.overlaps(interval,
                     new ScheduleInterval(exam.getStartTime(), exam.getActualEndTime() == null ? exam.getEndTime() : exam.getActualEndTime()))) {
@@ -276,7 +287,7 @@ public class ScheduleWriteCoordinator {
             } catch (RuntimeException error) { issue("COURSE_TIME_UNKNOWN", "courseKey=" + course.getCourseKey() + "; " + error.getMessage()); }
         }
         for (Exam exam : examMapper.selectList(null)) {
-            if (Integer.valueOf(2).equals(exam.getStatus())) continue;
+            if (ExamLifecycle.terminal(exam.getStatus())) continue;
             try {
                 Long roomId = room(exam.getClassroomId(), exam.getBoardSn()).getId();
                 if (exam.getStartTime() == null || exam.getEndTime() == null) throw new IllegalArgumentException("考试时间未知");

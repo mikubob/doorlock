@@ -1,9 +1,12 @@
 package com.hnkjzyxy.ab.service.support;
 
 import com.hnkjzyxy.ab.model.LockInfo;
+import com.hnkjzyxy.ab.service.CoursePeriodResolver;
 import com.hnkjzyxy.ab.service.SmartLockService;
 import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -52,7 +55,7 @@ public class SmartLockStateService {
         return gateway.queryDoorStatus(lockInfo.getIpAddress(), lockInfo.getPortNumber(), lockInfo.getSnCode())
                 .thenApply(status -> {
                     lockInfo.setSwitchStatus(status);
-                    lockInfo.setObservedAt(java.time.LocalDateTime.now(com.hnkjzyxy.ab.service.CoursePeriodResolver.ZONE));
+                    lockInfo.setObservedAt(LocalDateTime.now(CoursePeriodResolver.ZONE));
                     if (!smartLockService.updateSwitchStatus(lockInfo.getLockId(), status)) throw new IllegalStateException("设备观测保存失败");
                     return lockInfo;
                 });

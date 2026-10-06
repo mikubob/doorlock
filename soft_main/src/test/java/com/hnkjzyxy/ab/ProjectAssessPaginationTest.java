@@ -20,11 +20,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -133,7 +135,7 @@ class ProjectAssessPaginationTest {
         ProjectQueryParam param = new ProjectQueryParam();
         when(projects.countAssessList(any(), any())).thenReturn(Long.MAX_VALUE);
         ProjectAssessRow row = new ProjectAssessRow(); row.setTotalScore((long) Integer.MAX_VALUE + 1);
-        when(projects.selectAssessListPage(any(), any(), anyLong(), anyInt())).thenReturn(java.util.Collections.singletonList(row));
+        when(projects.selectAssessListPage(any(), any(), anyLong(), anyInt())).thenReturn(Collections.singletonList(row));
         assertEquals(500, assertThrows(ProjectTaskException.class,
                 () -> service.getProjectAssessList(param, operator)).getStatus());
         row.setTotalScore(0L); param.setPage(Integer.MAX_VALUE); param.setLimit(100);
@@ -199,8 +201,8 @@ class ProjectAssessPaginationTest {
         ReflectionTestUtils.setField(controller, "projectService", service);
         ReflectionTestUtils.setField(controller, "userService", users);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(new GlobalExceptionHandler()).build();
-        org.springframework.security.authentication.UsernamePasswordAuthenticationToken auth =
-                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("teacher", "ignored");
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken("teacher", "ignored");
         mvc.perform(get("/project/assess/list").principal(auth).param("userId", "999"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0))
                 .andExpect(jsonPath("$.totalPage").value(0)).andExpect(jsonPath("$.page").value(1))

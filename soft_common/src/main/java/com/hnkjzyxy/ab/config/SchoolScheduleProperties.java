@@ -2,10 +2,16 @@ package com.hnkjzyxy.ab.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
+import org.springframework.util.DigestUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 学校作息配置。默认仅采用现有项目已知的双节边界，不猜测单节作息。
@@ -19,8 +25,8 @@ public class SchoolScheduleProperties {
      * 创建服务器学校时钟，测试可替换为固定时刻。
      * @return 上海业务时钟
      */
-    @org.springframework.context.annotation.Bean("schoolBusinessClock")
-    public java.time.Clock schoolBusinessClock() { return java.time.Clock.system(java.time.ZoneId.of("Asia/Shanghai")); }
+    @Bean("schoolBusinessClock")
+    public Clock schoolBusinessClock() { return Clock.system(ZoneId.of("Asia/Shanghai")); }
     /**
      * 作息版本，修改配置后必须重新同步课表。
      */
@@ -63,9 +69,9 @@ public class SchoolScheduleProperties {
      * @return 规则版本及内容指纹
      */
     public String policyKey() {
-        String value = new java.util.TreeMap<>(starts) + "|" + new java.util.TreeMap<>(ends) + "|"
-                + new java.util.TreeMap<>(campusAliases) + "|" + coverageStart + "|" + coverageEnd;
-        return version + ":" + org.springframework.util.DigestUtils.md5DigestAsHex(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String value = new TreeMap<>(starts) + "|" + new TreeMap<>(ends) + "|"
+                + new TreeMap<>(campusAliases) + "|" + coverageStart + "|" + coverageEnd;
+        return version + ":" + DigestUtils.md5DigestAsHex(value.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

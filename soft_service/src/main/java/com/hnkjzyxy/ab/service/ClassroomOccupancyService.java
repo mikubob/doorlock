@@ -4,8 +4,11 @@ import com.hnkjzyxy.ab.config.SchoolScheduleProperties;
 import com.hnkjzyxy.ab.mapper.*;
 import com.hnkjzyxy.ab.model.*;
 import com.hnkjzyxy.ab.vo.ScheduleInterval;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -62,7 +65,7 @@ public class ClassroomOccupancyService {
     public ClassroomOccupancyService(ClassroomMapper roomMapper, CourseScheduleMapper courseMapper,
             ExamMapper examMapper, ScheduleStateMapper stateMapper, ScheduleWriteCoordinator coordinator,
             CoursePeriodResolver resolver, SchoolScheduleProperties properties,
-            @org.springframework.beans.factory.annotation.Qualifier("schoolBusinessClock") Clock clock) {
+            @Qualifier("schoolBusinessClock") Clock clock) {
         this.roomMapper = roomMapper; this.courseMapper = courseMapper; this.examMapper = examMapper;
         this.stateMapper = stateMapper; this.coordinator = coordinator; this.resolver = resolver; this.properties = properties; this.clock = clock;
     }
@@ -73,7 +76,7 @@ public class ClassroomOccupancyService {
      * @param boardSn 可选班牌 SN
      * @return 状态、当前/未来事件及可信度
      */
-    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Map<String, Object> snapshot(Long classroomId, String boardSn) {
         ScheduleState state = stateMapper.selectById(1);
         LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), CoursePeriodResolver.ZONE);
@@ -103,7 +106,7 @@ public class ClassroomOccupancyService {
      * @param to 结束日期（含当天）
      * @return 已知安排及无法确认的原因
      */
-    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Map<String, Object> schedule(Long classroomId, LocalDate from, LocalDate to) {
         if (from == null || to == null || to.isBefore(from) || to.isAfter(from.plusDays(30))) {
             throw new IllegalArgumentException("排程预览范围须为一至三十一天");
@@ -134,7 +137,7 @@ public class ClassroomOccupancyService {
         }
         LocalDateTime start = from.atStartOfDay(), end = to.plusDays(1).atStartOfDay();
         for (Exam exam : examMapper.selectList(null)) {
-            if (Integer.valueOf(2).equals(exam.getStatus())) continue;
+            if (ExamLifecycle.terminal(exam.getStatus())) continue;
             Long bound = exam.getClassroomId();
             if (bound == null) {
                 List<Classroom> matches = rooms.stream().filter(r -> exam.getBoardSn() != null && exam.getBoardSn().equals(r.getBoardSn())).collect(Collectors.toList());
@@ -198,13 +201,14 @@ public class ClassroomOccupancyService {
             } catch (RuntimeException e) { problems.add(e.getMessage()); }
         }
         for (Exam exam : exams) {
+            if (ExamLifecycle.terminal(exam.getStatus())) continue;
             Long bound = exam.getClassroomId();
             if (bound == null) {
                 List<Classroom> matches = allRooms.stream().filter(r -> exam.getBoardSn() != null && exam.getBoardSn().equals(r.getBoardSn())).collect(Collectors.toList());
                 if (matches.size() == 1) bound = matches.get(0).getId();
                 else if (Objects.equals(room.getBoardSn(), exam.getBoardSn())) problems.add("考试教室关联存在歧义");
             }
-            if (!room.getId().equals(bound) || Integer.valueOf(2).equals(exam.getStatus())) continue;
+            if (!room.getId().equals(bound) || ExamLifecycle.terminal(exam.getStatus())) continue;
             if (exam.getStartTime() == null || exam.getEndTime() == null || !exam.getEndTime().isAfter(exam.getStartTime())) { problems.add("考试时间未知"); continue; }
             ScheduleInterval interval = new ScheduleInterval(exam.getStartTime(), exam.getActualEndTime() == null ? exam.getEndTime() : exam.getActualEndTime());
             Map<String, Object> event = event("exam", String.valueOf(exam.getId()), exam.getExamContent(), interval);

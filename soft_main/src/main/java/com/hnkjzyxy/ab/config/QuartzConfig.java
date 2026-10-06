@@ -1,8 +1,7 @@
 package com.hnkjzyxy.ab.config;
 
-import com.hnkjzyxy.ab.job.support.QuartzJobFactory;
-
 import com.hnkjzyxy.ab.job.SmartLockJob;
+import com.hnkjzyxy.ab.job.support.QuartzJobFactory;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
@@ -14,6 +13,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * 门禁 Quartz 调度配置，创建任务、触发器和调度器
@@ -86,7 +90,7 @@ public class QuartzConfig {
                 .forJob(jobDetail)
                 .withIdentity(jobDetail.getKey().getName() + "_cron_trigger", "smartLockTriggerGroup")
                 .withSchedule(CronScheduleBuilder.cronSchedule(cronExpression)
-                        .inTimeZone(java.util.TimeZone.getTimeZone("Asia/Shanghai"))
+                        .inTimeZone(TimeZone.getTimeZone("Asia/Shanghai"))
                         .withMisfireHandlingInstructionDoNothing())
                 .build();
     }
@@ -112,11 +116,11 @@ public class QuartzConfig {
      */
     public String generateWeeklyCronExpression(int hour, int minute, int[] daysOfWeek) {
         if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || daysOfWeek == null || daysOfWeek.length == 0 || daysOfWeek.length > 7) throw new IllegalArgumentException("星期或时间参数错误");
-        java.util.Set<Integer> days = new java.util.TreeSet<>();
+        Set<Integer> days = new TreeSet<>();
         for (int day : daysOfWeek) {
             if (day < 0 || day > 6 || !days.add(day == 6 ? 1 : day + 2)) throw new IllegalArgumentException("星期参数重复或超限");
         }
-        String expression = days.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        String expression = days.stream().map(String::valueOf).collect(Collectors.joining(","));
         return String.format("0 %d %d ? * %s", minute, hour, expression);
     }
 

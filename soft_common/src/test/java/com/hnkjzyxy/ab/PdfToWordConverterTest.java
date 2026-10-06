@@ -15,13 +15,11 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFPicture;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import javax.imageio.ImageIO;
-import javax.validation.Validation;
-import javax.validation.ValidatorFactory;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -33,6 +31,9 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+import javax.validation.Validation;
+import javax.validation.ValidatorFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -410,7 +411,7 @@ class PdfToWordConverterTest {
      * @param action 被测动作
      * @return 捕获的异常
      */
-    private PdfConversionException assertStatus(int expected, org.junit.jupiter.api.function.Executable action) {
+    private PdfConversionException assertStatus(int expected, Executable action) {
         PdfConversionException error = assertThrows(PdfConversionException.class, action);
         assertEquals(expected, error.getStatus());
         assertFalse(error.getMessage().contains(temporary.toString()));

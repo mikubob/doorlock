@@ -1,14 +1,17 @@
 package com.hnkjzyxy.ab.service.impl;
 
-import com.hnkjzyxy.ab.service.excel.CheckResultExcelImportService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hnkjzyxy.ab.config.CheckResultImportProperties;
 import com.hnkjzyxy.ab.exception.ImportRejectedException;
 import com.hnkjzyxy.ab.mapper.CheckResultMapper;
+import com.hnkjzyxy.ab.mapper.CourseScheduleMapper;
 import com.hnkjzyxy.ab.model.CheckResult;
+import com.hnkjzyxy.ab.model.CourseSchedule;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.service.CheckResultService;
+import com.hnkjzyxy.ab.service.CoursePeriodResolver;
+import com.hnkjzyxy.ab.service.excel.CheckResultExcelImportService;
 import com.hnkjzyxy.ab.vo.CheckResultByTeacherDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultDataVo;
 import com.hnkjzyxy.ab.vo.CheckResultImportResult;
@@ -18,9 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Resource;
+import java.util.Objects;
 
 /**
  * 教学巡查结果管理
@@ -55,12 +60,12 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
      * 课程身份访问。
      */
     @Autowired
-    private com.hnkjzyxy.ab.mapper.CourseScheduleMapper courseScheduleMapper;
+    private CourseScheduleMapper courseScheduleMapper;
     /**
      * 学校时间规则。
      */
     @Autowired
-    private com.hnkjzyxy.ab.service.CoursePeriodResolver periodResolver;
+    private CoursePeriodResolver periodResolver;
 
     /**
      * {@inheritDoc}
@@ -91,18 +96,18 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
     public void addOrEdit(CheckResult resultVo) {
         if (resultVo.getId() == null) {
             if (resultVo.getCourseKey() != null && !resultVo.getCourseKey().trim().isEmpty()) {
-                List<com.hnkjzyxy.ab.model.CourseSchedule> matches = courseScheduleMapper.selectList(
-                        new LambdaQueryWrapper<com.hnkjzyxy.ab.model.CourseSchedule>()
-                                .eq(com.hnkjzyxy.ab.model.CourseSchedule::getCourseKey, resultVo.getCourseKey()));
+                List<CourseSchedule> matches = courseScheduleMapper.selectList(
+                        new LambdaQueryWrapper<CourseSchedule>()
+                                .eq(CourseSchedule::getCourseKey, resultVo.getCourseKey()));
                 if (matches.size() != 1) throw new IllegalArgumentException("课程身份存在歧义，请重新选择或填写补录理由");
-                com.hnkjzyxy.ab.model.CourseSchedule course = matches.get(0);
-                if (!java.util.Objects.equals(course.getDepartmentName(), resultVo.getCollege())) throw new IllegalArgumentException("巡查学院与课程来源不一致");
-                java.time.LocalDate day = java.time.Instant.ofEpochMilli(resultVo.getDate().getTime()).atZone(com.hnkjzyxy.ab.service.CoursePeriodResolver.ZONE).toLocalDate();
+                CourseSchedule course = matches.get(0);
+                if (!Objects.equals(course.getDepartmentName(), resultVo.getCollege())) throw new IllegalArgumentException("巡查学院与课程来源不一致");
+                LocalDate day = Instant.ofEpochMilli(resultVo.getDate().getTime()).atZone(CoursePeriodResolver.ZONE).toLocalDate();
                 if (Integer.valueOf(0).equals(course.getEffective()) || "PENDING".equals(course.getParseStatus())
                         || !periodResolver.date(course.getClassDate()).equals(day)
-                        || !java.util.Objects.equals(course.getClassName(), resultVo.getClasses())
-                        || !java.util.Objects.equals(course.getClassPeriod(), resultVo.getSection())
-                        || !java.util.Objects.equals(course.getClassroomNumber(), resultVo.getClassroom())) {
+                        || !Objects.equals(course.getClassName(), resultVo.getClasses())
+                        || !Objects.equals(course.getClassPeriod(), resultVo.getSection())
+                        || !Objects.equals(course.getClassroomNumber(), resultVo.getClassroom())) {
                     throw new IllegalArgumentException("巡查日期、节次、班级或教室与有效课程不一致，请重新核对");
                 }
                 resultVo.setScheduleSnapshot(course.toString() + "; intervals=" + periodResolver.resolve(course));
@@ -116,10 +121,10 @@ public class CheckResultServiceImpl extends ServiceImpl<CheckResultMapper, Check
         } else {
             CheckResult previous = checkresultMapper.selectById(resultVo.getId());
             if (previous == null) throw new IllegalArgumentException("巡查记录不存在");
-            if (previous.getCourseKey() != null && ((!java.util.Objects.equals(previous.getDate(), resultVo.getDate()) && resultVo.getDate() != null)
-                    || (resultVo.getSection() != null && !java.util.Objects.equals(previous.getSection(), resultVo.getSection()))
-                    || (resultVo.getClasses() != null && !java.util.Objects.equals(previous.getClasses(), resultVo.getClasses()))
-                    || (resultVo.getClassroom() != null && !java.util.Objects.equals(previous.getClassroom(), resultVo.getClassroom())))) {
+            if (previous.getCourseKey() != null && ((!Objects.equals(previous.getDate(), resultVo.getDate()) && resultVo.getDate() != null)
+                    || (resultVo.getSection() != null && !Objects.equals(previous.getSection(), resultVo.getSection()))
+                    || (resultVo.getClasses() != null && !Objects.equals(previous.getClasses(), resultVo.getClasses()))
+                    || (resultVo.getClassroom() != null && !Objects.equals(previous.getClassroom(), resultVo.getClassroom())))) {
                 throw new IllegalArgumentException("已关联的历史巡查日期、节次、班级及教室不能更改，请另行补录并保留历史");
             }
             resultVo.setCourseKey(previous.getCourseKey()); resultVo.setScheduleSnapshot(previous.getScheduleSnapshot());

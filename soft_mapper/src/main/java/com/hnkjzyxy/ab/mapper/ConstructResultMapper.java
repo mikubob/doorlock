@@ -8,6 +8,6 @@ import com.hnkjzyxy.ab.model.ConstructResult;
  *
  * @author 16702
  */
-//@CacheNamespace(implementation = MybatisRedisCache.class)
+
 public interface ConstructResultMapper extends BaseMapper<ConstructResult> {
 }

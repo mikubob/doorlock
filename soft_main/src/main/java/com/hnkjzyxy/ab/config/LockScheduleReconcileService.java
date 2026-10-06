@@ -1,6 +1,7 @@
 package com.hnkjzyxy.ab.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hnkjzyxy.ab.mapper.ScheduleMapper;
 import com.hnkjzyxy.ab.model.ScheduleTask;
 import com.hnkjzyxy.ab.service.ScheduleService;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,9 @@ import org.quartz.impl.matchers.GroupMatcher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 /**
@@ -32,7 +36,7 @@ public class LockScheduleReconcileService {
     /**
      * 持久化对账结果，不修改业务配置版本。
      */
-    private final com.hnkjzyxy.ab.mapper.ScheduleMapper mapper;
+    private final ScheduleMapper mapper;
     /**
      * 创建调度对账服务。
      * @param service 任务服务
@@ -41,7 +45,7 @@ public class LockScheduleReconcileService {
      * @param mapper 任务访问
      */
     public LockScheduleReconcileService(ScheduleService service, QuartzConfig config, SchedulerFactoryBean factory,
-            com.hnkjzyxy.ab.mapper.ScheduleMapper mapper) {
+            ScheduleMapper mapper) {
         this.service = service; this.config = config; this.factory = factory; this.mapper = mapper;
     }
     /**
@@ -104,7 +108,7 @@ public class LockScheduleReconcileService {
     private void mark(ScheduleTask task, String status, String message) {
         try {
             mapper.markSyncState(task.getTaskId(), task.getRowVersion(), task.getTaskStatus(), status, message,
-                    "synced".equals(status) ? java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")) : null);
+                    "synced".equals(status) ? LocalDateTime.now(ZoneId.of("Asia/Shanghai")) : null);
         } catch (RuntimeException error) { log.warn("任务 {} 的对账结果暂未保存，将重试", task.getTaskId()); }
     }
 }

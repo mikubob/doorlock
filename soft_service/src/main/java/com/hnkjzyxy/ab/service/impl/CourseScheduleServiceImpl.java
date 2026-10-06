@@ -1,26 +1,25 @@
 package com.hnkjzyxy.ab.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hnkjzyxy.ab.client.OaApiClient;
 import com.hnkjzyxy.ab.config.ScheduleSyncProperties;
+import com.hnkjzyxy.ab.dto.CourseSourceRebindDto;
+import com.hnkjzyxy.ab.mapper.ClassroomMapper;
 import com.hnkjzyxy.ab.mapper.CourseScheduleMapper;
+import com.hnkjzyxy.ab.model.Classroom;
 import com.hnkjzyxy.ab.model.CourseSchedule;
+import com.hnkjzyxy.ab.service.CoursePeriodResolver;
 import com.hnkjzyxy.ab.service.CourseScheduleService;
 import com.hnkjzyxy.ab.service.ScheduleWriteCoordinator;
-import com.hnkjzyxy.ab.service.CoursePeriodResolver;
-import com.hnkjzyxy.ab.mapper.ClassroomMapper;
-import com.hnkjzyxy.ab.model.Classroom;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.DigestUtils;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
 import com.hnkjzyxy.ab.utils.RedisLockUtils;
 import com.hnkjzyxy.ab.utils.TransactionalMysqlLock;
 import com.hnkjzyxy.ab.vo.CourseScheduleSyncResult;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -28,13 +27,18 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.DigestUtils;
 
+import java.beans.PropertyDescriptor;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * 课程安排Service实现类
@@ -182,10 +186,10 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         if (courseSchedule.getChangeReason() == null || courseSchedule.getChangeReason().trim().isEmpty()) throw new IllegalArgumentException("独立停课/调课必须填写理由");
         CourseSchedule merged = new CourseSchedule();
         BeanUtils.copyProperties(old, merged);
-        java.beans.PropertyDescriptor[] descriptors = BeanUtils.getPropertyDescriptors(CourseSchedule.class);
+        PropertyDescriptor[] descriptors = BeanUtils.getPropertyDescriptors(CourseSchedule.class);
         Set<String> editable = new HashSet<>(Arrays.asList("courseName", "academicYear", "semester", "week", "dayOfWeek", "classPeriod", "classroomNumber", "teachingLocation", "campus", "buildingName", "teacherId", "teacherName", "departmentName", "className", "counselorName", "classSize", "leaveCount", "hasLeave", "classDate", "classroomId", "effective"));
         try {
-            for (java.beans.PropertyDescriptor descriptor : descriptors) {
+            for (PropertyDescriptor descriptor : descriptors) {
                 if (!editable.contains(descriptor.getName())) continue;
                 Object value = descriptor.getReadMethod().invoke(courseSchedule);
                 if (value != null) descriptor.getWriteMethod().invoke(merged, value);
@@ -213,7 +217,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean rebindSource(com.hnkjzyxy.ab.dto.CourseSourceRebindDto request) {
+    public boolean rebindSource(CourseSourceRebindDto request) {
         coordinator.lock();
         if (request == null || request.getReason() == null || request.getReason().trim().isEmpty()) {
             throw new IllegalArgumentException("来源复核必须填写确认依据");
@@ -267,7 +271,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      */
     private CourseSchedule uniqueCourse(List<CourseSchedule> rows, String key) {
         List<CourseSchedule> found = rows.stream().filter(c -> key != null && key.equals(c.getCourseKey()))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
         if (found.size() != 1) throw new IllegalArgumentException("课程来源不存在或不唯一，请刷新后复核");
         return found.get(0);
     }
@@ -484,7 +488,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     lease.requireOwned();
                 }
             });
-            int previousRows = courseScheduleMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CourseSchedule>().eq(CourseSchedule::getSourceType, "OA"));
+            int previousRows = courseScheduleMapper.selectCount(new LambdaQueryWrapper<CourseSchedule>().eq(CourseSchedule::getSourceType, "OA"));
             validateRows(schedules.size(), previousRows);
             List<CourseSchedule> previous = courseScheduleMapper.selectList(null);
             List<Classroom> rooms = classroomMapper.selectList(null);
@@ -493,7 +497,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 String key = old.getSourceFingerprint() == null ? fingerprint(old) : old.getSourceFingerprint();
                 if (!"LOCAL".equals(old.getSourceType())) oldVersions.computeIfAbsent(key, k -> new ArrayList<>()).add(old);
             }
-            Map<String, Long> newCounts = schedules.stream().collect(java.util.stream.Collectors.groupingBy(this::fingerprint, java.util.stream.Collectors.counting()));
+            Map<String, Long> newCounts = schedules.stream().collect(Collectors.groupingBy(this::fingerprint, Collectors.counting()));
             Set<String> retained = new HashSet<>();
             List<CourseSchedule> publish = new ArrayList<>();
             for (CourseSchedule incoming : schedules) {

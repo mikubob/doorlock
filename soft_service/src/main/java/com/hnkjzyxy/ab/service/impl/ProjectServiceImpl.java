@@ -1,6 +1,5 @@
 package com.hnkjzyxy.ab.service.impl;
 
-import com.hnkjzyxy.ab.service.excel.TaskExcelImportService;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
@@ -9,12 +8,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.hnkjzyxy.ab.enums.HnkjzyEncode;
 import com.hnkjzyxy.ab.constant.HnkjxyConstants;
+import com.hnkjzyxy.ab.dto.ProjectAssessRow;
+import com.hnkjzyxy.ab.dto.ProjectAssessScope;
+import com.hnkjzyxy.ab.enums.HnkjzyEncode;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.mapper.FlowMapper;
 import com.hnkjzyxy.ab.mapper.FlowTaskMapper;
-import com.hnkjzyxy.ab.mapper.InfoMapper;
 import com.hnkjzyxy.ab.mapper.NoticeMapper;
 import com.hnkjzyxy.ab.mapper.ProjectItemMapper;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
@@ -23,15 +23,16 @@ import com.hnkjzyxy.ab.mapper.TaskMapper;
 import com.hnkjzyxy.ab.mapper.UserMapper;
 import com.hnkjzyxy.ab.mapper.UserRoleMapper;
 import com.hnkjzyxy.ab.model.Flow;
-import com.hnkjzyxy.ab.model.FlowTask;
 import com.hnkjzyxy.ab.model.Project;
 import com.hnkjzyxy.ab.model.Result;
 import com.hnkjzyxy.ab.model.ResultExtend;
 import com.hnkjzyxy.ab.model.Role;
 import com.hnkjzyxy.ab.model.Task;
 import com.hnkjzyxy.ab.model.User;
+import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
 import com.hnkjzyxy.ab.params.ProjectParam;
 import com.hnkjzyxy.ab.params.ProjectQueryParam;
+import com.hnkjzyxy.ab.params.ProjectResultSubmitParam;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.ProjectService;
 import com.hnkjzyxy.ab.service.ProjectTaskGuard;
@@ -39,16 +40,13 @@ import com.hnkjzyxy.ab.service.ProjectTaskImportService;
 import com.hnkjzyxy.ab.service.ResultExtendService;
 import com.hnkjzyxy.ab.service.ResultService;
 import com.hnkjzyxy.ab.service.TaskService;
-import com.hnkjzyxy.ab.dto.ProjectAssessRow;
-import com.hnkjzyxy.ab.dto.ProjectAssessScope;
+import com.hnkjzyxy.ab.service.excel.TaskExcelImportService;
+import com.hnkjzyxy.ab.service.support.ProjectTaskTreeSupport;
 import com.hnkjzyxy.ab.service.utils.ProjectAssessScopeResolver;
 import com.hnkjzyxy.ab.service.utils.ProjectTaskRules;
-import com.hnkjzyxy.ab.service.support.ProjectTaskTreeSupport;
 import com.hnkjzyxy.ab.vo.FlowTaskVo;
-import com.hnkjzyxy.ab.params.ProjectItemSaveParam;
 import com.hnkjzyxy.ab.vo.ProjectVo;
 import com.hnkjzyxy.ab.vo.ResultVo;
-import com.hnkjzyxy.ab.params.ProjectResultSubmitParam;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -102,11 +100,6 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, Project> impl
      */
     @Resource
     private UserMapper userMapper;
-    /**
-     * 考核资料数据访问接口
-     */
-    @Resource
-    private InfoMapper infoMapper;
     /**
      * TaskMapper数据访问接口
      */

@@ -2,6 +2,8 @@ package com.hnkjzyxy.ab.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hnkjzyxy.ab.model.LockCommand;
+import com.hnkjzyxy.ab.model.LockInfo;
+import com.hnkjzyxy.ab.model.ScheduleTask;
 import org.apache.ibatis.annotations.*;
 
 /**
@@ -15,7 +17,7 @@ public interface LockCommandMapper extends BaseMapper<LockCommand> {
      * @param taskId 真实任务主键
      * @return 最新任务
      */
-    com.hnkjzyxy.ab.model.ScheduleTask lockTask(@Param("taskId") Integer taskId);
+    ScheduleTask lockTask(@Param("taskId") Integer taskId);
 
     /**
      * 命令登记时使旧设备观测失效，提交不能代表物理状态。
@@ -23,7 +25,7 @@ public interface LockCommandMapper extends BaseMapper<LockCommand> {
      * @param lock 提交时核实的真实锁绑定
      * @return 影响行数
      */
-    int invalidateObservation(com.hnkjzyxy.ab.model.LockInfo lock);
+    int invalidateObservation(LockInfo lock);
     /**
      * 只完成尚未完成的命令。
      * @param command 回执内容

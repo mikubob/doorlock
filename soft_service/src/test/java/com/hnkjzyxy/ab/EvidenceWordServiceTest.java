@@ -12,9 +12,9 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -414,7 +415,7 @@ class EvidenceWordServiceTest {
      * @param action 被测动作
      * @return 转换异常
      */
-    private PdfConversionException assertStatus(int expected, org.junit.jupiter.api.function.Executable action) {
+    private PdfConversionException assertStatus(int expected, Executable action) {
         PdfConversionException error = assertThrows(PdfConversionException.class, action);
         assertEquals(expected, error.getStatus());
         assertFalse(error.getMessage().contains(temporary.toString()));

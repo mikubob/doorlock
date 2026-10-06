@@ -1,33 +1,35 @@
 package com.hnkjzyxy.ab.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hnkjzyxy.ab.config.LockScheduleReconcileService;
 import com.hnkjzyxy.ab.config.QuartzConfig;
+import com.hnkjzyxy.ab.dto.LockCommandReviewDto;
 import com.hnkjzyxy.ab.dto.ScheduleTaskDto;
+import com.hnkjzyxy.ab.mapper.LockCommandMapper;
+import com.hnkjzyxy.ab.model.Classroom;
+import com.hnkjzyxy.ab.model.LockCommand;
 import com.hnkjzyxy.ab.model.LockInfo;
 import com.hnkjzyxy.ab.model.ScheduleTask;
-import com.hnkjzyxy.ab.model.SwitchRecord;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.ScheduleService;
-import com.hnkjzyxy.ab.service.support.LockCommandService;
-import com.hnkjzyxy.ab.config.LockScheduleReconcileService;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.hnkjzyxy.ab.service.ScheduleWriteCoordinator;
 import com.hnkjzyxy.ab.service.SmartLockService;
 import com.hnkjzyxy.ab.service.SwitchRecordService;
 import com.hnkjzyxy.ab.service.UserService;
 import com.hnkjzyxy.ab.service.gateway.SmartLockGateway;
-import com.hnkjzyxy.ab.service.support.SmartLockStateService;
+import com.hnkjzyxy.ab.service.support.LockCommandReceiptService;
+import com.hnkjzyxy.ab.service.support.LockCommandService;
 import com.hnkjzyxy.ab.service.support.SmartLockDiscoveryService;
-import com.hnkjzyxy.ab.vo.UserVo;
-import org.quartz.JobDetail;
-import org.quartz.JobKey;
-import org.quartz.Scheduler;
+import com.hnkjzyxy.ab.service.support.SmartLockStateService;
 import org.quartz.SchedulerException;
-import org.quartz.Trigger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,8 +37,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -64,17 +69,17 @@ public class SamrtLockController {
      * 设备绑定变更的共同事务及审计。
      */
     @Autowired
-    private com.hnkjzyxy.ab.service.ScheduleWriteCoordinator scheduleCoordinator;
+    private ScheduleWriteCoordinator scheduleCoordinator;
     /**
      * 持久化命令回执查询。
      */
     @Autowired
-    private com.hnkjzyxy.ab.mapper.LockCommandMapper lockCommandMapper;
+    private LockCommandMapper lockCommandMapper;
     /**
      * 未知回执的独立人工确认服务。
      */
     @Autowired
-    private com.hnkjzyxy.ab.service.support.LockCommandReceiptService receiptService;
+    private LockCommandReceiptService receiptService;
     /**
      * 线程池：用于异步执行查询门锁状态任务
      */
@@ -143,7 +148,7 @@ public class SamrtLockController {
      */
     @PreAuthorize("hasRole('admin')")
     @PostMapping("/addLockInfo")
-    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public ApiResult addLockInfo(@RequestBody LockInfo lockInfo) {
         scheduleCoordinator.lock();
         validateLockBinding(lockInfo);
@@ -224,7 +229,7 @@ public class SamrtLockController {
      */
     @PreAuthorize("hasRole('admin')")
     @PostMapping("/updateLock")
-    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public ApiResult updateLock(@RequestBody LockInfo lockInfo) {
         scheduleCoordinator.lock();
         LockInfo byId = smartLockService.getById(lockInfo.getLockId());
@@ -255,8 +260,8 @@ public class SamrtLockController {
         if (lockInfo.getSwitchStatus() == null || (lockInfo.getSwitchStatus() != 0 && lockInfo.getSwitchStatus() != 1)) return ApiResult.error("开关动作不合法");
         LockInfo device = lockInfo.getLockId() == null ? smartLockService.getByBoardSn(lockInfo.getBoardSn()) : smartLockService.getById(lockInfo.getLockId());
         if (device == null || device.getClassroomId() == null) return ApiResult.error("真实设备教室绑定未确认");
-        com.hnkjzyxy.ab.model.LockCommand command = commandService.submit(device, device.getDoorChannel(), lockInfo.getSwitchStatus() == 1,
-                authentication.getName(), null, java.util.UUID.randomUUID().toString(), null);
+        LockCommand command = commandService.submit(device, device.getDoorChannel(), lockInfo.getSwitchStatus() == 1,
+                authentication.getName(), null, UUID.randomUUID().toString(), null);
         if ("failed".equals(command.getStatus())) return ApiResult.error("设备指令失败，物理状态未知").put("data", command);
         return ApiResult.ok("acknowledged".equals(command.getStatus()) ? "指令已确认，物理状态待观测"
                 : "unknown".equals(command.getStatus()) ? "回执超时，设备状态待人工确认" : "门禁命令已提交，物理门状态待确认").put("data", command);
@@ -338,7 +343,7 @@ public class SamrtLockController {
         if (existing == null) return ApiResult.error("任务不存在");
         if (scheduleTask.getTaskStatus() < 0 || scheduleTask.getTaskStatus() > 3) return ApiResult.error("任务状态不合法");
         existing.setTaskStatus(scheduleTask.getTaskStatus());
-        existing.setUpdatedTime(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
+        existing.setUpdatedTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         if (existing.getTaskStatus() == 1 && existing.getLoopCount() == 0) return ApiResult.error("次数已耗尽，请独立修改次数后启用");
         if (existing.getTaskStatus() == 1) validateTaskBinding(existing);
         if (scheduleService.updateStatus(existing) != 1) return ApiResult.error("保存任务状态失败或次数已耗尽");
@@ -424,7 +429,7 @@ public class SamrtLockController {
         ScheduleTask old = scheduleService.getById(scheduleTask.getTaskId());
         if (old == null) return 0;
         if (old.getTaskStatus() == 3) return 1;
-        old.setTaskStatus(3); old.setUpdatedTime(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
+        old.setTaskStatus(3); old.setUpdatedTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         if (scheduleService.updateStatus(old) != 1) throw new IllegalStateException("取消任务保存失败");
         reconcileService.reconcile(); return 1;
     }
@@ -497,7 +502,7 @@ public class SamrtLockController {
         scheduleTaskTemp.setTaskStatus(scheduleTaskDto.getTaskStatus());
         scheduleTaskTemp.setUserId(scheduleTaskDto.getUserId());
         scheduleTaskTemp.setTaskDetails(scheduleTaskDto.getTaskDetails());
-        scheduleTaskTemp.setUpdatedTime(LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
+        scheduleTaskTemp.setUpdatedTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         scheduleTaskTemp.setIsLoop(scheduleTaskDto.getIsLoop());
         scheduleTaskTemp.setHour(scheduleTaskDto.getHour());
         scheduleTaskTemp.setMinute(scheduleTaskDto.getMinute());
@@ -511,7 +516,7 @@ public class SamrtLockController {
         scheduleTaskTemp.setRemarks(scheduleTaskDto.getRemarks());
         scheduleTaskTemp.setDoorChannel(scheduleTaskDto.getDoorChannel());
         scheduleTaskTemp.setTaskStatus(scheduleTaskDto.getTaskStatus());
-        scheduleTaskTemp.setCreatedTime(LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
+        scheduleTaskTemp.setCreatedTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         scheduleTaskTemp.setLoopCount(scheduleTaskDto.getLoopCount());
 
         return scheduleTaskTemp;
@@ -524,8 +529,8 @@ public class SamrtLockController {
      * @return 提交、确认、失败或未知及设备绑定快照
      */
     @GetMapping("/command/{commandId}")
-    public ApiResult command(@org.springframework.web.bind.annotation.PathVariable String commandId) {
-        com.hnkjzyxy.ab.model.LockCommand command = lockCommandMapper.selectById(commandId);
+    public ApiResult command(@PathVariable String commandId) {
+        LockCommand command = lockCommandMapper.selectById(commandId);
         return command == null ? ApiResult.error("命令不存在") : ApiResult.ok("data", command);
     }
 
@@ -537,9 +542,9 @@ public class SamrtLockController {
      */
     @GetMapping("/commands")
     public ApiResult unknownCommands(@RequestParam Integer taskId) {
-        return ApiResult.ok("data", lockCommandMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.hnkjzyxy.ab.model.LockCommand>()
-                .eq(com.hnkjzyxy.ab.model.LockCommand::getTaskId, taskId).eq(com.hnkjzyxy.ab.model.LockCommand::getStatus, "unknown")
-                .orderByDesc(com.hnkjzyxy.ab.model.LockCommand::getCreatedTime).last("LIMIT 200")));
+        return ApiResult.ok("data", lockCommandMapper.selectList(new LambdaQueryWrapper<LockCommand>()
+                .eq(LockCommand::getTaskId, taskId).eq(LockCommand::getStatus, "unknown")
+                .orderByDesc(LockCommand::getCreatedTime).last("LIMIT 200")));
     }
 
     /**
@@ -550,8 +555,8 @@ public class SamrtLockController {
      * @return 独立复核结果
      */
     @PostMapping("/command/{commandId}/review")
-    public ApiResult reviewCommand(@org.springframework.web.bind.annotation.PathVariable String commandId,
-            @RequestBody com.hnkjzyxy.ab.dto.LockCommandReviewDto request) {
+    public ApiResult reviewCommand(@PathVariable String commandId,
+            @RequestBody LockCommandReviewDto request) {
         receiptService.review(commandId, request);
         reconcileService.reconcile();
         return ApiResult.ok("原指令已独立复核，未补发设备动作");
@@ -571,10 +576,10 @@ public class SamrtLockController {
                 || lock.getPortNumber() == null || lock.getPortNumber() < 1 || lock.getPortNumber() > 65535) {
             throw new IllegalArgumentException("真实设备通讯信息不完整");
         }
-        boolean duplicate = smartLockService.getAll().stream().anyMatch(other -> !java.util.Objects.equals(other.getLockId(), lock.getLockId())
+        boolean duplicate = smartLockService.getAll().stream().anyMatch(other -> !Objects.equals(other.getLockId(), lock.getLockId())
                 && lock.getSnCode().equals(other.getSnCode()) && lock.getDoorChannel().equals(other.getDoorChannel()));
         if (duplicate) throw new IllegalArgumentException("设备同一通道已有绑定，请独立核实");
-        com.hnkjzyxy.ab.model.Classroom room = scheduleCoordinator.room(lock.getClassroomId(), null);
+        Classroom room = scheduleCoordinator.room(lock.getClassroomId(), null);
         lock.setClassroomNumber(room.getClassroomNumber()); lock.setClassroomName(room.getClassroomName());
         lock.setCampusName(room.getCampusName()); lock.setBuildingName(room.getBuildingName());
         lock.setSwitchStatus(null); lock.setObservedAt(null);

@@ -1,6 +1,5 @@
 package com.hnkjzyxy.ab.service.impl;
 
-import com.hnkjzyxy.ab.service.excel.StudentInfoExcelImportService;
 import com.alibaba.excel.util.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -18,6 +17,7 @@ import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.StudentInfoService;
 import com.hnkjzyxy.ab.service.UserRoleService;
 import com.hnkjzyxy.ab.service.UserService;
+import com.hnkjzyxy.ab.service.excel.StudentInfoExcelImportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;

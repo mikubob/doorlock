@@ -4,7 +4,10 @@ package com.hnkjzyxy.ab.model;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 /**
  * 智能锁实体类
@@ -44,8 +47,8 @@ public class LockInfo {
     /**
      * 设备实际状态最近一次成功观测时间；命令回执不更新此时间。
      */
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
-    private java.time.LocalDateTime observedAt;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime observedAt;
     
     /**
      * 教室编号（对应数据库JSH字段）

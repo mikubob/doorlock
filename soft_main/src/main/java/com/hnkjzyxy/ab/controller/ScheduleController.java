@@ -1,10 +1,11 @@
 package com.hnkjzyxy.ab.controller;
 
-import com.hnkjzyxy.ab.export.ExcelResponseExporter;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hnkjzyxy.ab.client.OaApiClient;
+import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.exception.ImportRejectedException;
+import com.hnkjzyxy.ab.export.ExcelResponseExporter;
 import com.hnkjzyxy.ab.model.CheckResult;
 import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
@@ -106,10 +107,10 @@ public class ScheduleController {
          */
         boolean admin = authentication.getAuthorities().stream().anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
         if (!admin) {
-            if (user == null || user.getCollege() == null) throw new com.hnkjzyxy.ab.exception.AuthPermissionException(403, "用户学院范围未确认");
+            if (user == null || user.getCollege() == null) throw new AuthPermissionException(403, "用户学院范围未确认");
             if (resultVo.getId() != null) {
                 CheckResult previous = checkResultService.getById(resultVo.getId());
-                if (previous == null || !java.util.Objects.equals(user.getCollege(), previous.getCollege())) throw new com.hnkjzyxy.ab.exception.AuthPermissionException(403, "不能修改其他学院巡查");
+                if (previous == null || !Objects.equals(user.getCollege(), previous.getCollege())) throw new AuthPermissionException(403, "不能修改其他学院巡查");
             }
             resultVo.setCollege(user.getCollege());
         }

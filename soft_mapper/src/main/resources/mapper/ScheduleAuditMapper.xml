@@ -2,4 +2,28 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hnkjzyxy.ab.mapper.ScheduleAuditMapper">
     <update id="resolveOpen">UPDATE sys_schedule_audit SET issue_status='RESOLVED' WHERE issue_status='OPEN'</update>
+    <resultMap id="ExamRecordMap" type="com.hnkjzyxy.ab.model.ScheduleAudit">
+        <id property="id" column="id"/>
+        <result property="scheduleVersion" column="schedule_version"/>
+        <result property="action" column="action"/>
+        <result property="actor" column="actor"/>
+        <result property="detail" column="detail"/>
+        <result property="issueStatus" column="issue_status"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+    <sql id="examRecordFilter">
+        WHERE action IN ('EXAM_ADD','EXAM_UPDATE','EXAM_DELETE','EXAM_DELETE_SN','EXAM_STATUS_AUTO')
+        <if test="query.action != null and query.action != ''">AND action=#{query.action}</if>
+        <if test="query.actor != null and query.actor != ''">AND actor=#{query.actor}</if>
+        <if test="query.from != null">AND created_time &gt;= #{query.from}</if>
+        <if test="query.to != null">AND created_time &lt;= #{query.to}</if>
+    </sql>
+    <select id="countExamRecords" resultType="long">
+        SELECT COUNT(*) FROM sys_schedule_audit <include refid="examRecordFilter"/>
+    </select>
+    <select id="pageExamRecords" resultMap="ExamRecordMap">
+        SELECT id,schedule_version,action,actor,detail,issue_status,created_time
+        FROM sys_schedule_audit <include refid="examRecordFilter"/>
+        ORDER BY created_time DESC,id DESC LIMIT #{query.size} OFFSET #{offset}
+    </select>
 </mapper>

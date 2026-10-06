@@ -1,9 +1,15 @@
 package com.hnkjzyxy.ab.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.hnkjzyxy.ab.mapper.ScheduleAuditMapper;
+import com.hnkjzyxy.ab.model.ScheduleAudit;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.ClassroomOccupancyService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 /**
  * 教室排程快照只读接口。
@@ -18,14 +24,14 @@ public class ClassroomOccupancyController {
     /**
      * 当前冲突及变更历史。
      */
-    private final com.hnkjzyxy.ab.mapper.ScheduleAuditMapper auditMapper;
+    private final ScheduleAuditMapper auditMapper;
 
     /**
      * 创建查询控制器。
      * @param service 占用查询服务
      * @param auditMapper 审计访问
      */
-    public ClassroomOccupancyController(ClassroomOccupancyService service, com.hnkjzyxy.ab.mapper.ScheduleAuditMapper auditMapper) {
+    public ClassroomOccupancyController(ClassroomOccupancyService service, ScheduleAuditMapper auditMapper) {
         this.service = service; this.auditMapper = auditMapper;
     }
 
@@ -36,9 +42,9 @@ public class ClassroomOccupancyController {
     @GetMapping("/issues")
     @PreAuthorize("hasRole('admin')")
     public ApiResult issues() {
-        return ApiResult.ok("data", auditMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.hnkjzyxy.ab.model.ScheduleAudit>()
-                .eq(com.hnkjzyxy.ab.model.ScheduleAudit::getIssueStatus, "OPEN")
-                .orderByDesc(com.hnkjzyxy.ab.model.ScheduleAudit::getId).last("LIMIT 200")));
+        return ApiResult.ok("data", auditMapper.selectList(new LambdaQueryWrapper<ScheduleAudit>()
+                .eq(ScheduleAudit::getIssueStatus, "OPEN")
+                .orderByDesc(ScheduleAudit::getId).last("LIMIT 200")));
     }
 
     /**
@@ -65,8 +71,8 @@ public class ClassroomOccupancyController {
     @GetMapping("/schedule")
     @PreAuthorize("hasRole('admin')")
     public ApiResult schedule(@RequestParam Long classroomId,
-            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
-            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ApiResult.ok("data", service.schedule(classroomId, from, to));
     }
 }

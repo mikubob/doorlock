@@ -7,6 +7,7 @@ import com.hnkjzyxy.ab.utils.JwtUtils;
 import com.hnkjzyxy.ab.utils.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.util.HashMap;
 import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -102,7 +102,7 @@ public class LockPasswordController {
      * @return 操作结果
      */
     @PostMapping("/setPassword")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('admin')")
     public ApiResult setLockPassword(@RequestParam("password") String password,
                                       @RequestParam("oldPassword") String oldPassword,
                                       @RequestParam(value = "description", required = false) String description) {

@@ -61,7 +61,7 @@
         返回：至少删除一条考试安排时返回 true。
     -->
     <delete id="removeByBoardSn">
-        DELETE FROM sys_exam WHERE board_sn = #{boardSn}
+        DELETE FROM sys_exam WHERE BINARY board_sn = BINARY #{boardSn}
     </delete>
 
 </mapper>

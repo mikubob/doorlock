@@ -6,6 +6,7 @@ import com.hnkjzyxy.ab.model.User;
 import com.hnkjzyxy.ab.result.ApiResult;
 import com.hnkjzyxy.ab.service.MenuService;
 import com.hnkjzyxy.ab.service.UserService;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -56,6 +58,7 @@ public class MenuController {
         List<Long> navMenu = userService.getNavMenu(user.getUserId());
         Collection<Menu> menus = menuService.listByIds(navMenu);
         List<Menu> collect = menuService.treeMenu(menus);
+        appendExamRecords(collect);
         String userAuthority = userService.getUserAuthority(user.getUserId());
         String[] auths = userAuthority.split(",");
         HashMap<String, Object> hashMap = new HashMap<>();
@@ -63,6 +66,27 @@ public class MenuController {
         hashMap.put("authList", auths);
         //返回权限和菜单列表
         return ApiResult.ok("data", hashMap);
+    }
+
+    /**
+     * 为已授权的开锁记录菜单添加考试操作记录入口，继承同一权限编码。
+     * 派生入口不写入菜单表，避免现有角色需要重新分配权限。
+     * @param menus 当前用户获授权的导航树
+     */
+    public static void appendExamRecords(List<Menu> menus) {
+        boolean exists = menus.stream().anyMatch(menu -> "examrecord".equalsIgnoreCase(menu.getComponent()));
+        List<Menu> additions = new ArrayList<>();
+        for (Menu menu : menus) {
+            if (menu.getChildren() != null) appendExamRecords(menu.getChildren());
+            if (!exists && "smartlockrecord".equalsIgnoreCase(menu.getComponent())) {
+                Menu record = new Menu(); BeanUtils.copyProperties(menu, record);
+                record.setMenuId(-100000 - menu.getMenuId()); record.setMenuName("考试操作记录");
+                record.setPath("/home/examrecord"); record.setComponent("examrecord");
+                record.setIcon("el-icon-document"); record.setChildren(new ArrayList<>());
+                additions.add(record); exists = true;
+            }
+        }
+        menus.addAll(additions);
     }
 
     /**

@@ -27,14 +27,15 @@ import org.springframework.transaction.annotation.AnnotationTransactionAttribute
 import org.springframework.transaction.interceptor.TransactionAttribute;
 import org.springframework.transaction.interceptor.TransactionInterceptor;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.web.multipart.MultipartFile;
 
-import javax.validation.Validation;
-import javax.validation.ValidatorFactory;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import javax.validation.Validation;
+import javax.validation.ValidatorFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -110,7 +111,7 @@ class StructureRefactorCompatibilityTest {
         AnnotationTransactionAttributeSource source = new AnnotationTransactionAttributeSource();
         TransactionAttribute transaction = source.getTransactionAttribute(
                 TaskExcelImportService.class.getMethod("readTaskExcel",
-                        org.springframework.web.multipart.MultipartFile.class, Integer.class),
+                        MultipartFile.class, Integer.class),
                 TaskExcelImportService.class);
         assertNotNull(transaction);
         assertEquals(TransactionDefinition.ISOLATION_READ_COMMITTED, transaction.getIsolationLevel());

@@ -1,5 +1,7 @@
 package com.hnkjzyxy.ab;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
@@ -10,9 +12,9 @@ import com.hnkjzyxy.ab.dto.ProjectAssessScope;
 import com.hnkjzyxy.ab.exception.AuthPermissionException;
 import com.hnkjzyxy.ab.exception.ProjectTaskException;
 import com.hnkjzyxy.ab.mapper.ProjectMapper;
-import com.hnkjzyxy.ab.mapper.UserRoleMapper;
 import com.hnkjzyxy.ab.mapper.ResultMapper;
 import com.hnkjzyxy.ab.mapper.UserMapper;
+import com.hnkjzyxy.ab.mapper.UserRoleMapper;
 import com.hnkjzyxy.ab.model.FlowTask;
 import com.hnkjzyxy.ab.model.Project;
 import com.hnkjzyxy.ab.model.User;
@@ -22,11 +24,27 @@ import com.hnkjzyxy.ab.service.ProjectService;
 import com.hnkjzyxy.ab.service.impl.ProjectServiceImpl;
 import com.hnkjzyxy.ab.service.utils.ProjectAssessScopeResolver;
 import com.hnkjzyxy.ab.vo.ProjectVo;
+import com.sun.management.ThreadMXBean;
+import org.apache.ibatis.executor.statement.StatementHandler;
+import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.plugin.Interceptor;
+import org.apache.ibatis.plugin.Intercepts;
+import org.apache.ibatis.plugin.Invocation;
+import org.apache.ibatis.plugin.Plugin;
+import org.apache.ibatis.plugin.Signature;
+import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
+import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.AdditionalAnswers;
+import org.mockito.stubbing.Answer;
 import org.mybatis.spring.SqlSessionTemplate;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -35,7 +53,10 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 import org.springframework.transaction.interceptor.TransactionInterceptor;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
@@ -46,6 +67,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.slf4j.Logger.ROOT_LOGGER_NAME;
 
 /**
  * 项目考核列表真实XML、JSON关系、筛选及事务快照验证
@@ -100,7 +122,7 @@ class ProjectAssessMapperTest {
     /**
      * 真实XML配置，用于生成带绑定参数的执行计划
      */
-    private static org.apache.ibatis.session.Configuration mappings;
+    private static Configuration mappings;
     /**
      * 仓库根目录
      */
@@ -141,7 +163,7 @@ class ProjectAssessMapperTest {
         factory.setDataSource(dataSource); factory.setConfiguration(config); factory.setGlobalConfig(global);
         factory.setPlugins(new PaginationInterceptor(), observer);
         factory.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath*:mapper/*.xml"));
-        org.apache.ibatis.session.SqlSessionFactory sqlFactory = factory.getObject();
+        SqlSessionFactory sqlFactory = factory.getObject();
         mappings = sqlFactory.getConfiguration();
         SqlSessionTemplate session = new SqlSessionTemplate(sqlFactory);
         projects = session.getMapper(ProjectMapper.class); roles = session.getMapper(UserRoleMapper.class);
@@ -370,9 +392,9 @@ class ProjectAssessMapperTest {
         ProjectMapper observed = mock(ProjectMapper.class, delegatesTo(projects));
         doAnswer(invocation -> {
             long total = projects.countAssessList(invocation.getArgument(0), invocation.getArgument(1));
-            assertTrue(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive());
             assertEquals(Connection.TRANSACTION_REPEATABLE_READ,
-                    org.springframework.transaction.support.TransactionSynchronizationManager.getCurrentTransactionIsolationLevel().intValue());
+                    TransactionSynchronizationManager.getCurrentTransactionIsolationLevel().intValue());
             try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
                 statement.executeUpdate("DELETE FROM sys_flow_task WHERE id=3");
                 statement.executeUpdate("UPDATE sys_result SET score=100 WHERE id=1");
@@ -391,8 +413,8 @@ class ProjectAssessMapperTest {
      * @param target 真实Mapper
      * @return 委托调用答案
      */
-    private static org.mockito.stubbing.Answer<Object> delegatesTo(Object target) {
-        return org.mockito.AdditionalAnswers.delegatesTo(target);
+    private static Answer<Object> delegatesTo(Object target) {
+        return AdditionalAnswers.delegatesTo(target);
     }
 
     /**
@@ -586,14 +608,14 @@ class ProjectAssessMapperTest {
      * @throws Exception 数据生成、执行计划或结果写入失败时抛出
      */
     @Test
-    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named = "PROJECT_ASSESS_PERF", matches = "true")
+    @EnabledIfEnvironmentVariable(named = "PROJECT_ASSESS_PERF", matches = "true")
     void measuresScaledPagesAndLegacyAllocation() throws Exception {
-        ((ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME))
-                .setLevel(ch.qos.logback.classic.Level.WARN);
+        ((Logger) LoggerFactory.getLogger(ROOT_LOGGER_NAME))
+                .setLevel(Level.WARN);
         List<String> report = new ArrayList<>();
         report.add("users,results,indexed,new_p50_ms,new_p95_ms,new_p99_ms,new_alloc_bytes,new_sql,legacy_ms,legacy_alloc_bytes,legacy_sql");
-        com.sun.management.ThreadMXBean memory = (com.sun.management.ThreadMXBean)
-                java.lang.management.ManagementFactory.getThreadMXBean();
+        ThreadMXBean memory = (ThreadMXBean)
+                ManagementFactory.getThreadMXBean();
         memory.setThreadAllocatedMemoryEnabled(true);
         for (int size : Arrays.asList(1000,10000,50000)) {
             if (size > 1000) executeIndexScript("t10-project-assess-indexes-rollback.sql");
@@ -703,8 +725,8 @@ class ProjectAssessMapperTest {
      * @return 全量组装后截取的首页
      */
     private static List<ProjectVo> legacyLeaderPage() {
-        org.springframework.transaction.support.TransactionTemplate transaction =
-                new org.springframework.transaction.support.TransactionTemplate(transactions);
+        TransactionTemplate transaction =
+                new TransactionTemplate(transactions);
         transaction.setReadOnly(true); transaction.setIsolationLevel(Connection.TRANSACTION_REPEATABLE_READ);
         return transaction.execute(status -> {
             roles.getRoleWeight(1);
@@ -742,11 +764,11 @@ class ProjectAssessMapperTest {
         Map<String,Object> arguments = new HashMap<>(); arguments.put("param",param);
         arguments.put("scope",new ProjectAssessScope(1,ProjectAssessScope.Type.ALL_RECIPIENTS));
         arguments.put("offset",0L); arguments.put("limit",param.getLimit());
-        org.apache.ibatis.mapping.MappedStatement statement = mappings.getMappedStatement(ProjectMapper.class.getName() + ".selectAssessListPage");
-        org.apache.ibatis.mapping.BoundSql bound = statement.getBoundSql(arguments);
+        MappedStatement statement = mappings.getMappedStatement(ProjectMapper.class.getName() + ".selectAssessListPage");
+        BoundSql bound = statement.getBoundSql(arguments);
         try (Connection connection = dataSource.getConnection();
              PreparedStatement explain = connection.prepareStatement("EXPLAIN FORMAT=JSON " + bound.getSql())) {
-            new org.apache.ibatis.scripting.defaults.DefaultParameterHandler(statement,arguments,bound).setParameters(explain);
+            new DefaultParameterHandler(statement,arguments,bound).setParameters(explain);
             try (ResultSet result = explain.executeQuery()) {
                 assertTrue(result.next());
                 Files.write(root.resolve("target/" + file), result.getString(1).getBytes(StandardCharsets.UTF_8));
@@ -757,9 +779,9 @@ class ProjectAssessMapperTest {
     /**
      * 观察真实MyBatis语句准备次数及数据页SQL，不替换执行行为
      */
-    @org.apache.ibatis.plugin.Intercepts(@org.apache.ibatis.plugin.Signature(type = org.apache.ibatis.executor.statement.StatementHandler.class,
+    @Intercepts(@Signature(type = StatementHandler.class,
             method = "prepare", args = {Connection.class, Integer.class}))
-    public static class SqlObserver implements org.apache.ibatis.plugin.Interceptor {
+    public static class SqlObserver implements Interceptor {
         /**
          * 本次采样的实际语句准备次数
          */
@@ -777,9 +799,9 @@ class ProjectAssessMapperTest {
          * @throws Throwable 原SQL执行异常
          */
         @Override
-        public Object intercept(org.apache.ibatis.plugin.Invocation invocation) throws Throwable {
+        public Object intercept(Invocation invocation) throws Throwable {
             count++;
-            String sql = ((org.apache.ibatis.executor.statement.StatementHandler) invocation.getTarget()).getBoundSql().getSql();
+            String sql = ((StatementHandler) invocation.getTarget()).getBoundSql().getSql();
             if (sql.contains("SELECT paged.*")) lastPageSql = sql;
             return invocation.proceed();
         }
@@ -792,7 +814,7 @@ class ProjectAssessMapperTest {
          */
         @Override
         public Object plugin(Object target) {
-            return org.apache.ibatis.plugin.Plugin.wrap(target,this);
+            return Plugin.wrap(target,this);
         }
 
         /**
